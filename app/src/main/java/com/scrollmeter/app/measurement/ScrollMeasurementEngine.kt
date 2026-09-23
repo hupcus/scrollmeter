@@ -1,6 +1,11 @@
 package com.scrollmeter.app.measurement
 
 /**
+ * Accessibility scroll delta represents content scroll displacement,
+ * not the physical path travelled by the user's finger.
+ *
+ * Fling/inertial scrolling is intentionally included.
+ *
  * Turns one [ScrollSample] into one [MeasurementResult] (spec §63):
  * validator → fallback tracker → physical scale → distance calculator → outlier check.
  *

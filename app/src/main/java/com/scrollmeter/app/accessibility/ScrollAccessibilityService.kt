@@ -18,6 +18,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 
 /**
+ * Do not expand requested accessibility capabilities without a
+ * documented product need and privacy/policy review.
+ *
  * Receives only `TYPE_VIEW_SCROLLED` (res/xml/accessibility_service_config.xml) with
  * `canRetrieveWindowContent="false"`: it cannot read screen content and does not try.
  *

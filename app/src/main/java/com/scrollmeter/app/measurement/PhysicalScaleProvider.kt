@@ -15,9 +15,11 @@ data class PhysicalScale(
  * Picks the px → mm scale. Phase 1 knows only the display's own `xdpi`/`ydpi` (spec §9); the
  * manual card calibration takes precedence from Phase 2 on (spec §8).
  *
- * `densityDpi` is Android's *logical* UI density and is not the panel's physical PPI (on the
- * test phone it is 480 against a physical ~402, which would under-measure by 16 %). It is used
- * only when both `xdpi` and `ydpi` are implausible, and then with LOW confidence.
+ * densityDpi is logical Android UI density and is not used as the
+ * primary physical-distance conversion.
+ *
+ * (On the test phone it is 480 against a physical ~402 dpi, which would under-measure by 16 %.)
+ * It is used only when both `xdpi` and `ydpi` are implausible, and then with LOW confidence.
  */
 object PhysicalScaleProvider {
     fun fromDisplayMetrics(xdpi: Double, ydpi: Double, densityDpi: Int): PhysicalScale {
