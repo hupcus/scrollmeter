@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ScrollMeter</string>
-    <string name="bootstrap_title">ScrollMeter</string>
-    <string name="bootstrap_body">Kostra aplikace je připravená. Měření přijde v další fázi.</string>
+
+    <string name="accessibility_service_label">ScrollMeter — měření scrollování</string>
+    <string name="accessibility_service_description">ScrollMeter měří, o kolik se při scrollování posune obsah na displeji, a převádí to na metry. Služba přijímá jen události scrollování: čísla o posunu a název aplikace. Nečte text, zprávy ani obsah obrazovky, nic neovládá a data nikam neposílá — aplikace nemá přístup k internetu.</string>
+
+    <string name="home_subtitle">Prototyp měření (fáze 1)</string>
+    <string name="home_status_on">Měření je zapnuté</string>
+    <string name="home_status_on_body">Služba přijímá jen události scrollování.</string>
+    <string name="home_status_not_running">Měření je povolené, ale služba neběží</string>
+    <string name="home_status_not_running_body">Vypni službu ScrollMeter v nastavení Usnadnění a znovu ji zapni.</string>
+    <string name="home_status_off">Měření je vypnuté</string>
+    <string name="home_status_off_body">Zapni službu ScrollMeter v nastavení Usnadnění.</string>
+    <string name="home_enable_button">Zapnout měření</string>
+    <string name="home_settings_button">Otevřít nastavení Usnadnění</string>
+    <string name="home_live_title">Od spuštění služby</string>
+    <string name="home_live_events">%1$s započtených událostí z %2$s</string>
+    <string name="home_live_note">Jen v paměti — ukládání přijde v další fázi.</string>
+    <string name="home_devtools_title">Vývojářské nástroje</string>
 </resources>

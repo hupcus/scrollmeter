@@ -31,3 +31,7 @@ captures/
 
 # Test / tool outputs
 tools/out/
+
+# Python
+__pycache__/
+*.pyc

@@ -8,14 +8,19 @@ One `AccessibilityService`, `com.scrollmeter.app.accessibility.ScrollAccessibili
 <accessibility-service
     android:accessibilityEventTypes="typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault"
     android:notificationTimeout="0"
     android:canRetrieveWindowContent="false"
     android:isAccessibilityTool="false"
     android:description="@string/accessibility_service_description" />
 ```
 
+The `<service>` is `android:exported="false"` and protected by `android.permission.BIND_ACCESSIBILITY_SERVICE`
+(ADR-018): only the system binds it.
+
 - Event type: `TYPE_VIEW_SCROLLED` only.
-- Fields read: `eventTime`, `packageName`, `windowId`, `className`, `scrollDeltaX`, `scrollDeltaY`, `scrollX`, `scrollY`.
+- Fields read: `eventTime`, `packageName`, `windowId`, `className`, `scrollDeltaX`, `scrollDeltaY`, `scrollX`, `scrollY`,
+  `maxScrollX`, `maxScrollY` — in `AccessibilityEventParser`, the only class that touches `AccessibilityEvent`.
 - Stored: aggregated distance and counters per day and package; in debug builds a RAM ring buffer of the fields above.
 
 ## What we never do
@@ -27,10 +32,16 @@ One `AccessibilityService`, `com.scrollmeter.app.accessibility.ScrollAccessibili
 - Take screenshots, run OCR, draw overlays, block apps, intercept touches.
 - Request `INTERNET`, `QUERY_ALL_PACKAGES` or any storage permission.
 
-A JVM test (`PolicyGuardTest`) fails the build if any of the forbidden APIs or manifest entries appear in the sources.
+Two guards fail CI:
+- `PolicyGuardTest` (JVM) — forbidden APIs, flags and manifest entries in the app's own sources (Kotlin, Java,
+  XML; comments ignored, string literals kept), content reads or runtime `setServiceInfo` in any file touching
+  accessibility types, and the XML pins of the service config.
+- `tools/check_manifest_policy.py` — the **merged** debug and release manifests, so a permission a library
+  adds is caught too; release must carry no debug `FileProvider`.
 
 `Do not expand requested accessibility capabilities without a documented product need and privacy/policy review.`
-(the comment lives above the service class; ADR-013 records the only open question, Chrome/WebView coverage).
+(the comment lives above the service class; ADR-013 — Chrome/WebView coverage — was settled by measurement: the
+flag stays `false`).
 
 ## Why minimal
 

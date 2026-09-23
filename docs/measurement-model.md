@@ -14,15 +14,17 @@ Product copy therefore says „Dnes jsi nascrolloval 428 metrů", never „tvůj
 ## Source of data
 
 `AccessibilityService` subscribed to `TYPE_VIEW_SCROLLED` only. Per event we read:
-`eventTime`, `packageName`, `windowId`, `className`, `scrollDeltaX`, `scrollDeltaY`, `scrollX`, `scrollY`.
+`eventTime`, `packageName`, `windowId`, `className`, `scrollDeltaX`, `scrollDeltaY`, `scrollX`, `scrollY`,
+`maxScrollX`, `maxScrollY`.
 Nothing else — no text, no node tree, no content description.
 
 Priority of sources per event:
 
 | Source | Rule | Counted as |
 |---|---|---|
-| A `DIRECT_DELTA` | `scrollDeltaX` or `scrollDeltaY` ≠ 0 → use them | `measuredEventCount` |
-| B `FALLBACK_POSITION` | both deltas 0 → `dx = scrollX − prevScrollX`, `dy = scrollY − prevScrollY`, only if previous event has the same `packageName + windowId + className`, the gap is ≤ `FALLBACK_MAX_GAP_MS` (2 s), both positions look valid (≥ 0) and the result passes the outlier check | `fallbackEventCount` |
+| A `DIRECT_DELTA` | `scrollDeltaX` or `scrollDeltaY` ≠ 0, and not both `-1` (Android's UNDEFINED, ADR-014) → use them | `measuredEventCount` |
+| B `FALLBACK_POSITION` | deltas (0, 0) or (-1, -1) → `dx = scrollX − prevScrollX`, `dy = scrollY − prevScrollY`, only if previous event has the same `packageName + windowId + className` + reported axes, the gap is ≤ `FALLBACK_MAX_GAP_MS` (2 s), both positions look valid (≥ 0 and ≤ a positive `maxScrollX/Y`), the position changed, and the jump is within the outlier limit (ADR-015). A Compose lazy-list position (`maxScroll − scroll == 100`) is an index estimate and never used (ADR-019) | `fallbackEventCount` |
+| `SUPERSEDED_BY_DIRECT` | a valid fallback while **another view class of the same package** sent a direct delta within 5 s — the same motion reported by a second stream (Chrome) → not counted, kept in the debug CSV (ADR-020) | not counted |
 | C `UNMEASURABLE` | no usable pixel data → distance 0. `fromIndex` / `toIndex` / item counts are **never** converted to distance | `unmeasurableEventCount` |
 | `OUTLIER_REJECTED` | `hypot(dx, dy) > MAX_EVENT_DISTANCE_FACTOR × screenDiagonalPx` (4 ×) → event not added; no clipping | `rejectedOutlierCount` |
 | `EXCLUDED` | `packageName == null`, own package (outside test mode) or user-excluded package | not stored |
@@ -72,18 +74,25 @@ valid at the time and carry `calibrationVersion` (ADR-007).
 Off by default (ADR-006). Candidate rule, to be validated against debug CSVs in Phase 1:
 same `packageName`, same `windowId`, same `dx`, same `dy`, `|Δt| ≤ DEDUP_WINDOW_MS` (5 ms).
 
-## Expected Android mechanics — to verify in Phase 1
+A different kind of duplicate turned up in Chrome: one scroll reported by two streams of different shape
+(deltas from a `FrameLayout`, positions from the `WebView` node). The rule above cannot see it; ADR-020 handles
+it by letting direct deltas supersede another class's fallback.
 
-These are expectations from the framework sources, not measurements. Phase 1 confirms or corrects them in
-`docs/accuracy-testing.md`.
+## Android mechanics — measured in Phase 1
 
-- Classic `View` (incl. `RecyclerView`, `ScrollView`, `ListView`): `View.onScrollChanged()` accumulates
-  `dx/dy` in `SendViewScrolledAccessibilityEvent` and posts one `TYPE_VIEW_SCROLLED` per
-  `ViewConfiguration.getSendRecurringAccessibilityEventsInterval()` (~100 ms) with `scrollDeltaX/Y` set
-  (API 28+). `RecyclerView` reports real deltas while its `scrollX/scrollY` stay 0 → source A works, B does not.
-- Jetpack Compose (`LazyColumn`, `LazyRow`, `verticalScroll`): `AndroidComposeView`'s accessibility delegate
-  sends `TYPE_VIEW_SCROLLED` from semantics scroll-range changes with `scrollDeltaX/Y` set.
-- Chrome / `WebView`: scrolling is compositor-driven; scroll events come from `WebContentsAccessibility`,
-  which may only activate for services with `canRetrieveWindowContent` / richer flags (risk R2, ADR-013).
-- Android 14+: views can be flagged `accessibilityDataSensitive`; a service with `isAccessibilityTool=false`
-  will not see their events. Such apps are reported as limited/unsupported, never worked around.
+Measured on the test phone (OnePlus CPH2399, Android 14) with the debug test list and Chrome; numbers in
+`docs/accuracy-testing.md`. ✅ = the expectation from the framework sources held, ✏️ = corrected by measurement.
+
+- ✅ Classic `View` (`ScrollView`, `HorizontalScrollView`, `RecyclerView` in Settings): one `TYPE_VIEW_SCROLLED`
+  per ~100 ms with `scrollDeltaX/Y` set; `RecyclerView` keeps `scrollX/Y` at 0. Source A, error 0.00–0.45 %
+  against ground truth, flings included.
+- ✏️ Jetpack Compose (foundation 1.11.4) sends `TYPE_VIEW_SCROLLED` **without** deltas (-1, -1).
+  `verticalScroll`/`horizontalScroll` report exact positions → source B, 0.2–6.2 % *under*, MAPE 3.1 % (the first
+  event of a gesture after > 2 s idle has nothing to diff against — spec §6 B's gap rule). `LazyColumn`/`LazyRow` report an index estimate
+  → UNMEASURABLE by design (ADR-019).
+- ✏️ Without `canRetrieveWindowContent` every event has `windowId = -1` — the fallback key carries the axes
+  instead (ADR-015).
+- ✏️ Chrome emits scroll events **without** `canRetrieveWindowContent` (ADR-013 stays `false`): direct deltas
+  from a `FrameLayout` and positions from the `WebView` node for the same scroll (ADR-020). What is counted is
+  the page's scroll offset: the 168 px the toolbar needs to hide and the 24 px touch slop are not part of it.
+- ⏳ Android 14+ `accessibilityDataSensitive` views and in-app browsers — checked in the manual app run.
