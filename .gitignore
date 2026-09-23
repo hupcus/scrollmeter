@@ -1,0 +1,33 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+.kotlin/
+
+# Machine-specific
+local.properties
+.env
+.env.*
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Android artefacts
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing — never in git
+*.jks
+*.keystore
+
+# Test / tool outputs
+tools/out/
