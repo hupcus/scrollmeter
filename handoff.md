@@ -36,7 +36,7 @@
 
 | Fáze | Stav | Větev / PR | Poznámka |
 |---|---|---|---|
-| 0 Bootstrap | PR otevřený, čeká na merge | `phase-0-bootstrap` | build/test/lint zelené lokálně; instalace na telefon viz otevřené body |
+| 0 Bootstrap | PR otevřený, čeká na merge | `phase-0-bootstrap` / [#1](https://github.com/hupcus/scrollmeter/pull/1) | build/test/lint zelené lokálně i v CI; `installDebug` + spuštění na OnePlus OK |
 | 1 Measurement POC | nezačato | — | brána GO/NO-GO |
 | 2 Kalibrace | nezačato | — | |
 | 3 Persistence | nezačato | — | |
@@ -48,7 +48,7 @@
 
 ## Otevřené body
 
-- [ ] **Phase 0 on-device check:** při dokončení Phase 0 nebyl telefon připojený přes USB (`adb devices` prázdné, v `system_profiler` není) → `installDebug` + spuštění + screenshot doběhnou, jakmile bude připojený.
+- [ ] **OnePlus blokuje `settings put` přes adb** (`WRITE_SECURE_SETTINGS` denied — ColorOS „sledování oprávnění“). Bez vypnutí v Možnostech pro vývojáře (**Vypnout sledování oprávnění** / *Disable permission monitoring*) nepůjde zapnout službu přes adb (příkazy v `CLAUDE.md`) → náhradní cesta: ručně v Nastavení → Usnadnění. Zjištěno 2026-09-23 při pokusu o `stay_on_while_plugged_in`.
 - [ ] Přenos dat na nový telefon (device-to-device): `allowBackup="false"` vypíná cloud backup, D2D transfer zůstává na výchozím chování platformy — rozhodnout v Phase 6 (export/nastavení).
 - [ ] Reddit nainstalovat na testovací telefon (Honza) — je v DoD Phase 1.
 - [ ] R2: chová se Chrome bez `canRetrieveWindowContent`? Změří Phase 1; rozhodnutí Honzovo.
@@ -65,7 +65,8 @@
 - `android:allowBackup="false"`: lokální aplikace nemá posílat data do Google cloud backupu (SPEC §29 duch „žádný cloud"). Lint `DataExtractionRules` vypnutý v `app/lint.xml` — `allowBackup=false` to na všech podporovaných API pokrývá.
 - `app/lint.xml` vypíná `GradleDependency` / `NewerVersionAvailable` / `AndroidGradlePluginVersion`: verze jsou pinované záměrně, bump = záznam tady. Lint report je jinak čistý (0 issues), `abortOnError` zůstává výchozí (true).
 - Merged manifest: žádná `uses-permission` kromě `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` (signature-level, přidává ji androidx.core). Exportované: `MainActivity` (launcher), `ProfileInstallReceiver` (chráněný `android.permission.DUMP`), v debugu navíc `PreviewActivity` z ui-tooling.
-- CI: `.github/workflows/ci.yml` — Temurin 21, wrapper-validation, setup-gradle, `./gradlew testDebugUnitTest lintDebug assembleDebug`.
+- CI: `.github/workflows/ci.yml` — Temurin 21, wrapper-validation, setup-gradle, `./gradlew testDebugUnitTest lintDebug assembleDebug` (~4 min). Bez `android-actions/setup-android@v3` — padal na odstraněném balíčku `tools`; runner má SDK předinstalované.
+- On-device: `installDebug` na CPH2399 OK, `am start -W` → `Status: ok`, TotalTime 1121 ms, žádný crash v logcatu; screenshot ověřený subagentem (správný text s diakritikou, obsah pod status barem, tmavé téma přes dynamic color).
 
 ### 2026-09-23 — založení projektu (Fable 5.1)
 - Projekt založen ze zadání `docs/SPEC.md` v1.0. Plán `PLAN.md`, hotová rozhodnutí D1–D18 (PLAN §1), ADR-001…ADR-012 v `docs/measurement-decisions.md`.
