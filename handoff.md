@@ -37,7 +37,7 @@
 | Fáze | Stav | Větev / PR | Poznámka |
 |---|---|---|---|
 | 0 Bootstrap | hotovo, mergnuto (tag `v0.0`) | `phase-0-bootstrap` / [#1](https://github.com/hupcus/scrollmeter/pull/1) | build/test/lint zelené lokálně i v CI; `installDebug` + spuštění na OnePlus OK |
-| 1 Measurement POC | exit report hotový, **čeká na GO** | `phase-1-measurement-poc` / [#2](https://github.com/hupcus/scrollmeter/pull/2) | verdikt níže: podmíněné GO |
+| 1 Measurement POC | **GO (Honza, 2026-09-23)** | `phase-1-measurement-poc` / [#2](https://github.com/hupcus/scrollmeter/pull/2) | bez doměření Instagramu / TikToku — přijaté riziko |
 | 2 Kalibrace | nezačato | — | |
 | 3 Persistence | nezačato | — | |
 | 4 Dashboard | nezačato | — | |
@@ -62,7 +62,9 @@ Funguje Facebook včetně in-app prohlížeče, Chrome, Edge, Google Mapy a Nast
 
 Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
 
-**Doporučení:** před Phase 2 doměřit Instagram a TikTok s účtem (15 min, stejný postup, README krok 5–6). Pokud se chovají jako YouTube (mlčí), je to NO-GO pro produkt v téhle podobě. Pokud hlásí delty jako Facebook, pak GO.
+**Doporučení bylo:** před Phase 2 doměřit Instagram a TikTok s účtem.
+
+**Rozhodnutí (Honza, 2026-09-23): GO bez doměření** — „věřím, že to bude fungovat“. Přijaté riziko: kdyby Instagram nebo TikTok mlčely jako YouTube, ukáže se to až při prvním reálném používání. Ověřit je při první příležitosti s účtem, nejpozději v Phase 5 (seznam aplikací).
 
 | Aplikace | Výsledek | Stav |
 |---|---|---|
@@ -96,7 +98,7 @@ Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
 
 - [x] **OnePlus blokoval `settings put` přes adb** (`WRITE_SECURE_SETTINGS` denied — ColorOS „sledování oprávnění“). Vyřešeno 2026-09-23: Možnosti pro vývojáře → úplně dole **„Zakázat sledování oprávnění“** zapnuto (bez restartu), `settings put` funguje. Zároveň zapnuto „Při dobíjení nevypínat obrazovku“ (`stay_on_while_plugged_in=7`). Po resetu telefonu / aktualizaci OS zkontrolovat znovu.
 - [ ] Přenos dat na nový telefon (device-to-device): `allowBackup="false"` vypíná cloud backup, D2D transfer zůstává na výchozím chování platformy — rozhodnout v Phase 6 (export/nastavení).
-- [ ] **Instagram + TikTok (+ X, Reddit) doměřit s účtem** — podmínka GO (exit report výše). Reddit na telefonu chybí.
+- [ ] **Instagram + TikTok (+ X, Reddit) doměřit s účtem** — GO dané bez nich (přijaté riziko); ověřit při první příležitosti, nejpozději v Phase 5. Reddit na telefonu chybí.
 - [ ] YouTube mlčí (ADR-013 poznámka). Sledovat, jestli se chování změní s novou verzí YouTube; jinak „unsupported" v Phase 5 seznamu aplikací.
 - [ ] Compose lazy seznamy neměřitelné (ADR-019) — přibývá jich. Hledat zdroj bez čtení obsahu až po GO (backlog).
 - [ ] Launcher počítat do součtu, nebo vyloučit? (Phase 5/6, výchozí výluky)
