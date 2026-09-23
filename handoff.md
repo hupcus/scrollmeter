@@ -38,8 +38,8 @@
 |---|---|---|---|
 | 0 Bootstrap | hotovo, mergnuto (tag `v0.0`) | `phase-0-bootstrap` / [#1](https://github.com/hupcus/scrollmeter/pull/1) | build/test/lint zelené lokálně i v CI; `installDebug` + spuštění na OnePlus OK |
 | 1 Measurement POC | **GO (Honza, 2026-09-23)** | `phase-1-measurement-poc` / [#2](https://github.com/hupcus/scrollmeter/pull/2) | bez doměření Instagramu / TikToku — přijaté riziko |
-| 2 Kalibrace | nezačato | — | |
-| 3 Persistence | nezačato | — | |
+| 2 Kalibrace | nezačato — **další na řadě** | — | prompt: `docs/prompts/continue-next-phase.md` |
+| 3 Persistence | nezačato | — | + čas v aplikaci (D19) |
 | 4 Dashboard | nezačato | — | |
 | 5 Historie + Aplikace | nezačato | — | |
 | 6 Export + Nastavení | nezačato | — | |
@@ -107,11 +107,30 @@ Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
 - [ ] Služba nemá instrumentovaný test životního cyklu (reconnect, `onUnbind`) — zbytkové riziko do Phase 3, kdy začne zapisovat do Room.
 - [ ] Debug CSV export leží v app-specific external storage — na API 28/29 čitelný aplikacemi s `READ_EXTERNAL_STORAGE`. Jen debug, testovací telefon je API 34; přijato.
 - [x] R2: Chrome bez `canRetrieveWindowContent` hlásí — ADR-013 uzavřeno (2026-09-23).
+- [ ] **Čas v aplikaci (D19, ADR-021/022)** — naplánováno do Phase 3–8 podle Honzova přání „kolik času a kolik metrů v které aplikaci". Výchozí volby (Honza může změnit):
+  - funkce je volitelná, nabízí se v onboardingu (krok 6), na kartě dashboardu a v Nastavení,
+  - YouTube a další aplikace s časem, ale bez scrollu se ukazují s „—",
+  - tempo m/min se počítá z času v aplikaci, když je oprávnění, jinak z času scrollování; vždy je u něj popsané, ze kterého,
+  - vlastní aplikace a launcher se vylučují i z času,
+  - žádný WorkManager.
+  **Otevřené pro Honzu:**
+  - tagline SPEC §55 „Metry místo minut" → nechat, nebo „metry i minuty"? Rozhodne se ve Phase 7.
+  - denní pojistný sync přes WorkManager pro někoho, kdo 10+ dní neotevře aplikaci? Návrh: ne.
+- [ ] Tagy: fáze se tagují `v0.N` (v0.0, v0.1 …), ale Phase 8 plánuje release tag `v0.1.0` — kolize názvů, přejmenovat release tag (např. `v1.0.0-rc1`) nejpozději ve Phase 8.
+- [ ] Na testovacím telefonu běží debug služba a každý scroll zapisuje do `files/debug/recording.csv` (roste, dokud se služba nevypne; ScrollMeter → Debug měření → Vymazat soubor smaže).
 - [ ] Emulátory: ověřit, že pro API 28 existuje arm64 systémový obraz (`sdkmanager --list | grep android-28`).
 - [ ] Ikona a barva aplikace — až Phase 4 (SPEC §42 nechává na implementaci).
 - [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-23 — plán: čas v aplikaci (Opus 5.5, návrh Fable 5.1)
+- Honza chce kompletní dashboard: kolik času a kolik metrů v které aplikaci. Prověřeno z primárních zdrojů (AOSP, Google Play policy):
+  - `UsageStatsManager` + volitelné `PACKAGE_USAGE_STATS`; Google Play pro ně nemá deklarační formulář, platí prominent disclosure,
+  - systém drží eventy ~10 dní, proto vlastní denní snapshot,
+  - `TYPE_WINDOW_STATE_CHANGED` zamítnut, protože by rozšířil službu Usnadnění.
+- Zapsáno: PLAN D19 + rozsah a DoD ve Phase 3–8, riziko R10, ADR-021 (čas v aplikaci), ADR-022 (čas scrollování, SPEC §50), `docs/accessibility-policy.md`.
+- Merge Phase 1 (PR #2 → `6f02b25`, tag `v0.1`) po Honzově „go".
 
 ### 2026-09-23 — Phase 1 measurement POC (Opus 5.5)
 - Engine podle SPEC §6: přímé delty → fallback z polohy → bez dat. Nová rozhodnutí z měření na telefonu:
@@ -150,4 +169,4 @@ Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
 
 ## Jak navázat
 
-Nová session: přečti `CLAUDE.md`, tenhle soubor (stav fází + otevřené body) a fázi v `PLAN.md`, na které se pokračuje. Kickoff prompt pro Phase 0+1 je v `docs/prompts/kickoff-phase-0-1.md`.
+Nová session: vlož prompt z `docs/prompts/continue-next-phase.md` — přečte `CLAUDE.md`, tenhle soubor a první nedokončenou fázi z `PLAN.md` a jede fázi po fázi s „mergni?“ na konci každé. Historický kickoff Phase 0+1: `docs/prompts/kickoff-phase-0-1.md`.
