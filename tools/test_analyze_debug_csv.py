@@ -38,6 +38,11 @@ class AnalyzeDebugCsvTest(unittest.TestCase):
         self.assertAlmostEqual(export.max_event_px, 10527.2)
         self.assertEqual(len(export.rows), 7)
 
+    def test_a_truncated_last_line_is_skipped(self):
+        with self.csv.open("a", encoding="utf-8") as handle:
+            handle.write("2026-09-23T10:00:00.500,1500,com.a,5\n")
+        self.assertEqual(len(tool.read_export(self.csv).rows), 7)
+
     def test_per_app_counts_and_coverage(self):
         _, apps = tool.collect([Path(self.dir.name)])
         a, b = apps["com.a"], apps["com.b"]

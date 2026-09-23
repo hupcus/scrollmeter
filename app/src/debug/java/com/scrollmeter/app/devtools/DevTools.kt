@@ -4,6 +4,7 @@ import android.content.Intent
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
 import com.scrollmeter.app.measurement.MeasurementSink
+import java.io.File
 
 /** Debug build: the event log, logcat, and the two developer screens (spec §34, §35). */
 object DevTools {
@@ -13,7 +14,10 @@ object DevTools {
     /** One log per process, shared by the service (writer) and the debug screen (reader). */
     fun eventLog(graph: AppGraph): DebugEventLog =
         eventLog ?: synchronized(this) {
-            eventLog ?: DebugEventLog(graph.ownPackage).also { eventLog = it }
+            eventLog ?: DebugEventLog(
+                graph.ownPackage,
+                file = DebugRecordingFile(File(graph.appContext.filesDir, "debug/recording.csv")),
+            ).also { eventLog = it }
         }
 
     val entries: List<DevToolEntry> = listOf(

@@ -99,7 +99,8 @@ fun DebugMeasurementScreen(graph: AppGraph, log: DebugEventLog, onBack: () -> Un
                 "Událostí ${counts.total} · přímé ${by[MeasurementSource.DIRECT_DELTA] ?: 0} · fallback " +
                     "${by[MeasurementSource.FALLBACK_POSITION] ?: 0} · duplicitní ${by[MeasurementSource.SUPERSEDED_BY_DIRECT] ?: 0} · bez dat ${by[MeasurementSource.UNMEASURABLE] ?: 0} · " +
                     "outlier ${by[MeasurementSource.OUTLIER_REJECTED] ?: 0} · vyloučené ${by[MeasurementSource.EXCLUDED] ?: 0} · " +
-                    "v paměti ${counts.recorded}" + if (counts.overflowed > 0) " (přeteklo ${counts.overflowed})" else "",
+                    "v paměti ${counts.recorded}" + (if (counts.overflowed > 0) " (přeteklo ${counts.overflowed})" else "") +
+                    " · v souboru ${counts.persisted}" + if (counts.persistFailures > 0) " (chyby zápisu ${counts.persistFailures})" else "",
                 style = small,
             )
             Row(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

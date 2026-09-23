@@ -121,6 +121,7 @@ def read_export(path: Path) -> Export:
                 source=r["source"],
             )
             for r in csv.DictReader(handle)
+            if None not in r.values()  # a line cut short when the phone killed the app mid-write
         ]
     return Export(path, header, rows)
 

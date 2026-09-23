@@ -9,13 +9,21 @@ import com.scrollmeter.app.measurement.OWN_PACKAGE
 import com.scrollmeter.app.measurement.ScrollMeasurementEngine
 import com.scrollmeter.app.measurement.TestPhone
 import com.scrollmeter.app.measurement.sample
+import java.io.File
 import java.time.ZoneOffset
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 /** Debug-only event log and CSV (spec §34, §70). Lives in testDebug because the classes are debug-only. */
 class DebugToolsTest {
     private val engine = ScrollMeasurementEngine(OWN_PACKAGE, MeasurementSettings(), TestPhone.display)
     private val display = DisplaySnapshot(TestPhone.WIDTH_PX, TestPhone.HEIGHT_PX, TestPhone.XDPI, TestPhone.YDPI, TestPhone.DENSITY_DPI)
+
+    @get:Rule
+    val tmp = TemporaryFolder()
+
+    private fun recordingFile() = DebugRecordingFile(File(tmp.root, "debug/recording.csv"))
 
     private fun result(dy: Int, pkg: String? = "com.example.feed", uptimeMs: Long = 0): MeasurementResult =
         engine.process(sample(dy = dy, packageName = pkg, uptimeMs = uptimeMs))
@@ -68,6 +76,38 @@ class DebugToolsTest {
         assertThat(lines[2]).contains(",1200,")
         assertThat(lines[2]).endsWith("DIRECT_DELTA,accepted")
         assertThat(lines[3]).endsWith("OUTLIER_REJECTED,rejected")
+    }
+
+    /** ColorOS kills the process under memory pressure; the next process must continue the same run. */
+    @Test
+    fun recordingFileCarriesTheRunAcrossANewProcess() {
+        val first = DebugEventLog(OWN_PACKAGE, file = recordingFile())
+        listOf(100, 200, 300).forEach { first.onResult(result(dy = it)) }
+
+        val second = DebugEventLog(OWN_PACKAGE, file = recordingFile())
+        assertThat(second.counts.value.persisted).isEqualTo(3)
+        assertThat(second.counts.value.recorded).isEqualTo(0) // RAM starts empty
+        second.onResult(result(dy = 400))
+        val rows = second.exportRows()
+        assertThat(rows).hasSize(4)
+        assertThat(rows.map { it.split(',')[6] }).containsExactly("100", "200", "300", "400").inOrder()
+
+        second.clear()
+        assertThat(second.exportRows()).isEmpty()
+        assertThat(recordingFile().rowCount).isEqualTo(0)
+    }
+
+    @Test
+    fun aRowCutShortByAKillIsDroppedOnRead() {
+        val file = File(tmp.root, "debug/recording.csv").apply { parentFile.mkdirs() }
+        file.writeText(DebugCsv.COLUMNS + "\n" + DebugCsv.row(result(dy = 100)) + "\n" + "2026-09-23T21:47:32.465,1000,com.a,5\n")
+        assertThat(DebugRecordingFile(file).readRows()).hasSize(1)
+    }
+
+    @Test
+    fun exportFromRowsNamesTheDominantApp() {
+        val rows = listOf(result(dy = 1, pkg = "a.b"), result(dy = 2, pkg = "a.b"), result(dy = 3, pkg = "c.d")).map { DebugCsv.row(it) }
+        assertThat(DebugCsv.dominantPackageOfRows(rows, OWN_PACKAGE)).isEqualTo("a.b")
     }
 
     @Test

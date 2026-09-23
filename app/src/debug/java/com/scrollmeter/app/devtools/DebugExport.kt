@@ -19,13 +19,13 @@ object DebugExport {
     private val fileTime = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT)
 
     fun write(context: Context, graph: AppGraph, log: DebugEventLog): File {
-        val results = log.snapshot()
+        val rows = log.exportRows()
         val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "debug").apply { mkdirs() }
-        val app = DebugCsv.dominantPackage(results, graph.ownPackage)
+        val app = DebugCsv.dominantPackageOfRows(rows, graph.ownPackage)
         val file = File(dir, "scrollmeter-${fileTime.format(LocalDateTime.now())}-$app.csv")
         file.writeText(
-            DebugCsv.build(
-                results = results,
+            DebugCsv.document(
+                rows = rows,
                 display = graph.displayMetricsProvider.read(),
                 device = "${Build.MANUFACTURER} ${Build.MODEL} API${Build.VERSION.SDK_INT}",
                 appVersion = BuildConfig.VERSION_NAME,

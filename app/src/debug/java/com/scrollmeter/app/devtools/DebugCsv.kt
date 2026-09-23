@@ -24,6 +24,15 @@ object DebugCsv {
         appVersion: String,
         overflowed: Long,
         zone: ZoneId = ZoneId.systemDefault(),
+    ): String = document(results.map { row(it, zone) }, display, device, appVersion, overflowed)
+
+    /** Header line, column names and [rows] as produced by [row] — from RAM or from the recording file. */
+    fun document(
+        rows: List<String>,
+        display: DisplaySnapshot,
+        device: String,
+        appVersion: String,
+        overflowed: Long,
     ): String = buildString {
         val scale = display.toDisplayScale()
         appendLine(
@@ -35,25 +44,28 @@ object DebugCsv {
                 appVersion, device.replace(' ', '_'), display.widthPx, display.heightPx, display.xdpi,
                 display.ydpi, display.densityDpi, scale.scale.mmPerPxX, scale.scale.mmPerPxY,
                 scale.scale.method.name, scale.geometry.diagonalPx, scale.geometry.maxEventDistancePx,
-                results.size, overflowed,
+                rows.size, overflowed,
             ),
         )
         appendLine(COLUMNS)
-        for (r in results) {
-            val s = r.sample
-            append(timestampFormat.format(Instant.ofEpochMilli(s.wallTimeMs).atZone(zone))).append(',')
-            append(s.uptimeMs).append(',')
-            append(field(s.packageName)).append(',')
-            append(s.windowId).append(',')
-            append(field(s.className)).append(',')
-            append(s.deltaX).append(',').append(s.deltaY).append(',')
-            append(s.scrollX).append(',').append(s.scrollY).append(',')
-            append(s.maxScrollX).append(',').append(s.maxScrollY).append(',')
-            append(r.dxPx).append(',').append(r.dyPx).append(',')
-            append(String.format(Locale.ROOT, "%.4f", r.distance.totalMm)).append(',')
-            append(r.source.name).append(',')
-            append(if (r.accepted) "accepted" else "rejected").append('\n')
-        }
+        rows.forEach(::appendLine)
+    }
+
+    /** One event as one CSV line (no line break), in [COLUMNS] order. */
+    fun row(r: MeasurementResult, zone: ZoneId = ZoneId.systemDefault()): String = buildString {
+        val s = r.sample
+        append(timestampFormat.format(Instant.ofEpochMilli(s.wallTimeMs).atZone(zone))).append(',')
+        append(s.uptimeMs).append(',')
+        append(field(s.packageName)).append(',')
+        append(s.windowId).append(',')
+        append(field(s.className)).append(',')
+        append(s.deltaX).append(',').append(s.deltaY).append(',')
+        append(s.scrollX).append(',').append(s.scrollY).append(',')
+        append(s.maxScrollX).append(',').append(s.maxScrollY).append(',')
+        append(r.dxPx).append(',').append(r.dyPx).append(',')
+        append(String.format(Locale.ROOT, "%.4f", r.distance.totalMm)).append(',')
+        append(r.source.name).append(',')
+        append(if (r.accepted) "accepted" else "rejected")
     }
 
     /**
@@ -68,8 +80,15 @@ object DebugCsv {
 
     /** The package with the most events — names the export file after the app just tested. */
     fun dominantPackage(results: List<MeasurementResult>, ownPackage: String): String =
-        results.mapNotNull { it.sample.packageName }
-            .filter { it != ownPackage }
+        dominantOf(results.mapNotNull { it.sample.packageName }, ownPackage)
+
+    /** Same for [row] lines: the package is the third field, and neither field before it can hold a comma. */
+    fun dominantPackageOfRows(rows: List<String>, ownPackage: String): String =
+        dominantOf(rows.mapNotNull { it.split(',').getOrNull(2) }, ownPackage)
+
+    private fun dominantOf(packages: List<String>, ownPackage: String): String =
+        packages
+            .filter { it.isNotEmpty() && it != ownPackage }
             .groupingBy { it }.eachCount()
             .maxByOrNull { it.value }?.key
             ?: "none"
