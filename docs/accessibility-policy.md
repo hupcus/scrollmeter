@@ -32,10 +32,16 @@ The `<service>` is `android:exported="false"` and protected by `android.permissi
 - Take screenshots, run OCR, draw overlays, block apps, intercept touches.
 - Request `INTERNET`, `QUERY_ALL_PACKAGES` or any storage permission.
 
-A JVM test (`PolicyGuardTest`) fails the build if any of the forbidden APIs or manifest entries appear in the sources.
+Two guards fail CI:
+- `PolicyGuardTest` (JVM) — forbidden APIs, flags and manifest entries in the app's own sources (Kotlin, Java,
+  XML; comments ignored, string literals kept), content reads or runtime `setServiceInfo` in any file touching
+  accessibility types, and the XML pins of the service config.
+- `tools/check_manifest_policy.py` — the **merged** debug and release manifests, so a permission a library
+  adds is caught too; release must carry no debug `FileProvider`.
 
 `Do not expand requested accessibility capabilities without a documented product need and privacy/policy review.`
-(the comment lives above the service class; ADR-013 records the only open question, Chrome/WebView coverage).
+(the comment lives above the service class; ADR-013 — Chrome/WebView coverage — was settled by measurement: the
+flag stays `false`).
 
 ## Why minimal
 

@@ -1,5 +1,6 @@
 package com.scrollmeter.app.policy
 
+import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
@@ -8,7 +9,8 @@ import org.junit.Test
 /**
  * Fails the build when a source change widens what ScrollMeter reads or may do (CLAUDE.md hard
  * rules, spec §5, §29). Scans the app's source sets (main, debug, release) as text — not the
- * tests, which have to name the forbidden things to forbid them.
+ * tests, which have to name the forbidden things to forbid them. What the build pulls in from
+ * libraries is checked on the merged manifests by tools/check_manifest_policy.py in CI.
  *
  * Relaxing any rule here needs an ADR in docs/measurement-decisions.md and Honza's explicit OK.
  */
@@ -16,7 +18,7 @@ class PolicyGuardTest {
     private val appDir: File = listOf(File("src"), File("app/src")).first { it.isDirectory }.parentFile ?: File(".")
     private val sourceSets = listOf("main", "debug", "release").map { File(appDir, "src/$it") }.filter { it.isDirectory }
     private val sources: List<File> = sourceSets.flatMap { set ->
-        set.walkTopDown().filter { it.isFile && (it.extension == "kt" || it.extension == "xml") }.toList()
+        set.walkTopDown().filter { it.isFile && it.extension in setOf("kt", "java", "xml") }.toList()
     }
 
     @Test
@@ -45,7 +47,7 @@ class PolicyGuardTest {
             "canRetrieveWindowContent=\"true\"",
         )
         val hits = sources.flatMap { file ->
-            val code = withoutComments(file)
+            val code = stripComments(file.readText(), file.extension)
             forbidden.filter { it in code }.map { "${file.relativeTo(appDir)}: $it" }
         }
         assertWithMessage("forbidden capability in sources").that(hits).isEmpty()
@@ -57,7 +59,9 @@ class PolicyGuardTest {
      */
     @Test
     fun accessibilityCodeReadsNoContent() {
-        val accessibilityFiles = sources.filter { it.extension == "kt" && "android.view.accessibility" in it.readText() }
+        val accessibilityFiles = sources.filter { file ->
+            file.extension != "xml" && file.readText().let { "android.view.accessibility" in it || "android.accessibilityservice" in it }
+        }
         assertWithMessage("expected the parser and the service to be scanned")
             .that(accessibilityFiles.map { it.name })
             .containsAtLeast("AccessibilityEventParser.kt", "ScrollAccessibilityService.kt")
@@ -75,9 +79,11 @@ class PolicyGuardTest {
             Regex("""findFocus\("""),
             Regex("""performGlobalAction|dispatchGesture|performAction\("""),
             Regex("""parcelableData|getParcelableData"""),
+            // Runtime widening would override the XML pins checked below.
+            Regex("""setServiceInfo\(|serviceInfo\s*=[^=]"""),
         )
         val hits = accessibilityFiles.flatMap { file ->
-            val code = withoutComments(file)
+            val code = stripComments(file.readText(), file.extension)
             forbidden.filter { it.containsMatchIn(code) }.map { "${file.name}: ${it.pattern}" }
         }
         assertWithMessage("accessibility code reads or acts on screen content").that(hits).isEmpty()
@@ -113,17 +119,57 @@ class PolicyGuardTest {
         assertWithMessage("uses-permission in the main manifest").that(manifest).doesNotContain("<uses-permission")
     }
 
-    /** Comments may name forbidden things to explain why they are absent; only code counts. */
-    private fun withoutComments(file: File): String {
-        val text = file.readText()
-        return when (file.extension) {
-            "xml" -> text.replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
-            else -> text.replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), "")
-                .lines().joinToString("\n") { it.substringBefore("//") }
-        }
+    @Test
+    fun commentStrippingDoesNotHideCodeAfterAStringWithSlashes() {
+        val code = stripComments("val u = \"https://x\"; val leak = event.text // why\n/* block .source */ val c = '\"'; x()", "kt")
+        assertThat(code).contains("event.text")
+        assertThat(code).contains("x()")
+        assertThat(code).doesNotContain("why")
+        assertThat(code).doesNotContain(".source")
     }
 
     private companion object {
         const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
+
+        /**
+         * Comments may name forbidden things to explain why they are absent; only code counts —
+         * string literals included, so a `//` inside a string does not hide the rest of the line.
+         */
+        fun stripComments(text: String, extension: String): String {
+            if (extension == "xml") return text.replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
+            val out = StringBuilder(text.length)
+            var quote: String? = null // the delimiter of the literal we are in: ", \"\"\" or '
+            var i = 0
+            while (i < text.length) {
+                val c = text[i]
+                when {
+                    quote != null && quote != RAW && c == '\\' && i + 1 < text.length -> {
+                        out.append(c).append(text[i + 1])
+                        i += 2
+                    }
+                    quote != null && text.startsWith(quote, i) -> {
+                        out.append(quote)
+                        i += quote.length
+                        quote = null
+                    }
+                    quote != null -> out.append(text[i++])
+                    text.startsWith("//", i) -> while (i < text.length && text[i] != '\n') i++
+                    text.startsWith("/*", i) -> i = text.indexOf("*/", i + 2).let { if (it < 0) text.length else it + 2 }
+                    text.startsWith(RAW, i) -> {
+                        quote = RAW
+                        out.append(RAW)
+                        i += RAW.length
+                    }
+                    c == '"' || c == '\'' -> {
+                        quote = c.toString()
+                        out.append(text[i++])
+                    }
+                    else -> out.append(text[i++])
+                }
+            }
+            return out.toString()
+        }
+
+        private const val RAW = "\"\"\""
     }
 }

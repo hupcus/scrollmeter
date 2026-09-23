@@ -71,6 +71,15 @@ class DebugToolsTest {
     }
 
     @Test
+    fun csvFieldsDefuseFormulasAndQuoteSeparators() {
+        assertThat(DebugCsv.field("android.widget.FrameLayout")).isEqualTo("android.widget.FrameLayout")
+        assertThat(DebugCsv.field("=HYPERLINK(\"x\")")).isEqualTo("\"'=HYPERLINK(\"\"x\"\")\"")
+        assertThat(DebugCsv.field("-2+3")).isEqualTo("\"'-2+3\"")
+        assertThat(DebugCsv.field("a,b")).isEqualTo("\"a,b\"")
+        assertThat(DebugCsv.field(null)).isEmpty()
+    }
+
+    @Test
     fun dominantPackageIgnoresOurOwn() {
         val results = listOf(result(dy = 1, pkg = OWN_PACKAGE), result(dy = 1, pkg = OWN_PACKAGE), result(dy = 1, pkg = "a.b"))
         assertThat(DebugCsv.dominantPackage(results, OWN_PACKAGE)).isEqualTo("a.b")

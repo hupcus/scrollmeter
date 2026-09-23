@@ -56,10 +56,14 @@ object DebugCsv {
         }
     }
 
-    /** Package and class names never contain commas or quotes, but a CSV must not trust that. */
-    private fun field(value: String?): String {
-        val v = value.orEmpty()
-        return if (v.any { it == ',' || it == '"' || it == '\n' }) "\"" + v.replace("\"", "\"\"") + "\"" else v
+    /**
+     * Package names are verified by the system, but `className` is whatever the other app set —
+     * so quote separators and defuse spreadsheet formulas (`= + - @` at the start → leading `'`).
+     */
+    internal fun field(value: String?): String {
+        var v = value.orEmpty()
+        if (v.isNotEmpty() && v[0] in "=+-@\t\r") v = "'$v"
+        return if (v.any { it == ',' || it == '"' || it == '\n' || it == '\r' || it == '\'' }) "\"" + v.replace("\"", "\"\"") + "\"" else v
     }
 
     /** The package with the most events — names the export file after the app just tested. */
