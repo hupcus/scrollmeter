@@ -62,19 +62,25 @@ exact ground truth). Release builds contain neither.
 3. **Check it runs:** open ScrollMeter — the card says *Měření je zapnuté* and the total since the
    service started grows while you scroll anywhere. `adb shell dumpsys accessibility` lists the service
    with `eventTypes=TYPE_VIEW_SCROLLED`.
-4. **Own list with ground truth:** *Testovací seznam* → *Vynulovat* → scroll the list and the carousel by
-   hand. Each axis shows ground truth px, measured px and the error. Automated version (Tests A, B, C, D, E
-   of spec §36): `python3 tools/device_accuracy.py --markdown`.
-5. **Another app:** *Debug měření* → *Vymazat* → switch to the app and scroll for 20–30 s (slow scrolls,
-   flings, horizontal carousels) → back to ScrollMeter → *Debug měření* → *Export CSV* (the snackbar shows
-   the file name; *Sdílet* sends it elsewhere) → *Vymazat* before the next app. Each export is named after
-   the app with the most events.
-6. **Collect and analyse:**
+4. **Own list with ground truth:** *Testovací seznam* → pick a surface (*View* = classic Android views,
+   *Column* = Compose `verticalScroll`, *Lazy* = Compose `LazyColumn`) → *Vynulovat* → scroll the list and
+   the carousel by hand. Each axis shows ground truth px, measured px and the error. *Lazy* is expected to
+   measure 0 (ADR-019). Automated version (Tests A–E of spec §36):
+   `python3 tools/device_accuracy.py --surface view,column,lazy --markdown`.
+5. **Other apps:** *Debug měření* → *Vymazat* (the *v souboru* counter drops to 0) → go through the apps one
+   after another, 20–30 s each (slow scrolls, flings, horizontal carousels) — no need to come back in
+   between. Every event is written through to the phone's app-private storage, so the run survives the
+   system killing ScrollMeter (ColorOS does that under memory pressure; the service restarts by itself).
+   Apps behind a login screen (Instagram, TikTok, X) need an account to reach a feed.
+6. **Collect and analyse** — no export needed; the analyser splits the run per app:
    ```bash
-   $ADB pull /sdcard/Android/data/com.scrollmeter.app.debug/files/debug/ runs/
-   python3 tools/analyze_debug_csv.py runs/debug          # per-app table: coverage, fallback, outliers, duplicates
+   $ADB exec-out run-as com.scrollmeter.app.debug cat files/debug/recording.csv > run.csv
+   python3 tools/analyze_debug_csv.py run.csv             # per-app table: coverage, fallback, outliers, duplicates
    $ADB logcat -s ScrollMeter:D                           # one line per event, live
    ```
+   *Export CSV* on the phone writes the same rows plus a device header (needed for the outlier-limit
+   column) to `/sdcard/Android/data/com.scrollmeter.app.debug/files/debug/` (`adb pull` that folder);
+   *Sdílet* sends it elsewhere.
 7. **Switch the service off** when done: `$ADB shell settings delete secure enabled_accessibility_services` (an empty `put` fails with "Bad arguments")
    or in Accessibility settings.
 

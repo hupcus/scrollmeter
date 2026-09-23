@@ -49,20 +49,73 @@ distance_mm, source, status`.
 
 ## App compatibility matrix (Phase 1)
 
-| App | Package | `TYPE_VIEW_SCROLLED` emitted? | `scrollDelta` usable? | Fallback needed? | Outliers | Duplicates (≤ 5 ms) | Subjective coverage | Notes |
-|---|---|---|---|---|---|---|---|---|
-| Chrome | `com.android.chrome` | yes, without `canRetrieveWindowContent` | yes (`FrameLayout`) | no — WebView positions are a duplicate stream, superseded (ADR-020) | 0 (max ~1117 px) | | full | automated runs; ADR-013 settled |
-| Instagram | `com.instagram.android` | | | | | | | |
-| Facebook | `com.facebook.katana` | | | | | | | includes in-app browser (WebView) |
-| Reddit | `com.reddit.frontpage` | | | | | | | install first |
-| YouTube | `com.google.android.youtube` | | | | | | | |
-| TikTok | `com.zhiliaoapp.musically` | | | | | | | vertical paging feed |
-| X | `com.twitter.android` | | | | | | | |
-| Google Play | `com.android.vending` | | | | | | | |
-| Mapy.com | `cz.seznam.mapy` | | | | | | | map panning + result list |
-| In-app browser | (host app) | | | | | | | link opened inside Facebook / Instagram |
-| Settings | `com.android.settings` | | | | | | | RecyclerView |
-| ScrollMeter test list | `com.scrollmeter.app.debug` | yes | View: yes · Compose: no (-1, -1) | Column: yes, exact · Lazy: estimate only | 0 | | View / Column full, Lazy none | ground truth available |
+OnePlus CPH2399, Android 14, 2026-09-23. Sources: Honza's manual run (one recording, 497 events, 21:58–22:01,
+foreground apps reconstructed from `wm_set_resumed_activity`), an earlier 26 s sample (H&M, Edge) and
+automated adb probes. The §70 duplicate rule found **0** candidates in every package.
+
+| App | Package | `TYPE_VIEW_SCROLLED`? | `scrollDelta` usable? | Fallback? | Outliers | Dup. (≤ 5 ms) | Coverage | Verdict | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| Chrome 153 | `com.android.chrome` | yes, without `canRetrieveWindowContent` | yes (`FrameLayout`) | WebView positions = duplicate stream, superseded (ADR-020) | 0 (max ~1117 px) | 0 | full | **supported** | automated; 0.00 % vs its own position stream |
+| Edge | `com.microsoft.emmx` | yes | yes (`FrameLayout`, `RecyclerView`) | 6 superseded (0.61 m) | 0 (max 2566 px) | 0 | 77 % | **supported** | same Chromium dual stream as Chrome |
+| Facebook — feed, stories | `com.facebook.katana` | yes | yes (`RecyclerView`, `ViewPager`) | no | 0 (max 3194 px) | 0 | 96 % | **supported** | 306 events (293 direct), 4.2 m in ~50 s |
+| Facebook — in-app browser | `com.facebook.katana` | yes | yes (`WebView`, single stream) | no | 0 | 0 | 96 % | **supported** | `BrowserLiteDIActivity`, 26 events (25 direct), 1.47 m |
+| Google Maps — result list | `com.google.android.apps.maps` | yes | yes (`RecyclerView`) | no | 0 | 0 | 100 % | **supported** | map panning itself is not a scroll event |
+| Settings | `com.android.settings` | yes | yes (`RecyclerView`) | no | 0 | 0 | 94 % | **supported** | |
+| OnePlus launcher | `com.android.launcher` | yes | no (-1, -1) | yes (`ListView`, exact) | 0 | 0 | 74 % | supported | counts app-drawer scrolling — whether it belongs in totals is a product call |
+| Google Play | `com.android.vending` | yes | no (-1, -1) | Compose lazy estimate | — | 0 | 0 % | **limited** | 33/34 events show `max − scroll = 100` (ADR-019) |
+| H&M | `com.hm.goe` | yes | no (-1, -1) | Compose lazy estimate | — | 0 | 0 % | **limited** | 67/69 events are the lazy estimate |
+| YouTube | `com.google.android.youtube` | **no** — silent after a cold start | — | — | — | — | 0 % | **unsupported** | see below |
+| Gboard (glide typing, space-bar swipe) | `com.google.android.inputmethod.latin` | no | — | — | — | — | — | does not distort | 5 swipes on the open keyboard → 0 events |
+| Instagram | `com.instagram.android` | not tested | | | | | | ⏳ | login screen, no account on the test phone |
+| TikTok | `com.zhiliaoapp.musically` | not tested | | | | | | ⏳ | sign-up screen only (2 WebView events, no data) |
+| X | `com.twitter.android` | not tested | | | | | | ⏳ | no account |
+| Reddit | `com.reddit.frontpage` | not tested | | | | | | ⏳ | not installed |
+| ScrollMeter test list | `com.scrollmeter.app.debug` | yes | View: yes · Compose: no (-1, -1) | Column: yes, exact · Lazy: estimate only | 0 | 0 | View / Column full, Lazy none | reference | ground truth available |
+
+### Manual run — analyser output
+
+```text
+Device `OnePlus_CPH2399_API34` · 1080×2400 px · xdpi 403.411 / ydpi 401.052 · outlier limit 10527.2 px · 2 file(s)
+
+| Package | Events | Direct | Fallback | Superseded (m) | Unmeasurable | Outlier | Excluded | (-1,-1) | Coverage | Counted m | Median / p95 / max event px | Max / limit | Dup. candidates (≤5 ms) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `com.facebook.katana` | 332 | 318 | 0 | 0 | 14 | 0 | 0 | 1 | 95.8 % | 5.70 | 162 / 843 / 3194 | 0.30 | 0 |
+| `com.hm.goe` | 69 | 0 | 0 | 0 | 69 | 0 | 0 | 69 | 0.0 % | 0.00 | — | — | 0 |
+| `com.google.android.apps.maps` | 58 | 58 | 0 | 0 | 0 | 0 | 0 | 0 | 100.0 % | 0.88 | 182 / 702 / 882 | 0.08 | 0 |
+| `com.android.settings` | 48 | 45 | 0 | 0 | 3 | 0 | 0 | 0 | 93.8 % | 1.08 | 312 / 1327 / 1492 | 0.14 | 0 |
+| `com.microsoft.emmx` | 37 | 24 | 0 | 6 (0.61) | 7 | 0 | 0 | 10 | 77.4 % | 1.35 | 937 / 1449 / 2566 | 0.24 | 0 |
+| `com.android.vending` | 34 | 0 | 0 | 0 | 34 | 0 | 0 | 34 | 0.0 % | 0.00 | — | — | 0 |
+| `com.android.launcher` | 23 | 0 | 17 | 0 | 6 | 0 | 0 | 23 | 73.9 % | 0.72 | 678 / 778 / 778 | 0.07 | 0 |
+| `com.oppo.quicksearchbox` | 2 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0.0 % | 0.00 | — | — | 0 |
+
+View classes emitting scroll events:
+- `com.android.launcher`: `android.widget.ListView`, `android.widget.ScrollView`
+- `com.android.settings`: `androidx.recyclerview.widget.RecyclerView`
+- `com.android.vending`: `android.view.View`
+- `com.facebook.katana`: `android.webkit.WebView`, `androidx.recyclerview.widget.RecyclerView`, `androidx.viewpager.widget.ViewPager`
+- `com.google.android.apps.maps`: `android.support.v7.widget.RecyclerView`
+- `com.hm.goe`: `android.view.View`
+- `com.microsoft.emmx`: `android.webkit.WebView`, `android.widget.FrameLayout`, `androidx.recyclerview.widget.RecyclerView`
+- `com.oppo.quicksearchbox`: `androidx.recyclerview.widget.RecyclerView`
+```
+
+### YouTube stays silent
+
+Honza had YouTube in the foreground for ~14 s: 0 events. Automated, from a cold start (force-stop → launch →
+3 slow drags + 1 fling): 0 events, with `canRetrieveWindowContent` **false and true** (throwaway branch
+`throwaway/can-retrieve-window-content`, local only). In the *same* YouTube process, right after one
+`uiautomator dump`, its `RecyclerView` does send direct deltas (575 px, 400 px). YouTube evidently turns its
+scroll events on only when a richer accessibility client (UiAutomation, presumably TalkBack) is present —
+nothing ScrollMeter can switch on without pretending to be one. Facebook on the same throwaway build was
+unaffected (14 direct events).
+
+### The system kills the service
+
+In the first manual attempt ColorOS's memory guard (`OsenseKillAction … mem guard`, free RAM < 2 GB, kill
+reason `o-kill(4010)`) killed ScrollMeter's process three times in 45 s while heavy apps ran; the system
+restarted the service after 4–10 s each time. The RAM-only debug log lost that run; since ADR-017's
+amendment the recording is written through and survives. `adb shell dumpsys activity exit-info
+com.scrollmeter.app.debug` lists every kill with its reason.
 
 ## Accuracy runs
 

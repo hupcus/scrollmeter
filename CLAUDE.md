@@ -54,6 +54,8 @@ $ADB shell input swipe 540 1800 540 600 800                      # slow swipe �
 python3 tools/device_accuracy.py --surface view,column          # repeatable Tests A–E on the debug test list (no-fling drags: motionevent + 0.6 s hold)
 $ADB shell input swipe 540 1800 540 600 150                      # fast swipe → fling
 $ADB logcat -s ScrollMeter:D                                     # one line per event in debug builds
+$ADB exec-out run-as com.scrollmeter.app.debug cat files/debug/recording.csv > run.csv  # the debug recording, survives process kills
+$ADB shell dumpsys activity exit-info com.scrollmeter.app.debug  # why/when the system killed the process
 $ADB exec-out screencap -p > "$SCRATCH/shot.png"                 # screenshots: let a subagent look; keep images out of the main context
 ```
 

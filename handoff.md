@@ -30,14 +30,14 @@
 
 | Zařízení | OS | Displej | Pozn. |
 |---|---|---|---|
-| OnePlus CPH2399 (Nord 2T), serial `W84LFE856LTWKNMN` | Android 14 / API 34 | 1080×2400, xdpi 403,411 / ydpi 401,052, densityDpi 480, 60/90 Hz | Chrome, Instagram, Facebook, Messenger, YouTube, TikTok, X, Play, Maps, Seznam Mapy; **Reddit chybí** |
+| OnePlus CPH2399 (Nord 2T), serial `W84LFE856LTWKNMN` | Android 14 / API 34 | 1080×2400, xdpi 403,411 / ydpi 401,052, densityDpi 480, 60/90 Hz | Chrome, Instagram, Facebook, Messenger, YouTube, TikTok, X, Play, Maps, Seznam Mapy; **Reddit chybí**; Instagram / TikTok / X bez účtu (přihlašovací obrazovka) |
 
 ## Stav fází
 
 | Fáze | Stav | Větev / PR | Poznámka |
 |---|---|---|---|
-| 0 Bootstrap | PR otevřený, čeká na merge | `phase-0-bootstrap` / [#1](https://github.com/hupcus/scrollmeter/pull/1) | build/test/lint zelené lokálně i v CI; `installDebug` + spuštění na OnePlus OK |
-| 1 Measurement POC | nezačato | — | brána GO/NO-GO |
+| 0 Bootstrap | hotovo, mergnuto (tag `v0.0`) | `phase-0-bootstrap` / [#1](https://github.com/hupcus/scrollmeter/pull/1) | build/test/lint zelené lokálně i v CI; `installDebug` + spuštění na OnePlus OK |
+| 1 Measurement POC | exit report hotový, **čeká na GO** | `phase-1-measurement-poc` / [#2](https://github.com/hupcus/scrollmeter/pull/2) | verdikt níže: podmíněné GO |
 | 2 Kalibrace | nezačato | — | |
 | 3 Persistence | nezačato | — | |
 | 4 Dashboard | nezačato | — | |
@@ -46,17 +46,89 @@
 | 7 Onboarding + Policy | nezačato | — | |
 | 8 Release | nezačato | — | |
 
+## Phase 1 — exit report (2026-09-23)
+
+**Otázka brány:** dostaneme na reálném telefonu z hlavních aplikací konzistentní a použitelné scroll delta?
+
+**Verdikt: podmíněné GO.** Tam, kde aplikace scroll hlásí, je měření přesné:
+- klasické View: MAPE 0,05 %,
+- Compose Column: 3,1 %, vždy trochu méně,
+- Chrome: 0,00 % proti vlastnímu proudu polohy.
+
+Funguje Facebook včetně in-app prohlížeče, Chrome, Edge, Google Mapy a Nastavení. **Ale:**
+- YouTube mlčí.
+- Aplikace na Compose `LazyColumn` (Obchod Play, H&M) jsou neměřitelné.
+- Instagram, TikTok, X a Reddit se nepodařilo ověřit (bez účtu / nenainstalováno).
+
+Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
+
+**Doporučení:** před Phase 2 doměřit Instagram a TikTok s účtem (15 min, stejný postup, README krok 5–6). Pokud se chovají jako YouTube (mlčí), je to NO-GO pro produkt v téhle podobě. Pokud hlásí delty jako Facebook, pak GO.
+
+| Aplikace | Výsledek | Stav |
+|---|---|---|
+| Chrome 153 | přímé delty z `FrameLayout`; WebView posílá tentýž posun podruhé jako polohu → potlačeno (ADR-020) | ✅ podporováno |
+| Edge | stejné jako Chrome; potlačeno 0,61 m duplicit | ✅ podporováno |
+| Facebook (feed, příběhy, in-app prohlížeč) | 318 z 332 událostí přímé delty, 5,7 m | ✅ podporováno |
+| Google Mapy (seznam výsledků) | 58/58 přímé | ✅ podporováno |
+| Nastavení | 45/48 přímé | ✅ podporováno |
+| Launcher OnePlus | 17 fallback (ListView, přesné polohy) | ✅ — počítat do součtu? produktové rozhodnutí |
+| Obchod Play, H&M | 100 % „bez dat" — Compose lazy odhad (ADR-019) | ⚠️ limited |
+| YouTube | 0 událostí; posílá jen s bohatším a11y klientem (uiautomator), `canRetrieveWindowContent=true` nepomáhá | ❌ unsupported |
+| Gboard (psaní tahem, tah po mezerníku) | 0 událostí z klávesnice | ✅ nezkresluje |
+| Instagram, TikTok, X, Reddit | přihlašovací obrazovky / nenainstalováno | ⏳ neověřeno |
+
+- **Dedupe (§70) — ne.** 0 kandidátů (stejné package + window + dx + dy do 5 ms) ve všech datech (600+ událostí z ruční matice, automatické běhy). ADR-006 zůstává OFF. Jiný druh duplicity, dva proudy Chromia, řeší ADR-020.
+- **Vyřazuje 4× diagonála validní flingy? — ne.** 0 outlierů. Největší událost 3194 px (Facebook) = 0,30 limitu 10 527 px, Chrome ~1117 px.
+- **Chrome bez `canRetrieveWindowContent` — ano.** ADR-013 uzavřeno: zůstává `false`. Throwaway měření s `true` (větev `throwaway/can-retrieve-window-content`, jen lokálně, `3b0e9af`) nepomohlo ani YouTube.
+- **Limited / unsupported:**
+  - YouTube,
+  - každá aplikace, jejíž hlavní seznam je Compose `LazyColumn`/`LazyRow` (Obchod Play, H&M, časem přibude další),
+  - obsah, který aplikace nehlásí jako scroll (posouvání mapy).
+- **Nové riziko R6 — systém zabíjí službu.**
+  - Paměťová ochrana ColorOS zabila proces ScrollMeteru 3× za 45 s, když běžely těžké aplikace.
+  - Služba se sama vrací za 4–10 s.
+  - Dopad na Phase 3: flush po ≤ 10 s znamená ztrátu max. ~10 s scrollování na jedno zabití.
+  - Dopad na Phase 7: onboarding by měl navést na výjimku z optimalizace baterie. Neověřeno, že proti paměťové ochraně pomáhá.
+- **Odchylky od PLAN:** testovací seznam má 300 položek a tři plochy (View / Column / Lazy) místo 500 položek `LazyColumn`. Lazy se ukázal jako neměřitelný, proto přibyly plochy s přesnou ground truth. Test B (20 ručních tahů) nahradilo 20 automatických tahů.
+- **Detail:** `docs/accuracy-testing.md` (matice, přesnost, YouTube, zabíjení služby), ADR-013 až ADR-020 v `docs/measurement-decisions.md`.
+
 ## Otevřené body
 
 - [x] **OnePlus blokoval `settings put` přes adb** (`WRITE_SECURE_SETTINGS` denied — ColorOS „sledování oprávnění“). Vyřešeno 2026-09-23: Možnosti pro vývojáře → úplně dole **„Zakázat sledování oprávnění“** zapnuto (bez restartu), `settings put` funguje. Zároveň zapnuto „Při dobíjení nevypínat obrazovku“ (`stay_on_while_plugged_in=7`). Po resetu telefonu / aktualizaci OS zkontrolovat znovu.
 - [ ] Přenos dat na nový telefon (device-to-device): `allowBackup="false"` vypíná cloud backup, D2D transfer zůstává na výchozím chování platformy — rozhodnout v Phase 6 (export/nastavení).
-- [ ] Reddit nainstalovat na testovací telefon (Honza) — je v DoD Phase 1.
-- [ ] R2: chová se Chrome bez `canRetrieveWindowContent`? Změří Phase 1; rozhodnutí Honzovo.
+- [ ] **Instagram + TikTok (+ X, Reddit) doměřit s účtem** — podmínka GO (exit report výše). Reddit na telefonu chybí.
+- [ ] YouTube mlčí (ADR-013 poznámka). Sledovat, jestli se chování změní s novou verzí YouTube; jinak „unsupported" v Phase 5 seznamu aplikací.
+- [ ] Compose lazy seznamy neměřitelné (ADR-019) — přibývá jich. Hledat zdroj bez čtení obsahu až po GO (backlog).
+- [ ] Launcher počítat do součtu, nebo vyloučit? (Phase 5/6, výchozí výluky)
+- [ ] R6: zabíjení procesu ColorOS — Phase 3 flush ≤ 10 s, Phase 7 onboarding (výjimka z optimalizace baterie — ověřit, že pomáhá).
+- [ ] GitHub Actions jsou připnuté na SHA tagů `v4`; bump na aktuální major (checkout v7, setup-java v6, gradle/actions v6, upload-artifact v7) je samostatné rozhodnutí.
+- [ ] Služba nemá instrumentovaný test životního cyklu (reconnect, `onUnbind`) — zbytkové riziko do Phase 3, kdy začne zapisovat do Room.
+- [ ] Debug CSV export leží v app-specific external storage — na API 28/29 čitelný aplikacemi s `READ_EXTERNAL_STORAGE`. Jen debug, testovací telefon je API 34; přijato.
+- [x] R2: Chrome bez `canRetrieveWindowContent` hlásí — ADR-013 uzavřeno (2026-09-23).
 - [ ] Emulátory: ověřit, že pro API 28 existuje arm64 systémový obraz (`sdkmanager --list | grep android-28`).
 - [ ] Ikona a barva aplikace — až Phase 4 (SPEC §42 nechává na implementaci).
 - [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-23 — Phase 1 measurement POC (Opus 5.5)
+- Engine podle SPEC §6: přímé delty → fallback z polohy → bez dat. Nová rozhodnutí z měření na telefonu:
+  - ADR-014: (-1,-1) = aplikace deltu neposlala.
+  - ADR-015: klíč fallbacku nese osy, protože `windowId` je bez `canRetrieveWindowContent` vždy -1.
+  - ADR-019: Compose lazy odhad se neměří.
+  - ADR-020: přímé delty potlačí fallback jiné třídy téže aplikace — Chrome by se jinak počítal 2×.
+- Nová konstanta `COMPOSE_LAZY_MAX_SCROLL_MARGIN_PX = 100` (ADR-019) a `DIRECT_SUPERSEDES_FALLBACK_MS = 5 000` (ADR-020). Nový zdroj `SUPERSEDED_BY_DIRECT`. Piny beze změny.
+- Debug log se od ADR-017 dodatku zapisuje průběžně do `files/debug/recording.csv` — první ruční kolo zmizelo se zabitým procesem.
+- Review (/topshit, 7/10) — opraveno:
+  - debug řádky ukazovaly surové -1/-1,
+  - chyběl guard na opakovaný connect,
+  - lazy detekce mohla vypnout Column.
+- Bezpečnostní review (Fable): žádný HIGH. Opraveno:
+  - díry v PolicyGuardTest (`//` v řetězci, `.java`, `setServiceInfo`),
+  - nový CI krok nad merged manifesty (`tools/check_manifest_policy.py`),
+  - CSV injection přes `className`,
+  - Actions připnuté na SHA.
+- Release APK ověřen `apkanalyzer`em: žádné devtools třídy, žádné logy událostí, jediné oprávnění je `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`.
 
 ### 2026-09-23 — Phase 0 bootstrap (Opus 5.5)
 - Repo `hupcus/scrollmeter` založené (privátní), `main` pushnutý, práce na `phase-0-bootstrap`.
