@@ -48,7 +48,7 @@
 
 ## Otevřené body
 
-- [ ] **OnePlus blokuje `settings put` přes adb** (`WRITE_SECURE_SETTINGS` denied — ColorOS „sledování oprávnění“). Bez vypnutí v Možnostech pro vývojáře (**Vypnout sledování oprávnění** / *Disable permission monitoring*) nepůjde zapnout službu přes adb (příkazy v `CLAUDE.md`) → náhradní cesta: ručně v Nastavení → Usnadnění. Zjištěno 2026-09-23 při pokusu o `stay_on_while_plugged_in`.
+- [x] **OnePlus blokoval `settings put` přes adb** (`WRITE_SECURE_SETTINGS` denied — ColorOS „sledování oprávnění“). Vyřešeno 2026-09-23: Možnosti pro vývojáře → úplně dole **„Zakázat sledování oprávnění“** zapnuto (bez restartu), `settings put` funguje. Zároveň zapnuto „Při dobíjení nevypínat obrazovku“ (`stay_on_while_plugged_in=7`). Po resetu telefonu / aktualizaci OS zkontrolovat znovu.
 - [ ] Přenos dat na nový telefon (device-to-device): `allowBackup="false"` vypíná cloud backup, D2D transfer zůstává na výchozím chování platformy — rozhodnout v Phase 6 (export/nastavení).
 - [ ] Reddit nainstalovat na testovací telefon (Honza) — je v DoD Phase 1.
 - [ ] R2: chová se Chrome bez `canRetrieveWindowContent`? Změří Phase 1; rozhodnutí Honzovo.
