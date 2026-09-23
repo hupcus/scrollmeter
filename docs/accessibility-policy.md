@@ -8,14 +8,19 @@ One `AccessibilityService`, `com.scrollmeter.app.accessibility.ScrollAccessibili
 <accessibility-service
     android:accessibilityEventTypes="typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault"
     android:notificationTimeout="0"
     android:canRetrieveWindowContent="false"
     android:isAccessibilityTool="false"
     android:description="@string/accessibility_service_description" />
 ```
 
+The `<service>` is `android:exported="false"` and protected by `android.permission.BIND_ACCESSIBILITY_SERVICE`
+(ADR-018): only the system binds it.
+
 - Event type: `TYPE_VIEW_SCROLLED` only.
-- Fields read: `eventTime`, `packageName`, `windowId`, `className`, `scrollDeltaX`, `scrollDeltaY`, `scrollX`, `scrollY`.
+- Fields read: `eventTime`, `packageName`, `windowId`, `className`, `scrollDeltaX`, `scrollDeltaY`, `scrollX`, `scrollY`,
+  `maxScrollX`, `maxScrollY` — in `AccessibilityEventParser`, the only class that touches `AccessibilityEvent`.
 - Stored: aggregated distance and counters per day and package; in debug builds a RAM ring buffer of the fields above.
 
 ## What we never do

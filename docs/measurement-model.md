@@ -14,15 +14,16 @@ Product copy therefore says „Dnes jsi nascrolloval 428 metrů", never „tvůj
 ## Source of data
 
 `AccessibilityService` subscribed to `TYPE_VIEW_SCROLLED` only. Per event we read:
-`eventTime`, `packageName`, `windowId`, `className`, `scrollDeltaX`, `scrollDeltaY`, `scrollX`, `scrollY`.
+`eventTime`, `packageName`, `windowId`, `className`, `scrollDeltaX`, `scrollDeltaY`, `scrollX`, `scrollY`,
+`maxScrollX`, `maxScrollY`.
 Nothing else — no text, no node tree, no content description.
 
 Priority of sources per event:
 
 | Source | Rule | Counted as |
 |---|---|---|
-| A `DIRECT_DELTA` | `scrollDeltaX` or `scrollDeltaY` ≠ 0 → use them | `measuredEventCount` |
-| B `FALLBACK_POSITION` | both deltas 0 → `dx = scrollX − prevScrollX`, `dy = scrollY − prevScrollY`, only if previous event has the same `packageName + windowId + className`, the gap is ≤ `FALLBACK_MAX_GAP_MS` (2 s), both positions look valid (≥ 0) and the result passes the outlier check | `fallbackEventCount` |
+| A `DIRECT_DELTA` | `scrollDeltaX` or `scrollDeltaY` ≠ 0, and not both `-1` (Android's UNDEFINED, ADR-014) → use them | `measuredEventCount` |
+| B `FALLBACK_POSITION` | deltas (0, 0) or (-1, -1) → `dx = scrollX − prevScrollX`, `dy = scrollY − prevScrollY`, only if previous event has the same `packageName + windowId + className`, the gap is ≤ `FALLBACK_MAX_GAP_MS` (2 s), both positions look valid (≥ 0 and ≤ a positive `maxScrollX/Y`), the position changed, and the jump is within the outlier limit (ADR-015) | `fallbackEventCount` |
 | C `UNMEASURABLE` | no usable pixel data → distance 0. `fromIndex` / `toIndex` / item counts are **never** converted to distance | `unmeasurableEventCount` |
 | `OUTLIER_REJECTED` | `hypot(dx, dy) > MAX_EVENT_DISTANCE_FACTOR × screenDiagonalPx` (4 ×) → event not added; no clipping | `rejectedOutlierCount` |
 | `EXCLUDED` | `packageName == null`, own package (outside test mode) or user-excluded package | not stored |
