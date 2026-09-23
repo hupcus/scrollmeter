@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Scroll events only (spec §5, CLAUDE.md hard rules): no window content, no interactive windows,
+  no touch exploration, no motion events, not an accessibility tool. Every widening needs an ADR
+  and Honza's explicit OK. PolicyGuardTest pins these values.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:accessibilityEventTypes="typeViewScrolled"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault"
+    android:canRetrieveWindowContent="false"
+    android:description="@string/accessibility_service_description"
+    android:isAccessibilityTool="false"
+    android:notificationTimeout="0"
+    tools:ignore="UnusedAttribute" />
