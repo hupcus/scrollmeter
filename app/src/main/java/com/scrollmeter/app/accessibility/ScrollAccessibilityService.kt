@@ -3,8 +3,10 @@ package com.scrollmeter.app.accessibility
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.content.res.Configuration
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.scrollmeter.app.AppGraph
+import com.scrollmeter.app.BuildConfig
 import com.scrollmeter.app.ScrollMeterApplication
 import com.scrollmeter.app.measurement.MeasurementConfig
 import com.scrollmeter.app.measurement.ScrollMeasurementEngine
@@ -47,6 +49,7 @@ class ScrollAccessibilityService : AccessibilityService() {
         this.engine = engine
         this.samples = channel
         graph.monitor.onServiceConnected(System.currentTimeMillis())
+        lifecycle("connected")
 
         serviceScope.launch {
             for (sample in channel) {
@@ -82,14 +85,17 @@ class ScrollAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {
         // Nothing to flush yet: Phase 1 keeps totals in RAM only.
+        lifecycle("interrupt")
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
+        lifecycle("unbind")
         stopPipeline()
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
+        lifecycle("destroy")
         stopPipeline()
         serviceScope.cancel()
         super.onDestroy()
@@ -99,5 +105,12 @@ class ScrollAccessibilityService : AccessibilityService() {
         samples?.close()
         samples = null
         graph?.monitor?.onServiceDisconnected()
+    }
+
+    /** Service lifecycle only — never event content. Debug builds; R8 drops it from release. */
+    private fun lifecycle(what: String) {
+        if (BuildConfig.DEBUG) {
+            Log.d("ScrollMeter", "service $what id=${System.identityHashCode(this)} connected=${graph?.monitor?.serviceConnected?.value}")
+        }
     }
 }

@@ -85,4 +85,37 @@ class ScrollFallbackTrackerTest {
         assertThat(tracker.update(positionOnlySample(scrollY = 300, uptimeMs = 10, windowId = 1), limit)).isNull()
         assertThat(tracker.update(positionOnlySample(scrollY = 300, uptimeMs = 10, windowId = 5), limit)).isNotNull()
     }
+
+    /** Compose lazy list (foundation 1.11.4): position = index × 500 + offset, max = position + 100. */
+    private fun composeLazy(position: Int, uptimeMs: Long, atEnd: Boolean = false) = sample(
+        dx = -1, dy = -1, className = "android.view.View", windowId = -1, uptimeMs = uptimeMs,
+        scrollY = position, maxScrollY = if (atEnd) position else position + 100,
+    )
+
+    @Test
+    fun composeLazyEstimateIsNeverUsed() {
+        assertThat(tracker.update(composeLazy(0, uptimeMs = 0), limit)).isNull()
+        assertThat(tracker.update(composeLazy(561, uptimeMs = 100), limit)).isNull()
+        assertThat(tracker.update(composeLazy(1_433, uptimeMs = 200), limit)).isNull()
+        // At the end of the list max == position; the key stays marked as an estimate.
+        assertThat(tracker.update(composeLazy(1_500, uptimeMs = 300, atEnd = true), limit)).isNull()
+    }
+
+    @Test
+    fun exactComposeColumnPositionsAreUsed() {
+        // verticalScroll(ScrollState): real pixels and a fixed max.
+        val column = { y: Int, t: Long -> sample(dx = -1, dy = -1, className = "android.view.View", windowId = -1, uptimeMs = t, scrollY = y, maxScrollY = 40_000) }
+        tracker.update(column(0, 0), limit)
+        assertThat(tracker.update(column(476, 100), limit)).isEqualTo(ScrollFallbackTracker.Delta(0, 476))
+    }
+
+    @Test
+    fun horizontalAndVerticalScrollablesOfOneAppAreNotDiffedAgainstEachOther() {
+        val row = { x: Int, t: Long -> sample(dx = -1, dy = -1, className = "android.view.View", windowId = -1, uptimeMs = t, scrollX = x, maxScrollX = 20_000) }
+        val column = { y: Int, t: Long -> sample(dx = -1, dy = -1, className = "android.view.View", windowId = -1, uptimeMs = t, scrollY = y, maxScrollY = 40_000) }
+        tracker.update(row(3_000, 0), limit)
+        assertThat(tracker.update(column(200, 50), limit)).isNull() // first event of the vertical key
+        assertThat(tracker.update(row(3_300, 100), limit)).isEqualTo(ScrollFallbackTracker.Delta(300, 0))
+        assertThat(tracker.update(column(500, 150), limit)).isEqualTo(ScrollFallbackTracker.Delta(0, 300))
+    }
 }

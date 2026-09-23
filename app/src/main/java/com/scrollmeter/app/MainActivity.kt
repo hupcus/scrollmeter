@@ -24,7 +24,11 @@ class MainActivity : ComponentActivity() {
         val graph = (application as ScrollMeterApplication).graph
         setContent {
             ScrollMeterTheme {
-                ScrollMeterApp(graph, onOpenAccessibilitySettings = ::openAccessibilitySettings)
+                ScrollMeterApp(
+                    graph = graph,
+                    initialTool = DevTools.toolFromLaunch(intent),
+                    onOpenAccessibilitySettings = ::openAccessibilitySettings,
+                )
             }
         }
     }
@@ -40,9 +44,9 @@ class MainActivity : ComponentActivity() {
 
 /** Phase 1 navigation: home plus the debug-only developer screens. Navigation Compose arrives in Phase 4. */
 @Composable
-private fun ScrollMeterApp(graph: AppGraph, onOpenAccessibilitySettings: () -> Unit) {
+private fun ScrollMeterApp(graph: AppGraph, initialTool: Int, onOpenAccessibilitySettings: () -> Unit) {
     val devTools = DevTools.entries
-    var openTool by rememberSaveable { mutableIntStateOf(NO_TOOL) }
+    var openTool by rememberSaveable { mutableIntStateOf(initialTool) }
     val tool = devTools.getOrNull(openTool)
     if (tool != null) {
         BackHandler { openTool = NO_TOOL }

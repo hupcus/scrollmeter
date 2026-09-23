@@ -62,7 +62,7 @@ class AnalyzeDebugCsvTest(unittest.TestCase):
     def test_testlist_accuracy_uses_the_last_line(self):
         log = (
             "D ScrollMeter: TESTLIST gt_x_px=0.0 gt_y_px=100.0 eng_x_px=0 eng_y_px=90 gt_mm=6.333 eng_mm=5.700 eng_events=1\n"
-            "D ScrollMeter: TESTLIST gt_x_px=0.0 gt_y_px=1000.0 eng_x_px=0 eng_y_px=990 gt_mm=63.333 eng_mm=62.700 eng_events=9\n"
+            "D ScrollMeter: TESTLIST surface=VIEW gt_x_px=0.0 gt_y_px=1000.0 eng_x_px=0 eng_y_px=990 gt_mm=63.333 eng_mm=62.700 eng_events=9\n"
         )
         result = tool.testlist_accuracy(log)
         self.assertAlmostEqual(result["gt_y_px"], 1000.0)

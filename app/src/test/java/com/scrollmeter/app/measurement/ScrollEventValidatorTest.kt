@@ -54,7 +54,7 @@ class ScrollEventValidatorTest {
     @Test
     fun ownPackageIsExcludedOutsideTestMode() {
         assertThat(validator.classify(sample(dy = 100, packageName = OWN_PACKAGE))).isEqualTo(Verdict.EXCLUDED)
-        settings.includeOwnPackage = true
+        settings.enterTestMode()
         assertThat(validator.classify(sample(dy = 100, packageName = OWN_PACKAGE))).isEqualTo(Verdict.DIRECT_DELTA)
     }
 
@@ -62,5 +62,18 @@ class ScrollEventValidatorTest {
     fun userExcludedPackageIsExcluded() {
         settings.excludedPackages = setOf(APP)
         assertThat(validator.classify(sample(dy = 100))).isEqualTo(Verdict.EXCLUDED)
+    }
+
+    @Test
+    fun testModeIsHeldUntilTheLastHolderLeaves() {
+        settings.enterTestMode() // old screen
+        settings.enterTestMode() // new screen, before the old one is disposed
+        settings.exitTestMode() // old screen disposed late
+        assertThat(validator.classify(sample(dy = 100, packageName = OWN_PACKAGE))).isEqualTo(Verdict.DIRECT_DELTA)
+        settings.exitTestMode()
+        settings.exitTestMode() // an extra exit never goes below zero
+        assertThat(validator.classify(sample(dy = 100, packageName = OWN_PACKAGE))).isEqualTo(Verdict.EXCLUDED)
+        settings.enterTestMode()
+        assertThat(validator.classify(sample(dy = 100, packageName = OWN_PACKAGE))).isEqualTo(Verdict.DIRECT_DELTA)
     }
 }

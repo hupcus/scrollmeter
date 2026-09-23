@@ -74,7 +74,7 @@ class ScrollMeasurementEngineTest {
     @Test
     fun ownPackageIsExcludedUnlessTestModeIsOn() {
         assertThat(engine.process(sample(dy = 100, packageName = OWN_PACKAGE)).source).isEqualTo(MeasurementSource.EXCLUDED)
-        settings.includeOwnPackage = true
+        settings.enterTestMode()
         assertThat(engine.process(sample(dy = 100, packageName = OWN_PACKAGE)).source).isEqualTo(MeasurementSource.DIRECT_DELTA)
     }
 
@@ -97,7 +97,7 @@ class ScrollMeasurementEngineTest {
     @Test
     fun monitorCountsOnlyAcceptedDistance() {
         val monitor = MeasurementMonitor(OWN_PACKAGE)
-        settings.includeOwnPackage = true
+        settings.enterTestMode()
         listOf(
             sample(dy = 1200),
             sample(dy = 20_000),

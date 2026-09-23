@@ -207,8 +207,8 @@ def report(exports: list[Export], apps: dict[str, AppStats], own_prefix: str = "
 
 
 TESTLIST = re.compile(
-    r"TESTLIST gt_x_px=(?P<gx>[\d.]+) gt_y_px=(?P<gy>[\d.]+) eng_x_px=(?P<ex>\d+) eng_y_px=(?P<ey>\d+) "
-    r"gt_mm=(?P<gmm>[\d.]+) eng_mm=(?P<emm>[\d.]+) eng_events=(?P<n>\d+)"
+    r"TESTLIST (?:surface=(?P<surface>\w+) )?gt_x_px=(?P<gx>[\d.]+) gt_y_px=(?P<gy>[\d.]+) eng_x_px=(?P<ex>\d+) "
+    r"eng_y_px=(?P<ey>\d+) gt_mm=(?P<gmm>[\d.]+) eng_mm=(?P<emm>[\d.]+) eng_events=(?P<n>\d+)"
 )
 
 

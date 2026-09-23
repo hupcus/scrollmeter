@@ -7,8 +7,12 @@ test taps "Vynulovat", performs the gesture, waits for the list to settle and re
 `TESTLIST` logcat line (ground truth from the list's NestedScrollConnection vs what the
 accessibility pipeline measured for our own package).
 
+`uiautomator dump` suppresses (unbinds) every accessibility service while it runs, so the
+screen is read only while locating the controls; afterwards the script waits for the service to
+bind again and taps by coordinates.
+
 Usage:
-    python3 tools/device_accuracy.py [--serial SERIAL] [--only A500,C] [--markdown]
+    python3 tools/device_accuracy.py [--surface view,column,lazy] [--only A500,C_fling] [--markdown]
 """
 
 from __future__ import annotations
@@ -31,12 +35,16 @@ PACKAGE = "com.scrollmeter.app.debug"
 ACTIVITY = f"{PACKAGE}/com.scrollmeter.app.MainActivity"
 ADB = os.environ.get("ADB", str(Path.home() / "Library/Android/sdk/platform-tools/adb"))
 SETTLE_S = 3.0  # TESTLIST is debounced by 1.5 s after the last change
-EV = re.compile(r"^(?P<t>\d+\.\d+)\s.*ScrollMeter: ev .*pkg=(?P<pkg>\S+) .*used=(?P<ux>-?\d+),(?P<uy>-?\d+) .*src=(?P<src>\w+)")
-MARK = re.compile(r"^(?P<t>\d+\.\d+)\s.*ScrollMeter: MARK_UP")
+EV = re.compile(r"^\s*(?P<t>\d+\.\d+)\s.*ScrollMeter: ev .*pkg=(?P<pkg>\S+) .*used=(?P<ux>-?\d+),(?P<uy>-?\d+) .*src=(?P<src>\w+)")
+MARK = re.compile(r"^\s*(?P<t>\d+\.\d+)\s.*ScrollMeter: MARK_UP")
+
+
+SURFACES = {"view": "View", "column": "Column", "lazy": "Lazy"}  # chip labels on the test screen
 
 
 @dataclass
 class Result:
+    surface: str
     test: str
     gt_px: float
     measured_px: float
@@ -71,29 +79,40 @@ class Device:
         xml = self.shell("cat /sdcard/scrollmeter-ui.xml")
         return list(ET.fromstring(xml).iter("node"))
 
-    def tap_text(self, text: str) -> None:
-        for node in self.nodes():
-            if node.get("text") == text:
-                x, y = center(node.get("bounds"))
-                self.shell(f"input tap {x} {y}")
-                return
-        raise RuntimeError(f"'{text}' not on screen")
+    def find(self, *texts: str) -> dict[str, tuple[int, int, int, int]]:
+        """One UI dump → bounds of each text. Unbinds our service for ~1 s (see module doc)."""
+        found = {n.get("text"): parse_bounds(n.get("bounds")) for n in self.nodes() if n.get("text") in texts}
+        missing = [t for t in texts if t not in found]
+        if missing:
+            raise RuntimeError(f"not on screen: {missing}")
+        return found
 
-    def bounds_of_text(self, text: str) -> tuple[int, int, int, int]:
-        for node in self.nodes():
-            if node.get("text") == text:
-                return parse_bounds(node.get("bounds"))
-        raise RuntimeError(f"'{text}' not on screen")
+    def view_holders(self) -> list[tuple[int, int, int, int]]:
+        """Bounds of our AndroidView hosts (window = screen, edge-to-edge). uiautomator does not
+        see Views inside Compose's AndroidView, but the View hierarchy dump does."""
+        top = self.shell("dumpsys activity top")
+        section = top[top.index(f"ACTIVITY {PACKAGE}"):]
+        nxt = section.find("ACTIVITY ", 10)
+        section = section if nxt < 0 else section[:nxt]
+        return [tuple(map(int, m.groups())) for m in re.finditer(r"ViewFactoryHolder\{[^}]*? (-?\d+),(-?\d+)-(-?\d+),(-?\d+)", section)]
+
+    def tap(self, bounds: tuple[int, int, int, int]) -> None:
+        x1, y1, x2, y2 = bounds
+        self.shell(f"input tap {(x1 + x2) // 2} {(y1 + y2) // 2}")
+
+    def wait_for_service(self, timeout_s: float = 15.0) -> None:
+        deadline = time.time() + timeout_s
+        while time.time() < deadline:
+            bound = self.shell("dumpsys accessibility | grep 'Bound services'", check=False)
+            if "ScrollMeter" in bound:
+                return
+            time.sleep(0.5)
+        raise RuntimeError("ScrollMeter accessibility service is not bound — enable it first")
 
 
 def parse_bounds(bounds: str) -> tuple[int, int, int, int]:
     x1, y1, x2, y2 = map(int, re.findall(r"\d+", bounds))
     return x1, y1, x2, y2
-
-
-def center(bounds: str) -> tuple[int, int]:
-    x1, y1, x2, y2 = parse_bounds(bounds)
-    return (x1 + x2) // 2, (y1 + y2) // 2
 
 
 def slow_drag(x1: int, y1: int, x2: int, y2: int, steps: int = 12) -> str:
@@ -109,8 +128,9 @@ def fling(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 120) -> str:
     return f"input swipe {x1} {y1} {x2} {y2} {duration_ms}; log -t ScrollMeter MARK_UP"
 
 
-def run_test(dev: Device, name: str, gestures: list[str], axis: str, settle_s: float = SETTLE_S) -> Result:
-    dev.tap_text("Vynulovat")
+def run_test(dev: Device, surface: str, reset: tuple[int, int, int, int], name: str, gestures: list[str], axis: str,
+             settle_s: float = SETTLE_S) -> Result:
+    dev.tap(reset)
     time.sleep(2.0)
     dev.clear_logcat()
     for g in gestures:
@@ -123,7 +143,7 @@ def run_test(dev: Device, name: str, gestures: list[str], axis: str, settle_s: f
         raise RuntimeError(f"{name}: no TESTLIST line — is the service enabled?")
     gt_px = acc["gt_y_px"] if axis == "y" else acc["gt_x_px"]
     measured_px = acc["eng_y_px"] if axis == "y" else acc["eng_x_px"]
-    result = Result(name, gt_px, measured_px, acc["gt_mm"], acc["eng_mm"], int(acc["events"]))
+    result = Result(surface, name, gt_px, measured_px, acc["gt_mm"], acc["eng_mm"], int(acc["events"]))
     marks = [float(m["t"]) for m in map(MARK.match, log.splitlines()) if m]
     if marks:
         last_up = marks[-1]
@@ -137,58 +157,67 @@ def run_test(dev: Device, name: str, gestures: list[str], axis: str, settle_s: f
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--serial", default=os.environ.get("ANDROID_SERIAL"))
+    parser.add_argument("--surface", default="view,column,lazy", help="comma-separated: " + ",".join(SURFACES))
     parser.add_argument("--only", help="comma-separated test names")
     parser.add_argument("--markdown", action="store_true")
     args = parser.parse_args(argv)
     dev = Device(args.serial)
 
     dev.shell("input keyevent KEYCODE_WAKEUP")
-    dev.shell(f"am start -W -n {ACTIVITY}")
+    # NEW_TASK | CLEAR_TASK: a fresh activity that reads the debug-only `devtool` extra.
+    dev.shell(f"am start -W -n {ACTIVITY} -f 0x10008000 --es devtool testlist")
     time.sleep(1.5)
-    if not any(n.get("text") == "Vynulovat" for n in dev.nodes()):
-        dev.tap_text("Testovací seznam")
-        time.sleep(1.5)
+    chips = dev.find(*SURFACES.values())
 
-    row_top, row_bottom = dev.bounds_of_text("Karta 1")[1], dev.bounds_of_text("Karta 1")[3]
-    row_y = (row_top + row_bottom) // 2
-    list_top = dev.bounds_of_text("Položka 1")[1]
     x = 540
-    y_low = 2150  # above the gesture-navigation area on a 2400 px tall panel
-    assert y_low - 1000 > list_top, f"list starts too low ({list_top})"
-
-    tests = {
-        "A500": ([slow_drag(x, y_low, x, y_low - 500)], "y", SETTLE_S),
-        "A1000": ([slow_drag(x, y_low, x, y_low - 1000)], "y", SETTLE_S),
-        "A5000": ([slow_drag(x, y_low, x, y_low - 1000)] * 5, "y", SETTLE_S),
-        "B20": ([f"input swipe {x} {y_low} {x} {y_low - 700} 300"] * 20, "y", 5.0),
-        "C_fling": ([fling(x, y_low, x, y_low - 600)], "y", 5.0),
-        "C_fling3": ([fling(x, y_low, x, y_low - 600)] * 3, "y", 6.0),
-        "D_slow": ([slow_drag(900, row_y, 150, row_y)], "x", SETTLE_S),
-        "D_fling": ([fling(900, row_y, 200, row_y)], "x", 5.0),
-        "E_reversal": ([slow_drag(x, y_low, x, y_low - 1000), slow_drag(x, y_low - 1000, x, y_low)], "y", SETTLE_S),
-    }
-    wanted = args.only.split(",") if args.only else list(tests)
+    y_low = 2220  # above the gesture-navigation strip at the bottom of a 2400 px panel
     results = []
-    for name in wanted:
-        gestures, axis, settle = tests[name]
-        r = run_test(dev, name, gestures, axis, settle)
-        results.append(r)
-        print(f"{name}: GT {r.gt_px:.0f} px / measured {r.measured_px:.0f} px · GT {r.gt_mm:.2f} mm / "
-              f"measured {r.measured_mm:.2f} mm · error {r.error_pct:+.2f} % · events {r.events}"
-              + (f" · after lift {r.after_lift_events} ev / {r.after_lift_px:.0f} px" if r.after_lift_events is not None else ""),
-              flush=True)
+    for surface in args.surface.split(","):
+        dev.tap(chips[SURFACES[surface]])
+        time.sleep(1.5)
+        if surface == "view":
+            controls = dev.find("Vynulovat")
+            carousel, vertical = dev.view_holders()[:2]
+            row_y, list_top = (carousel[1] + carousel[3]) // 2, vertical[1]
+        else:
+            controls = dev.find("Vynulovat", "Karta 1", "Položka 1")
+            row_y, list_top = (controls["Karta 1"][1] + controls["Karta 1"][3]) // 2, controls["Položka 1"][1]
+        dev.wait_for_service()
+        time.sleep(1.0)
+        assert y_low - 1000 > list_top, f"list starts too low ({list_top})"
 
-    valid = [r for r in results if r.gt_mm > 0]
-    if valid:
-        mae = statistics.mean(abs(r.measured_mm - r.gt_mm) for r in valid)
-        mape = statistics.mean(abs(r.error_pct) for r in valid)
-        print(f"MAE {mae:.2f} mm · MAPE {mape:.2f} % over {len(valid)} runs")
+        tests = {
+            "A500": ([slow_drag(x, y_low, x, y_low - 500)], "y", SETTLE_S),
+            "A1000": ([slow_drag(x, y_low, x, y_low - 1000)], "y", SETTLE_S),
+            "A5000": ([slow_drag(x, y_low, x, y_low - 1000)] * 5, "y", SETTLE_S),
+            "B20": ([f"input swipe {x} {y_low} {x} {y_low - 700} 300"] * 20, "y", 5.0),
+            "C_fling": ([fling(x, y_low, x, y_low - 600)], "y", 5.0),
+            "C_fling3": ([fling(x, y_low, x, y_low - 600)] * 3, "y", 6.0),
+            "D_slow": ([slow_drag(900, row_y, 150, row_y)], "x", SETTLE_S),
+            "D_fling": ([fling(900, row_y, 200, row_y)], "x", 5.0),
+            "E_reversal": ([slow_drag(x, y_low, x, y_low - 1000), slow_drag(x, y_low - 1000, x, y_low)], "y", SETTLE_S),
+        }
+        for name in (args.only.split(",") if args.only else list(tests)):
+            gestures, axis, settle = tests[name]
+            r = run_test(dev, surface, controls["Vynulovat"], name, gestures, axis, settle)
+            results.append(r)
+            print(f"{surface:6} {name}: GT {r.gt_px:.0f} px / measured {r.measured_px:.0f} px · GT {r.gt_mm:.2f} mm / "
+                  f"measured {r.measured_mm:.2f} mm · error {r.error_pct:+.2f} % · events {r.events}"
+                  + (f" · after lift {r.after_lift_events} ev / {r.after_lift_px:.0f} px" if r.after_lift_events is not None else ""),
+                  flush=True)
+
+    for surface in dict.fromkeys(r.surface for r in results):
+        valid = [r for r in results if r.surface == surface and r.gt_mm > 0]
+        if valid:
+            mae = statistics.mean(abs(r.measured_mm - r.gt_mm) for r in valid)
+            mape = statistics.mean(abs(r.error_pct) for r in valid)
+            print(f"{surface}: MAE {mae:.2f} mm · MAPE {mape:.2f} % over {len(valid)} runs")
     if args.markdown:
-        print("\n| Test | GT px | Measured px | GT mm | Measured mm | Error % | Events | After lift (events / px) |")
-        print("|---|---|---|---|---|---|---|---|")
+        print("\n| Surface | Test | GT px | Measured px | GT mm | Measured mm | Error % | Events | After lift (events / px) |")
+        print("|---|---|---|---|---|---|---|---|---|")
         for r in results:
             lift = f"{r.after_lift_events} / {r.after_lift_px:.0f}" if r.after_lift_events is not None else "—"
-            print(f"| {r.test} | {r.gt_px:.0f} | {r.measured_px:.0f} | {r.gt_mm:.2f} | {r.measured_mm:.2f} | "
+            print(f"| {r.surface} | {r.test} | {r.gt_px:.0f} | {r.measured_px:.0f} | {r.gt_mm:.2f} | {r.measured_mm:.2f} | "
                   f"{r.error_pct:+.2f} | {r.events} | {lift} |")
     return 0
 

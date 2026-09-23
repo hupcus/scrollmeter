@@ -24,6 +24,15 @@ object MeasurementConfig {
      */
     const val UNDEFINED_SCROLL_DELTA = -1
 
+    /**
+     * Jetpack Compose lazy lists send scroll events without deltas and with a *made-up* position:
+     * `estimatedLazyScrollOffset = firstVisibleItemScrollOffset + firstVisibleItemIndex × 500` and
+     * `maxScroll = that + 100` while the list can scroll further (foundation 1.11.4,
+     * LazyLayoutSemantics). A fallback key showing `maxScroll − scroll == 100` is marked as an
+     * index-based estimate and never measured (spec §6 C, §72 — ADR-019).
+     */
+    const val COMPOSE_LAZY_MAX_SCROLL_MARGIN_PX = 100
+
     /** Duplicate suppression is off until debug CSVs prove duplicates exist (spec §70, ADR-006). */
     const val DEDUP_ENABLED = false
     const val DEDUP_WINDOW_MS = 5L

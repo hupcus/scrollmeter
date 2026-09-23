@@ -10,6 +10,8 @@ import com.scrollmeter.app.AppGraph
  * event log or logcat line ever ships in a release build (ADR-010).
  */
 class DevToolEntry(
+    /** Stable id; a debug build opens the tool directly with `am start … --es devtool <key>`. */
+    val key: String,
     @get:StringRes val titleRes: Int,
     val content: @Composable (graph: AppGraph, onBack: () -> Unit) -> Unit,
 )
