@@ -38,6 +38,8 @@ class ScrollAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        // A repeated connect replaces the pipeline instead of orphaning the old consumer.
+        stopPipeline()
         val graph = (application as ScrollMeterApplication).graph
         val engine = graph.newEngine()
         val channel = Channel<ScrollSample>(

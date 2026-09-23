@@ -15,8 +15,10 @@ import kotlin.math.hypot
  * - without `canRetrieveWindowContent` every event has `windowId = -1`, so the key also carries
  *   the axis a scrollable reports (`maxScrollX > 0`, `maxScrollY > 0`) — otherwise a horizontal
  *   carousel and a vertical list of the same app would be diffed against each other;
- * - Compose lazy lists report an index-based estimate, recognised by `maxScroll − scroll == 100`;
- *   such a key stays marked and yields no fallback, also at the end of the list.
+ * - Compose lazy lists report an index-based estimate, recognised by `maxScroll − scroll == 100`
+ *   on a key seen for the first time or whose `maxScroll` moved since its previous event (an
+ *   exact scrollable keeps its max, so passing 100 px before its end is no evidence); such a key
+ *   stays marked and yields no fallback, also at the end of the list.
  *
  * Not thread-safe: the engine calls it from its single consumer.
  */
@@ -34,7 +36,14 @@ class ScrollFallbackTracker(
         val vertical: Boolean,
     )
 
-    private data class Position(val uptimeMs: Long, val scrollX: Int, val scrollY: Int, val estimated: Boolean)
+    private data class Position(
+        val uptimeMs: Long,
+        val scrollX: Int,
+        val scrollY: Int,
+        val maxScrollX: Int,
+        val maxScrollY: Int,
+        val estimated: Boolean,
+    )
 
     private val lastPositions = object : LinkedHashMap<Key, Position>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Key, Position>?): Boolean = size > maxKeys
@@ -51,8 +60,8 @@ class ScrollFallbackTracker(
             return null
         }
         val previous = lastPositions[key]
-        val estimated = previous?.estimated == true || sample.isComposeLazyEstimate()
-        val current = Position(sample.uptimeMs, sample.scrollX, sample.scrollY, estimated)
+        val estimated = previous?.estimated == true || sample.isComposeLazyEstimate(previous)
+        val current = Position(sample.uptimeMs, sample.scrollX, sample.scrollY, sample.maxScrollX, sample.maxScrollY, estimated)
         lastPositions[key] = current
         if (previous == null || estimated) return null
 
@@ -66,9 +75,11 @@ class ScrollFallbackTracker(
         return Delta(dx, dy)
     }
 
-    private fun ScrollSample.isComposeLazyEstimate(): Boolean {
+    private fun ScrollSample.isComposeLazyEstimate(previous: Position?): Boolean {
         val margin = MeasurementConfig.COMPOSE_LAZY_MAX_SCROLL_MARGIN_PX
-        return (maxScrollY > 0 && maxScrollY - scrollY == margin) || (maxScrollX > 0 && maxScrollX - scrollX == margin)
+        val lazyY = maxScrollY > 0 && maxScrollY - scrollY == margin && (previous == null || previous.maxScrollY != maxScrollY)
+        val lazyX = maxScrollX > 0 && maxScrollX - scrollX == margin && (previous == null || previous.maxScrollX != maxScrollX)
+        return lazyX || lazyY
     }
 
     private fun ScrollSample.hasValidPosition(): Boolean =

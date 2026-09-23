@@ -102,6 +102,23 @@ class ScrollFallbackTrackerTest {
     }
 
     @Test
+    fun composeLazyEstimateIsCaughtWhenTheListStartsAtItsEnd() {
+        assertThat(tracker.update(composeLazy(1_500, uptimeMs = 0, atEnd = true), limit)).isNull()
+        // Scrolling back: the max moved with the position — an estimate, not 1 500 − 1 100 px.
+        assertThat(tracker.update(composeLazy(1_100, uptimeMs = 100), limit)).isNull()
+        assertThat(tracker.update(composeLazy(600, uptimeMs = 200), limit)).isNull()
+    }
+
+    @Test
+    fun exactColumnPassing100PxBeforeItsEndStaysMeasured() {
+        val column = { y: Int, t: Long -> sample(dx = -1, dy = -1, className = "android.view.View", windowId = -1, uptimeMs = t, scrollY = y, maxScrollY = 40_000) }
+        tracker.update(column(39_500, 0), limit)
+        assertThat(tracker.update(column(39_900, 100), limit)).isEqualTo(ScrollFallbackTracker.Delta(0, 400))
+        assertThat(tracker.update(column(40_000, 200), limit)).isEqualTo(ScrollFallbackTracker.Delta(0, 100))
+        assertThat(tracker.update(column(39_700, 300), limit)).isEqualTo(ScrollFallbackTracker.Delta(0, -300))
+    }
+
+    @Test
     fun exactComposeColumnPositionsAreUsed() {
         // verticalScroll(ScrollState): real pixels and a fixed max.
         val column = { y: Int, t: Long -> sample(dx = -1, dy = -1, className = "android.view.View", windowId = -1, uptimeMs = t, scrollY = y, maxScrollY = 40_000) }

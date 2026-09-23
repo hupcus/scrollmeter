@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -59,7 +60,8 @@ fun DebugMeasurementScreen(graph: AppGraph, log: DebugEventLog, onBack: () -> Un
     val counts by log.counts.collectAsStateWithLifecycle()
     val paused by log.paused.collectAsStateWithLifecycle()
     val connected by graph.monitor.serviceConnected.collectAsStateWithLifecycle()
-    val display = remember { graph.displayMetricsProvider.read() }
+    // Re-read after rotation, like the service does in onConfigurationChanged.
+    val display = remember(LocalConfiguration.current.orientation) { graph.displayMetricsProvider.read() }
     val scale = remember(display) { display.toDisplayScale() }
     val savedLabel = stringResource(R.string.devtools_debug_exported)
     val shareLabel = stringResource(R.string.devtools_debug_share)
@@ -139,8 +141,9 @@ private fun EventRow(result: MeasurementResult) {
     Cells(
         rowTime.format(Instant.ofEpochMilli(s.wallTimeMs).atZone(ZoneId.systemDefault())),
         s.packageName ?: "—",
-        s.deltaX.toString(),
-        s.deltaY.toString(),
+        // The pixels behind the mm column (direct or fallback), not the raw -1/-1 of position-only apps.
+        result.dxPx.toString(),
+        result.dyPx.toString(),
         Format.decimal(result.distance.totalMm, 2),
         result.source.shortCode(),
         if (result.accepted) "✓" else "✗",
