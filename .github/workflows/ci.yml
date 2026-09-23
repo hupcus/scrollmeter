@@ -40,9 +40,8 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # No setup-android step: the ubuntu runner image ships the Android SDK (ANDROID_HOME) with
+      # accepted licences, and android-actions/setup-android@v3 fails on the removed `tools` package.
       - name: Unit tests, lint, debug build
         run: ./gradlew testDebugUnitTest lintDebug assembleDebug --stacktrace
 
