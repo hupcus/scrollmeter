@@ -11,8 +11,8 @@ finger across the touchscreen.
 
 ## Status
 
-Project founded 2026-09-23. Phase 0 (bootstrap) has not started yet — see
-`PLAN.md` (phases, gates) and `handoff.md` (live state).
+Project founded 2026-09-23. Phase 0 (bootstrap): buildable Compose skeleton with the
+pinned toolchain and CI — see `PLAN.md` (phases, gates) and `handoff.md` (live state).
 
 ## Repository map
 
