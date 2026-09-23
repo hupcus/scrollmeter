@@ -20,6 +20,7 @@ ROWS = [
     "2026-09-23T10:00:00.100,1100,com.b,9,WebView,-1,-1,0,300,0,0,0,300,19.0,FALLBACK_POSITION,accepted",
     "2026-09-23T10:00:00.200,1200,com.b,9,WebView,-1,-1,0,300,0,0,0,0,0.0,UNMEASURABLE,rejected",
     "2026-09-23T10:00:00.300,1300,com.b,9,ListView,0,12000,0,0,0,0,0,12000,760.0,OUTLIER_REJECTED,rejected",
+    "2026-09-23T10:00:00.400,1400,com.a,5,WebView,-1,-1,0,450,0,0,0,150,9.5,SUPERSEDED_BY_DIRECT,rejected",
 ]
 
 
@@ -35,13 +36,15 @@ class AnalyzeDebugCsvTest(unittest.TestCase):
     def test_reads_header_and_rows(self):
         export = tool.read_export(self.csv)
         self.assertAlmostEqual(export.max_event_px, 10527.2)
-        self.assertEqual(len(export.rows), 6)
+        self.assertEqual(len(export.rows), 7)
 
     def test_per_app_counts_and_coverage(self):
         _, apps = tool.collect([Path(self.dir.name)])
         a, b = apps["com.a"], apps["com.b"]
         self.assertEqual(a.count("DIRECT_DELTA"), 3)
         self.assertAlmostEqual(a.counted_mm, 18.9999, places=3)
+        self.assertAlmostEqual(a.coverage, 1.0)  # the superseded copy is not a coverage gap
+        self.assertAlmostEqual(a.superseded_mm, 9.5)
         self.assertEqual(b.undefined_delta_events, 2)
         self.assertAlmostEqual(b.coverage, 1 / 3)
 
@@ -55,7 +58,7 @@ class AnalyzeDebugCsvTest(unittest.TestCase):
     def test_report_mentions_outlier_and_ratio(self):
         exports, apps = tool.collect([self.csv])
         text = tool.report(exports, apps)
-        self.assertIn("| `com.a` | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 100.0 % |", text)
+        self.assertIn("| `com.a` | 4 | 3 | 0 | 1 (0.01) | 0 | 0 | 0 | 1 | 100.0 % |", text)
         self.assertIn("dx=0 dy=12000", text)
         self.assertIn("1.14", text)  # 12000 / 10527.2
 

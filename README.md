@@ -75,7 +75,7 @@ exact ground truth). Release builds contain neither.
    python3 tools/analyze_debug_csv.py runs/debug          # per-app table: coverage, fallback, outliers, duplicates
    $ADB logcat -s ScrollMeter:D                           # one line per event, live
    ```
-7. **Switch the service off** when done: `$ADB shell settings put secure enabled_accessibility_services ""`
+7. **Switch the service off** when done: `$ADB shell settings delete secure enabled_accessibility_services` (an empty `put` fails with "Bad arguments")
    or in Accessibility settings.
 
 The debug CSV holds numbers and identifiers only (time, package, window id, view class, deltas, scroll

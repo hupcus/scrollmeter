@@ -49,12 +49,18 @@ Bumping a pin is allowed only when the build demands it; record old → new and 
 ADB=~/Library/Android/sdk/platform-tools/adb
 $ADB shell settings put secure enabled_accessibility_services com.scrollmeter.app.debug/com.scrollmeter.app.accessibility.ScrollAccessibilityService
 $ADB shell settings put secure accessibility_enabled 1          # POC only — real users go through Settings + disclosure
-$ADB shell settings put secure enabled_accessibility_services "" # disable again
-$ADB shell input swipe 540 1800 540 600 800                      # slow swipe ≈ 1200 px, no fling
+$ADB shell settings delete secure enabled_accessibility_services # disable again (an empty "put" fails with "Bad arguments")
+$ADB shell input swipe 540 1800 540 600 800                      # slow swipe — still lifts with velocity, may fling a little
+python3 tools/device_accuracy.py --surface view,column          # repeatable Tests A–E on the debug test list (no-fling drags: motionevent + 0.6 s hold)
 $ADB shell input swipe 540 1800 540 600 150                      # fast swipe → fling
 $ADB logcat -s ScrollMeter:D                                     # one line per event in debug builds
 $ADB exec-out screencap -p > "$SCRATCH/shot.png"                 # screenshots: let a subagent look; keep images out of the main context
 ```
+
+Device gotchas (OnePlus CPH2399, Android 14):
+- `settings put secure …` needs Developer options → **Zakázat sledování oprávnění** (very bottom); it survives a reboot.
+- `uiautomator dump` unbinds every accessibility service while it runs — the home screen then says "not running". Read our own layout with `dumpsys activity top` instead (it also sees Views inside a Compose `AndroidView`).
+- The debug app opens a dev tool directly: `am start -n com.scrollmeter.app.debug/com.scrollmeter.app.MainActivity --es devtool testlist` (or `debug`).
 
 Before calling a phase done: `assembleDebug` + `testDebugUnitTest` + `lintDebug` green, the on-device check from that phase's DoD in `PLAN.md`, `handoff.md` updated. Gradle output goes to a file in the scratchpad and is grepped, never read whole.
 

@@ -95,7 +95,7 @@ fun DebugMeasurementScreen(graph: AppGraph, log: DebugEventLog, onBack: () -> Un
             val by = counts.bySource
             Text(
                 "Událostí ${counts.total} · přímé ${by[MeasurementSource.DIRECT_DELTA] ?: 0} · fallback " +
-                    "${by[MeasurementSource.FALLBACK_POSITION] ?: 0} · bez dat ${by[MeasurementSource.UNMEASURABLE] ?: 0} · " +
+                    "${by[MeasurementSource.FALLBACK_POSITION] ?: 0} · duplicitní ${by[MeasurementSource.SUPERSEDED_BY_DIRECT] ?: 0} · bez dat ${by[MeasurementSource.UNMEASURABLE] ?: 0} · " +
                     "outlier ${by[MeasurementSource.OUTLIER_REJECTED] ?: 0} · vyloučené ${by[MeasurementSource.EXCLUDED] ?: 0} · " +
                     "v paměti ${counts.recorded}" + if (counts.overflowed > 0) " (přeteklo ${counts.overflowed})" else "",
                 style = small,
@@ -164,6 +164,7 @@ private fun Cells(time: String, pkg: String, dx: String, dy: String, mm: String,
 private fun MeasurementSource.shortCode(): String = when (this) {
     MeasurementSource.DIRECT_DELTA -> "DIR"
     MeasurementSource.FALLBACK_POSITION -> "FB"
+    MeasurementSource.SUPERSEDED_BY_DIRECT -> "DUP"
     MeasurementSource.UNMEASURABLE -> "N/A"
     MeasurementSource.OUTLIER_REJECTED -> "OUT"
     MeasurementSource.EXCLUDED -> "EXC"

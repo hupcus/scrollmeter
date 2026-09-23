@@ -14,6 +14,14 @@ object MeasurementConfig {
     /** The scrollX/Y fallback is used only when the previous event of the same key is this recent (spec §6 B). */
     const val FALLBACK_MAX_GAP_MS = 2_000L
 
+    /**
+     * A position fallback is not counted while another view class of the same package delivered a
+     * direct delta this recently:
+     * Chrome reports every scroll twice — deltas from its compositor `FrameLayout` and positions
+     * from the `WebView` node — and counting both doubles the distance (ADR-020).
+     */
+    const val DIRECT_SUPERSEDES_FALLBACK_MS = 5_000L
+
     /** Upper bound of remembered fallback keys (package + windowId + className); least recently used goes first. */
     const val FALLBACK_TRACKER_MAX_KEYS = 64
 

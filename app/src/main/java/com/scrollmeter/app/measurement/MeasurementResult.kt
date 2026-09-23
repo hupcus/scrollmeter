@@ -7,6 +7,12 @@ enum class MeasurementSource {
     /** Difference of `scrollX/Y` against the previous event of the same key (spec §6 B). */
     FALLBACK_POSITION,
 
+    /**
+     * A valid position fallback while another view class of the same package delivered direct deltas within
+     * [MeasurementConfig.DIRECT_SUPERSEDES_FALLBACK_MS] — the same motion was already counted (ADR-020).
+     */
+    SUPERSEDED_BY_DIRECT,
+
     /** A scroll event without usable pixel data — counts as 0, never estimated (spec §6 C). */
     UNMEASURABLE,
 

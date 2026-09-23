@@ -3,6 +3,8 @@ package com.scrollmeter.app.measurement
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
+private const val CHROME = "com.android.chrome"
+
 /** End-to-end over synthetic sequences: validator → fallback → scale → calculator → outlier (spec §63). */
 class ScrollMeasurementEngineTest {
     private val settings = MeasurementSettings()
@@ -50,6 +52,36 @@ class ScrollMeasurementEngineTest {
         ).measure()
         assertThat(results[2].source).isEqualTo(MeasurementSource.FALLBACK_POSITION)
         assertThat(results[2].dyPx).isEqualTo(250)
+    }
+
+    /** Chrome, measured on the test phone: one 1000 px drag reported by two streams (ADR-020). */
+    @Test
+    fun chromeDualStreamIsCountedOnce() {
+        val webView = { y: Int, t: Long -> positionOnlySample(scrollY = y, uptimeMs = t, windowId = -1, packageName = CHROME) }
+        val frame = { dy: Int, t: Long -> sample(dy = dy, uptimeMs = t, windowId = -1, packageName = CHROME, className = "android.widget.FrameLayout") }
+        val results = listOf(webView(54, 0), frame(310, 100), frame(241, 200), frame(258, 350), webView(803, 500)).measure()
+        assertThat(results.last().source).isEqualTo(MeasurementSource.SUPERSEDED_BY_DIRECT)
+        assertThat(results.last().accepted).isFalse()
+        assertThat(results.last().dyPx).isEqualTo(749) // kept for the debug CSV
+        assertThat(results.filter { it.accepted }.sumOf { it.dyPx }).isEqualTo(809)
+    }
+
+    @Test
+    fun aPositionDuringAnotherStreamsFlingIsSupersededUntilTheWindowEnds() {
+        engine.process(sample(dy = 400, uptimeMs = 0, className = "android.widget.FrameLayout"))
+        engine.process(positionOnlySample(scrollY = 0, uptimeMs = MeasurementConfig.DIRECT_SUPERSEDES_FALLBACK_MS - 100))
+        val inside = engine.process(positionOnlySample(scrollY = 300, uptimeMs = MeasurementConfig.DIRECT_SUPERSEDES_FALLBACK_MS))
+        val outside = engine.process(positionOnlySample(scrollY = 600, uptimeMs = MeasurementConfig.DIRECT_SUPERSEDES_FALLBACK_MS + 1))
+        assertThat(inside.source).isEqualTo(MeasurementSource.SUPERSEDED_BY_DIRECT)
+        assertThat(outside.source).isEqualTo(MeasurementSource.FALLBACK_POSITION)
+    }
+
+    @Test
+    fun directDeltasOfAnotherPackageDoNotSupersedeAFallback() {
+        engine.process(sample(dy = 100, uptimeMs = 0, packageName = "other.app", className = "android.widget.FrameLayout"))
+        engine.process(positionOnlySample(scrollY = 0, uptimeMs = 100))
+        assertThat(engine.process(positionOnlySample(scrollY = 300, uptimeMs = 200)).source)
+            .isEqualTo(MeasurementSource.FALLBACK_POSITION)
     }
 
     @Test

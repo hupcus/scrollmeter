@@ -5,8 +5,8 @@ Usage:
     python3 tools/analyze_debug_csv.py <csv-or-dir> [...]        # per-app compatibility table
     python3 tools/analyze_debug_csv.py --testlist <logcat.txt>   # accuracy from TESTLIST lines
 
-Per package it reports the share of DIRECT / FALLBACK / UNMEASURABLE / OUTLIER / EXCLUDED
-events, the counted distance, duplicate candidates under the spec §70 rule (same package +
+Per package it reports the share of DIRECT / FALLBACK / SUPERSEDED / UNMEASURABLE / OUTLIER /
+EXCLUDED events, the counted distance, duplicate candidates under the spec §70 rule (same package +
 window_id + dx + dy within 5 ms) and the largest event against the 4 x diagonal outlier limit
 (spec §11). Output is Markdown, ready for docs/accuracy-testing.md. Standard library only.
 """
@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 DEDUP_WINDOW_MS = 5  # spec §70; mirrors MeasurementConfig.DEDUP_WINDOW_MS
-SOURCES = ("DIRECT_DELTA", "FALLBACK_POSITION", "UNMEASURABLE", "OUTLIER_REJECTED", "EXCLUDED")
+SOURCES = ("DIRECT_DELTA", "FALLBACK_POSITION", "SUPERSEDED_BY_DIRECT", "UNMEASURABLE", "OUTLIER_REJECTED", "EXCLUDED")
 
 
 @dataclass
@@ -68,7 +68,8 @@ class AppStats:
 
     @property
     def measurable(self) -> int:
-        return len(self.rows) - self.count("EXCLUDED")
+        """Events that could carry distance; a superseded one is a second copy of counted motion (ADR-020)."""
+        return len(self.rows) - self.count("EXCLUDED") - self.count("SUPERSEDED_BY_DIRECT")
 
     @property
     def counted_mm(self) -> float:
@@ -87,6 +88,10 @@ class AppStats:
 
     def event_sizes(self) -> list[float]:
         return sorted(r.used_px for r in self.rows if r.source in ("DIRECT_DELTA", "FALLBACK_POSITION", "OUTLIER_REJECTED"))
+
+    @property
+    def superseded_mm(self) -> float:
+        return sum(r.distance_mm for r in self.rows if r.source == "SUPERSEDED_BY_DIRECT")
 
     def duplicate_candidates(self) -> list[tuple[Row, Row]]:
         return duplicate_candidates(self.rows)
@@ -165,10 +170,10 @@ def report(exports: list[Export], apps: dict[str, AppStats], own_prefix: str = "
         )
         lines.append("")
     lines.append(
-        "| Package | Events | Direct | Fallback | Unmeasurable | Outlier | Excluded | (-1,-1) | Coverage | "
-        "Counted m | Median / p95 / max event px | Max / limit | Dup. candidates (≤5 ms) |"
+        "| Package | Events | Direct | Fallback | Superseded (m) | Unmeasurable | Outlier | Excluded | (-1,-1) | "
+        "Coverage | Counted m | Median / p95 / max event px | Max / limit | Dup. candidates (≤5 ms) |"
     )
-    lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for stats in sorted(apps.values(), key=lambda s: -len(s.rows)):
         if stats.package.startswith(own_prefix) and stats.measurable == 0:
             continue
@@ -182,9 +187,11 @@ def report(exports: list[Export], apps: dict[str, AppStats], own_prefix: str = "
         dups = stats.duplicate_candidates()
         dup_mm = sum(later.distance_mm for _, later in dups if later.source in ("DIRECT_DELTA", "FALLBACK_POSITION"))
         dup_text = f"{len(dups)} ({dup_mm / 1000:.3f} m)" if dups else "0"
+        superseded = stats.count("SUPERSEDED_BY_DIRECT")
+        superseded_text = f"{superseded} ({stats.superseded_mm / 1000:.2f})" if superseded else "0"
         lines.append(
             f"| `{stats.package}` | {len(stats.rows)} | {stats.count('DIRECT_DELTA')} | {stats.count('FALLBACK_POSITION')} | "
-            f"{stats.count('UNMEASURABLE')} | {stats.count('OUTLIER_REJECTED')} | {stats.count('EXCLUDED')} | "
+            f"{superseded_text} | {stats.count('UNMEASURABLE')} | {stats.count('OUTLIER_REJECTED')} | {stats.count('EXCLUDED')} | "
             f"{stats.undefined_delta_events} | {pct(stats.coverage)} | {stats.counted_mm / 1000:.2f} | {size_text} | "
             f"{ratio} | {dup_text} |"
         )
