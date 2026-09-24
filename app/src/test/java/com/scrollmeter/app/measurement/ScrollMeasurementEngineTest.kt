@@ -1,6 +1,8 @@
 package com.scrollmeter.app.measurement
 
 import com.google.common.truth.Truth.assertThat
+import com.scrollmeter.app.calibration.CalibrationState
+import com.scrollmeter.app.calibration.CardCalibration
 import org.junit.Test
 
 private const val CHROME = "com.android.chrome"
@@ -26,6 +28,26 @@ class ScrollMeasurementEngineTest {
         val results = listOf(sample(dy = 1000, uptimeMs = 0), sample(dy = -1000, uptimeMs = 500)).measure()
         val mm = results.sumOf { it.distance.totalMm }
         assertThat(mm).isWithin(1e-9).of(2000 * TestPhone.scale.mmPerPxY)
+    }
+
+    /** Spec §65: a recalibration applies to new events only; what was measured keeps its distance and version. */
+    @Test
+    fun recalibrationChangesOnlyNewEvents() {
+        val monitor = MeasurementMonitor(OWN_PACKAGE)
+        val before = engine.process(sample(dy = 1000, uptimeMs = 0)).also(monitor::record)
+        val beforeMm = before.distance.totalMm
+
+        val card = CardCalibration.create(1352, TestPhone.snapshot, 0)
+        engine.display = TestPhone.snapshot.toDisplayScale(CalibrationState(version = 1, manual = card))
+        val after = engine.process(sample(dy = 1000, uptimeMs = 100)).also(monitor::record)
+
+        assertThat(before.calibrationVersion).isEqualTo(0)
+        assertThat(before.distance.totalMm).isEqualTo(beforeMm)
+        assertThat(beforeMm).isWithin(1e-9).of(1000 * TestPhone.scale.mmPerPxY)
+        assertThat(after.calibrationVersion).isEqualTo(1)
+        assertThat(after.distance.totalMm).isWithin(1e-9).of(1000 * 85.60 / 1352)
+        // The running total adds each event as measured — nothing is recomputed.
+        assertThat(monitor.totals.value.countedMm).isWithin(1e-9).of(beforeMm + 1000 * 85.60 / 1352)
     }
 
     @Test

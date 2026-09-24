@@ -2,6 +2,8 @@ package com.scrollmeter.app
 
 import android.content.Context
 import com.scrollmeter.app.accessibility.AccessibilityStatusChecker
+import com.scrollmeter.app.calibration.CalibrationRepository
+import com.scrollmeter.app.calibration.CalibrationState
 import com.scrollmeter.app.calibration.DisplayMetricsProvider
 import com.scrollmeter.app.devtools.DevTools
 import com.scrollmeter.app.measurement.MeasurementMonitor
@@ -23,13 +25,16 @@ class AppGraph(context: Context) {
     val monitor = MeasurementMonitor(ownPackage)
 
     val displayMetricsProvider by lazy { DisplayMetricsProvider(appContext) }
+    val calibrationRepository by lazy { CalibrationRepository(appContext) }
     val statusChecker by lazy { AccessibilityStatusChecker(appContext) }
 
     /** Debug builds: event log + logcat. Release builds: none (src/release DevTools). */
     val measurementSinks: List<MeasurementSink> by lazy { DevTools.measurementSinks(this) }
 
-    fun readDisplayScale(): ScrollMeasurementEngine.DisplayScale = displayMetricsProvider.read().toDisplayScale()
+    /** The display as it is now, scaled by [calibration] where it applies (ADR-024). */
+    fun readDisplayScale(calibration: CalibrationState): ScrollMeasurementEngine.DisplayScale =
+        displayMetricsProvider.read().toDisplayScale(calibration)
 
-    fun newEngine(): ScrollMeasurementEngine =
-        ScrollMeasurementEngine(ownPackage, measurementSettings, readDisplayScale())
+    fun newEngine(calibration: CalibrationState): ScrollMeasurementEngine =
+        ScrollMeasurementEngine(ownPackage, measurementSettings, readDisplayScale(calibration))
 }

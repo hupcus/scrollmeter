@@ -2,29 +2,14 @@ package com.scrollmeter.app.calibration
 
 import android.content.Context
 import android.hardware.display.DisplayManager
+import android.os.Build
 import android.util.DisplayMetrics
 import android.view.Display
-import com.scrollmeter.app.measurement.DeviceGeometry
-import com.scrollmeter.app.measurement.PhysicalScaleProvider
-import com.scrollmeter.app.measurement.ScrollMeasurementEngine
-
-/** What the default display reports about itself, in physical pixels. */
-data class DisplaySnapshot(
-    val widthPx: Int,
-    val heightPx: Int,
-    val xdpi: Double,
-    val ydpi: Double,
-    val densityDpi: Int,
-) {
-    fun toDisplayScale(): ScrollMeasurementEngine.DisplayScale = ScrollMeasurementEngine.DisplayScale(
-        geometry = DeviceGeometry(widthPx, heightPx),
-        scale = PhysicalScaleProvider.fromDisplayMetrics(xdpi, ydpi, densityDpi),
-    )
-}
 
 /**
  * Reads the real (full-screen) size and the physical `xdpi`/`ydpi` of the default display
- * (spec §9, §11). Works from a non-visual context such as the accessibility service.
+ * (spec §9, §11), and the phone's manufacturer and model (spec §10 — shown, never required).
+ * Works from a non-visual context such as the accessibility service.
  */
 class DisplayMetricsProvider(private val context: Context) {
     fun read(): DisplaySnapshot {
@@ -40,6 +25,8 @@ class DisplayMetricsProvider(private val context: Context) {
             xdpi = metrics.xdpi.toDouble(),
             ydpi = metrics.ydpi.toDouble(),
             densityDpi = metrics.densityDpi,
+            manufacturer = Build.MANUFACTURER.orEmpty(),
+            model = Build.MODEL.orEmpty(),
         )
     }
 }

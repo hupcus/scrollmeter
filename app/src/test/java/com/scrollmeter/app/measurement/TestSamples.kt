@@ -2,6 +2,7 @@ package com.scrollmeter.app.measurement
 
 import com.scrollmeter.app.calibration.CalibrationConfidence
 import com.scrollmeter.app.calibration.CalibrationMethod
+import com.scrollmeter.app.calibration.DisplaySnapshot
 
 /** The test phone of CLAUDE.md: OnePlus CPH2399, 1080×2400, xdpi 403.411 / ydpi 401.052, densityDpi 480. */
 object TestPhone {
@@ -10,7 +11,10 @@ object TestPhone {
     const val XDPI = 403.411
     const val YDPI = 401.052
     const val DENSITY_DPI = 480
+    const val MANUFACTURER = "OnePlus"
+    const val MODEL = "CPH2399"
 
+    val snapshot = DisplaySnapshot(WIDTH_PX, HEIGHT_PX, XDPI, YDPI, DENSITY_DPI, MANUFACTURER, MODEL)
     val geometry = DeviceGeometry(WIDTH_PX, HEIGHT_PX)
     val scale = PhysicalScaleProvider.fromDisplayMetrics(XDPI, YDPI, DENSITY_DPI)
     val display = ScrollMeasurementEngine.DisplayScale(geometry, scale)

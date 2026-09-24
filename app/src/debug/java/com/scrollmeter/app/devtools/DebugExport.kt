@@ -10,6 +10,7 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.flow.first
 
 /**
  * Writes the recorded events to app-specific external storage — no storage permission, and
@@ -18,7 +19,7 @@ import java.util.Locale
 object DebugExport {
     private val fileTime = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT)
 
-    fun write(context: Context, graph: AppGraph, log: DebugEventLog): File {
+    suspend fun write(context: Context, graph: AppGraph, log: DebugEventLog): File {
         val rows = log.exportRows()
         val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "debug").apply { mkdirs() }
         val app = DebugCsv.dominantPackageOfRows(rows, graph.ownPackage)
@@ -27,6 +28,7 @@ object DebugExport {
             DebugCsv.document(
                 rows = rows,
                 display = graph.displayMetricsProvider.read(),
+                calibration = graph.calibrationRepository.state.first(),
                 device = "${Build.MANUFACTURER} ${Build.MODEL} API${Build.VERSION.SDK_INT}",
                 appVersion = BuildConfig.VERSION_NAME,
                 overflowed = log.counts.value.overflowed,

@@ -40,7 +40,8 @@ data class ScrollDistance(
 /**
  * The engine's verdict on one sample. [dxPx]/[dyPx] are the pixels the verdict is based on
  * (direct or fallback); for OUTLIER_REJECTED they and [distance] are kept for analysis but
- * [accepted] is false, so nothing is added to any total.
+ * [accepted] is false, so nothing is added to any total. [calibrationVersion] is the calibration
+ * [distance] was computed under — a later recalibration never changes it (spec §65, ADR-007).
  */
 data class MeasurementResult(
     val sample: ScrollSample,
@@ -48,6 +49,7 @@ data class MeasurementResult(
     val dxPx: Int,
     val dyPx: Int,
     val distance: ScrollDistance,
+    val calibrationVersion: Int,
 ) {
     val accepted: Boolean get() = source.counted
 }

@@ -3,6 +3,8 @@ package com.scrollmeter.app.measurement
 import com.google.common.truth.Truth.assertThat
 import com.scrollmeter.app.calibration.CalibrationConfidence
 import com.scrollmeter.app.calibration.CalibrationMethod
+import com.scrollmeter.app.calibration.CalibrationState
+import com.scrollmeter.app.calibration.CardCalibration
 import org.junit.Test
 
 /** Spec §9 xdpi/ydpi conversion, checked on the real test phone's numbers (PLAN §2). */
@@ -40,6 +42,38 @@ class PhysicalScaleProviderTest {
         assertThat(scale.mmPerPxX).isWithin(1e-9).of(25.4 / 480)
         assertThat(scale.method).isEqualTo(CalibrationMethod.UNKNOWN)
         assertThat(scale.confidence).isEqualTo(CalibrationConfidence.LOW)
+    }
+
+    /** Spec §8 over §9, §33: the card wins with HIGH confidence and carries the stored version. */
+    @Test
+    fun manualCardCalibrationTakesPrecedence() {
+        val card = CardCalibration.create(1352, TestPhone.snapshot, 0)
+        val scale = PhysicalScaleProvider.resolve(CalibrationState(version = 2, manual = card), TestPhone.snapshot)
+        assertThat(scale.method).isEqualTo(CalibrationMethod.MANUAL_CARD)
+        assertThat(scale.confidence).isEqualTo(CalibrationConfidence.HIGH)
+        assertThat(scale.mmPerPxX).isWithin(1e-12).of(85.60 / 1352)
+        assertThat(scale.mmPerPxY).isWithin(1e-12).of(85.60 / 1352)
+        assertThat(scale.calibrationVersion).isEqualTo(2)
+    }
+
+    @Test
+    fun withoutCalibrationTheDisplayMetricsAreUsed() {
+        assertThat(PhysicalScaleProvider.resolve(CalibrationState.NONE, TestPhone.snapshot)).isEqualTo(TestPhone.scale)
+        // "use the automatic estimate" after a card: xdpi/ydpi again, under the newer version.
+        val afterReset = PhysicalScaleProvider.resolve(CalibrationState(version = 3, manual = null), TestPhone.snapshot)
+        assertThat(afterReset).isEqualTo(TestPhone.scale.copy(calibrationVersion = 3))
+    }
+
+    /** ADR-024: a card measured at another resolution would be ~33 % off — fall back to xdpi/ydpi. */
+    @Test
+    fun aCalibrationFromAnotherResolutionIsNotUsed() {
+        val card = CardCalibration.create(1360, TestPhone.snapshot, 0)
+        val lowRes = TestPhone.snapshot.copy(widthPx = 720, heightPx = 1600, xdpi = 268.94, ydpi = 267.37)
+        val scale = PhysicalScaleProvider.resolve(CalibrationState(version = 1, manual = card), lowRes)
+        assertThat(scale.method).isEqualTo(CalibrationMethod.DISPLAY_METRICS)
+        assertThat(scale.confidence).isEqualTo(CalibrationConfidence.MEDIUM)
+        assertThat(scale.mmPerPxX).isWithin(1e-9).of(25.4 / 268.94)
+        assertThat(scale.calibrationVersion).isEqualTo(1)
     }
 
     @Test

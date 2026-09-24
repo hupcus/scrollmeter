@@ -49,7 +49,7 @@ Worked examples (both are unit tests):
 
 | Priority | Method | Formula | Confidence |
 |---|---|---|---|
-| 1 | `MANUAL_CARD` — user matches an on-screen bar to the long edge of an ISO/IEC 7810 ID-1 card (85.60 mm) | `mmPerPx = 85.60 / referencePixels` (raw px; square pixels assumed → X = Y) | HIGH |
+| 1 | `MANUAL_CARD` — user matches an on-screen **vertical** bar to the long edge of an ISO/IEC 7810 ID-1 card (85.60 mm; ADR-023) | `mmPerPx = 85.60 / referencePixels` (raw px; square pixels assumed → X = Y) | HIGH |
 | 2 | `DISPLAY_METRICS` — `DisplayMetrics.xdpi`, `ydpi` | `mmPerPxX = 25.4 / xdpi`, `mmPerPxY = 25.4 / ydpi` | MEDIUM |
 | 3 | `MODEL_DATABASE` — not in MVP | — | MEDIUM/HIGH |
 | 4 | `UNKNOWN` | — | LOW |
@@ -58,8 +58,13 @@ Worked examples (both are unit tests):
 device (OnePlus CPH2399) `densityDpi = 480` while the physical panel is `403.4 × 401.1 dpi` — using the
 logical value would under-measure by 16 %.
 
-A recalibration changes only future data. Stored aggregates keep the distance computed with the calibration
-valid at the time and carry `calibrationVersion` (ADR-007).
+A card calibration applies only to the phone and display resolution it was made on (manufacturer + model +
+panel size in px); anywhere else the scale falls back to `xdpi`/`ydpi` and the accuracy screen says so (ADR-024).
+
+A recalibration changes only future data. Every engine result carries the `calibrationVersion` its distance
+was computed under (the version counts the user's calibration changes, 0 = never calibrated); stored
+aggregates keep the distance computed with the calibration valid at the time and carry the version (ADR-007).
+Nothing is recomputed.
 
 ## Fling, horizontal scroll, refresh rate
 

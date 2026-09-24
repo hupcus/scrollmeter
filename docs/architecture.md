@@ -15,9 +15,10 @@ accessibility/ScrollAccessibilityService.onAccessibilityEvent()
 measurement/ScrollMeasurementEngine (pure Kotlin, single consumer on Dispatchers.Default)
   ↓ ScrollEventValidator     → EXCLUDED (null / own / excluded package), OUTLIER_REJECTED (hypot > 4 × screen diagonal)
   ↓ ScrollFallbackTracker    → dx/dy from scrollX/scrollY difference when deltas are 0 and the SPEC §6 B conditions hold
-  ↓ PhysicalScaleProvider    → mmPerPxX, mmPerPxY, CalibrationMethod, confidence
+  ↓ PhysicalScaleProvider    → mmPerPxX, mmPerPxY, CalibrationMethod, confidence, calibrationVersion
+                               (stored card calibration where it applies, else xdpi/ydpi — ADR-024)
   ↓ ScrollDistanceCalculator → distanceMm = hypot(dx·mmPerPxX, dy·mmPerPxY), plus horizontal / vertical components
-  ↓ MeasurementResult(sample, source ∈ {DIRECT_DELTA, FALLBACK_POSITION, UNMEASURABLE, OUTLIER_REJECTED, EXCLUDED}, distanceMm)
+  ↓ MeasurementResult(sample, source ∈ {DIRECT_DELTA, FALLBACK_POSITION, SUPERSEDED_BY_DIRECT, UNMEASURABLE, OUTLIER_REJECTED, EXCLUDED}, distanceMm, calibrationVersion)
 aggregation/ScrollAccumulator  (in-memory map (date, packageName) → deltas; flush every 10 s / 50 events / day change / onUnbind / onInterrupt)
 aggregation/ScrollSessionManager (gap > 60 s = new session)
   ↓ Room UPSERT-add on Dispatchers.IO (adds deltas and counters to the existing row, never overwrites)
@@ -30,7 +31,9 @@ Threading rules:
 - `onAccessibilityEvent()` parses primitives and offers to the channel. Nothing else. It is wrapped in
   `try/catch`; a failure increments a diagnostics counter and the event is dropped.
 - One consumer coroutine in `serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)`,
-  cancelled in `onDestroy()` after a final flush.
+  cancelled in `onDestroy()` after a final flush. It first loads the stored calibration
+  (`CalibrationRepository.state`, DataStore) — samples wait in the channel meanwhile — and a child coroutine
+  swaps `engine.display` on every calibration change; it is cancelled when the channel closes.
 - Room access only from the accumulator's flush on `Dispatchers.IO`.
 - `PackageManager` lookups (labels, icons) happen in the UI layer with caching, never in the pipeline.
 
@@ -42,7 +45,8 @@ com.scrollmeter.app
 ├── measurement     ScrollSample, MeasurementConfig, MeasurementResult, ScrollEventValidator,
 │                   ScrollFallbackTracker, PhysicalScaleProvider, ScrollDistanceCalculator,
 │                   ScrollMeasurementEngine, MeasurementQuality, DeviceGeometry        (pure Kotlin)
-├── calibration     CalibrationRepository, CalibrationMethod, DisplayMetricsProvider
+├── calibration     CalibrationRepository (DataStore), Calibration (ManualCalibration, CalibrationState,
+│                   CardCalibration), CalibrationMethod, DisplaySnapshot, DisplayMetricsProvider
 ├── data            local (ScrollDatabase, dao, entity), repository, model
 ├── aggregation     ScrollAccumulator, ScrollSessionManager, (DailyAggregationWorker only if needed)
 ├── ui              onboarding, dashboard, history, apps, calibration, settings, about, components, theme
@@ -57,9 +61,11 @@ com.scrollmeter.app
   `rawDeltaXPx`, `rawDeltaYPx`, `measuredEventCount`, `fallbackEventCount`, `unmeasurableEventCount`,
   `rejectedOutlierCount`, `firstEventTimestamp?`, `lastEventTimestamp?`, `calibrationVersion`.
 - `scroll_session`: `id`, `packageName`, `startTimestamp`, `endTimestamp`, `distanceMm`, `eventCount` — written when a session closes; no UI in MVP.
-- Calibration and settings: DataStore Preferences (`calibrationMethod`, `mmPerPxX`, `mmPerPxY`, `calibratedAt`,
-  `deviceManufacturer`, `deviceModel`, `xdpiAtCalibration`, `ydpiAtCalibration`, `calibrationVersion`;
-  `dailyGoalMm`, `excludedPackages`, `unitPreference`, `theme`, `showComparisons`, `onboardingCompleted`, `privacyDisclosureAccepted`).
+- Calibration (DataStore Preferences file `calibration`, Phase 2): `method`, `reference_px`, `mm_per_px_x`, `mm_per_px_y`,
+  `calibrated_at_ms`, `device_manufacturer`, `device_model`, `xdpi_at_calibration`, `ydpi_at_calibration`,
+  `panel_short_px`, `panel_long_px`, `calibration_version` (ADR-024).
+- Settings (DataStore Preferences, Phase 6):
+  `dailyGoalMm`, `excludedPackages`, `unitPreference`, `theme`, `showComparisons`, `onboardingCompleted`, `privacyDisclosureAccepted`.
 - Per-package compatibility (spec §64) is derived by `SUM` over `daily_app_aggregate`; no extra table.
 - `date` is `LocalDate.now(ZoneId.systemDefault())` as an ISO string; weeks are Monday–Sunday (`WeekFields.ISO`).
 - Room `version = 1`, `exportSchema = true` (`app/schemas/` in git); destructive migration only in debug builds.
@@ -74,3 +80,7 @@ com.scrollmeter.app
 
 Bottom bar: Přehled · Historie · Aplikace · Nastavení (Navigation Compose 2.9, type-safe routes).
 Onboarding is a separate graph shown until `onboardingCompleted`.
+
+Until Phase 4 `MainActivity` switches between Home → Přesnost měření (`ui/calibration/AccuracyScreen`) →
+Kalibrace displeje (`ui/calibration/CalibrationScreen`) with a saveable enum; saving or skipping a calibration
+lands on Přesnost.

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
+import com.scrollmeter.app.calibration.CalibrationState
 import com.scrollmeter.app.measurement.MeasurementResult
 import com.scrollmeter.app.measurement.MeasurementSource
 import com.scrollmeter.app.measurement.ScrollDistanceCalculator
@@ -60,9 +61,10 @@ fun DebugMeasurementScreen(graph: AppGraph, log: DebugEventLog, onBack: () -> Un
     val counts by log.counts.collectAsStateWithLifecycle()
     val paused by log.paused.collectAsStateWithLifecycle()
     val connected by graph.monitor.serviceConnected.collectAsStateWithLifecycle()
+    val calibration by graph.calibrationRepository.state.collectAsStateWithLifecycle(initialValue = CalibrationState.NONE)
     // Re-read after rotation, like the service does in onConfigurationChanged.
     val display = remember(LocalConfiguration.current.orientation) { graph.displayMetricsProvider.read() }
-    val scale = remember(display) { display.toDisplayScale() }
+    val scale = remember(display, calibration) { display.toDisplayScale(calibration) }
     val savedLabel = stringResource(R.string.devtools_debug_exported)
     val shareLabel = stringResource(R.string.devtools_debug_share)
 
@@ -81,7 +83,7 @@ fun DebugMeasurementScreen(graph: AppGraph, log: DebugEventLog, onBack: () -> Un
                 style = small,
             )
             Text(
-                "mm/px X ${Format.decimal(s.mmPerPxX, 6)} · Y ${Format.decimal(s.mmPerPxY, 6)} (${s.method}, ${s.confidence})",
+                "mm/px X ${Format.decimal(s.mmPerPxX, 6)} · Y ${Format.decimal(s.mmPerPxY, 6)} (${s.method}, ${s.confidence}, v${s.calibrationVersion})",
                 style = small,
             )
             Text(

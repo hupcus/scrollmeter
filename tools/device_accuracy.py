@@ -11,16 +11,19 @@ accessibility pipeline measured for our own package).
 screen is read only while locating the controls; afterwards the script waits for the service to
 bind again and taps by coordinates.
 
+The calibration in force (method, version, mm/px — from the TESTLIST line) is printed with the
+results. `--csv-out DIR` also writes `ground_truth.csv` and `measured.csv` for `tools/accuracy.py`.
+
 Usage:
-    python3 tools/device_accuracy.py [--surface view,column,lazy] [--only A500,C_fling] [--markdown]
+    python3 tools/device_accuracy.py [--surface view,column,lazy] [--only A500,C_fling] [--markdown] [--csv-out DIR]
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import os
 import re
-import statistics
 import subprocess
 import sys
 import time
@@ -29,6 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from accuracy import Comparison, summary  # noqa: E402
 from analyze_debug_csv import testlist_accuracy  # noqa: E402
 
 PACKAGE = "com.scrollmeter.app.debug"
@@ -37,6 +41,8 @@ ADB = os.environ.get("ADB", str(Path.home() / "Library/Android/sdk/platform-tool
 SETTLE_S = 3.0  # TESTLIST is debounced by 1.5 s after the last change
 EV = re.compile(r"^\s*(?P<t>\d+\.\d+)\s.*ScrollMeter: ev .*pkg=(?P<pkg>\S+) .*used=(?P<ux>-?\d+),(?P<uy>-?\d+) .*src=(?P<src>\w+)")
 MARK = re.compile(r"^\s*(?P<t>\d+\.\d+)\s.*ScrollMeter: MARK_UP")
+SCALE = re.compile(r"TESTLIST .*scale_method=(?P<method>\w+) calibration_version=(?P<version>\d+) "
+                   r"mm_per_px_x=(?P<x>[\d.]+) mm_per_px_y=(?P<y>[\d.]+)")
 
 
 SURFACES = {"view": "View", "column": "Column", "lazy": "Lazy"}  # chip labels on the test screen
@@ -53,6 +59,7 @@ class Result:
     events: int
     after_lift_events: int | None = None
     after_lift_px: float | None = None
+    scale: str = "?"
 
     @property
     def error_pct(self) -> float:
@@ -144,6 +151,10 @@ def run_test(dev: Device, surface: str, reset: tuple[int, int, int, int], name: 
     gt_px = acc["gt_y_px"] if axis == "y" else acc["gt_x_px"]
     measured_px = acc["eng_y_px"] if axis == "y" else acc["eng_x_px"]
     result = Result(surface, name, gt_px, measured_px, acc["gt_mm"], acc["eng_mm"], int(acc["events"]))
+    scales = list(SCALE.finditer(log))
+    if scales:
+        m = scales[-1]
+        result.scale = f"{m['method']} v{m['version']} {float(m['x']):.6f}/{float(m['y']):.6f} mm/px"
     marks = [float(m["t"]) for m in map(MARK.match, log.splitlines()) if m]
     if marks:
         last_up = marks[-1]
@@ -160,6 +171,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--surface", default="view,column,lazy", help="comma-separated: " + ",".join(SURFACES))
     parser.add_argument("--only", help="comma-separated test names")
     parser.add_argument("--markdown", action="store_true")
+    parser.add_argument("--csv-out", type=Path, help="directory for ground_truth.csv + measured.csv (tools/accuracy.py)")
     args = parser.parse_args(argv)
     dev = Device(args.serial)
 
@@ -202,16 +214,16 @@ def main(argv: list[str]) -> int:
             r = run_test(dev, surface, controls["Vynulovat"], name, gestures, axis, settle)
             results.append(r)
             print(f"{surface:6} {name}: GT {r.gt_px:.0f} px / measured {r.measured_px:.0f} px · GT {r.gt_mm:.2f} mm / "
-                  f"measured {r.measured_mm:.2f} mm · error {r.error_pct:+.2f} % · events {r.events}"
+                  f"measured {r.measured_mm:.2f} mm · error {r.error_pct:+.2f} % · events {r.events} · {r.scale}"
                   + (f" · after lift {r.after_lift_events} ev / {r.after_lift_px:.0f} px" if r.after_lift_events is not None else ""),
                   flush=True)
 
     for surface in dict.fromkeys(r.surface for r in results):
-        valid = [r for r in results if r.surface == surface and r.gt_mm > 0]
+        valid = [Comparison(r.test, r.gt_mm, r.measured_mm) for r in results if r.surface == surface and r.gt_mm > 0]
         if valid:
-            mae = statistics.mean(abs(r.measured_mm - r.gt_mm) for r in valid)
-            mape = statistics.mean(abs(r.error_pct) for r in valid)
-            print(f"{surface}: MAE {mae:.2f} mm · MAPE {mape:.2f} % over {len(valid)} runs")
+            print(f"{surface}: {summary(valid)}")
+    if args.csv_out:
+        write_csvs(args.csv_out, results)
     if args.markdown:
         print("\n| Surface | Test | GT px | Measured px | GT mm | Measured mm | Error % | Events | After lift (events / px) |")
         print("|---|---|---|---|---|---|---|---|---|")
@@ -220,6 +232,16 @@ def main(argv: list[str]) -> int:
             print(f"| {r.surface} | {r.test} | {r.gt_px:.0f} | {r.measured_px:.0f} | {r.gt_mm:.2f} | {r.measured_mm:.2f} | "
                   f"{r.error_pct:+.2f} | {r.events} | {lift} |")
     return 0
+
+
+def write_csvs(directory: Path, results: list[Result]) -> None:
+    """The run as the ground-truth / measured pair `tools/accuracy.py` compares (key = surface/test)."""
+    directory.mkdir(parents=True, exist_ok=True)
+    for name, column, value in (("ground_truth.csv", "ground_truth_mm", "gt_mm"), ("measured.csv", "measured_mm", "measured_mm")):
+        with (directory / name).open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["test", column])
+            writer.writerows([f"{r.surface}/{r.test}", f"{getattr(r, value):.3f}"] for r in results)
 
 
 if __name__ == "__main__":

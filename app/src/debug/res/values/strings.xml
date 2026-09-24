@@ -13,5 +13,6 @@
     <string name="devtools_service_stopped">Služba neběží</string>
     <string name="devtools_testlist_title">Testovací seznam</string>
     <string name="devtools_testlist_reset">Vynulovat</string>
+    <string name="devtools_testlist_new_series">Nová série</string>
     <string name="devtools_testlist_service_off">Služba neběží — nic se neměří.</string>
 </resources>

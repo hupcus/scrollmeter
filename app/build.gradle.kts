@@ -82,6 +82,9 @@ dependencies {
     implementation(libs.compose.material3)
     debugImplementation(libs.compose.ui.tooling)
 
+    // Calibration and (from Phase 6) settings — DataStore Preferences, pinned in libs.versions.toml.
+    implementation(libs.androidx.datastore.preferences)
+
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
