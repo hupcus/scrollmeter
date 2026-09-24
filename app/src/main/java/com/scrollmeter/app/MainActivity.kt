@@ -8,18 +8,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.scrollmeter.app.devtools.DevTools
 import com.scrollmeter.app.ui.calibration.AccuracyScreen
 import com.scrollmeter.app.ui.calibration.CalibrationScreen
-import com.scrollmeter.app.ui.home.HomeScreen
+import com.scrollmeter.app.settings.ThemePreference
+import com.scrollmeter.app.ui.dashboard.DashboardScreen
 import com.scrollmeter.app.ui.theme.ScrollMeterTheme
+import com.scrollmeter.app.ui.usage.UsageAccessScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -29,7 +33,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val graph = (application as ScrollMeterApplication).graph
         setContent {
-            ScrollMeterTheme {
+            val theme by graph.settingsRepository.settings.collectAsStateWithLifecycle(initialValue = null)
+            val dark = when (theme?.theme) {
+                ThemePreference.LIGHT -> false
+                ThemePreference.DARK -> true
+                else -> isSystemInDarkTheme()
+            }
+            ScrollMeterTheme(darkTheme = dark) {
                 ScrollMeterApp(
                     graph = graph,
                     initialTool = DevTools.toolFromLaunch(intent),
@@ -61,24 +71,18 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** The POC's screens. Navigation Compose with the bottom bar arrives in Phase 4 (D14). */
-private enum class Screen { HOME, ACCURACY, CALIBRATION }
+/** Until the bottom navigation of Phase 5 (spec §43, D14) the screens switch on a saveable enum. */
+private enum class Screen { HOME, ACCURACY, CALIBRATION, USAGE_ACCESS }
 
 /**
- * Home → Přesnost → Kalibrace (or Home → Kalibrace directly). Back returns to where the
- * calibration was opened from; saving or skipping shows the result on Přesnost. Debug builds
- * add the developer screens.
+ * Přehled → Přesnost → Kalibrace, and Přehled → Čas v aplikacích. Saving or skipping a calibration
+ * shows the result on Přesnost. Debug builds add the developer screens.
  */
 @Composable
 private fun ScrollMeterApp(graph: AppGraph, initialTool: Int, onOpenAccessibilitySettings: () -> Unit) {
     val devTools = DevTools.entries
     var openTool by rememberSaveable { mutableIntStateOf(initialTool) }
     var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
-    var calibrationOpenedFrom by rememberSaveable { mutableStateOf(Screen.HOME) }
-    val openCalibration = { from: Screen ->
-        calibrationOpenedFrom = from
-        screen = Screen.CALIBRATION
-    }
     val tool = devTools.getOrNull(openTool)
     when {
         tool != null -> {
@@ -86,19 +90,23 @@ private fun ScrollMeterApp(graph: AppGraph, initialTool: Int, onOpenAccessibilit
             tool.content(graph) { openTool = NO_TOOL }
         }
         screen == Screen.CALIBRATION -> {
-            BackHandler { screen = calibrationOpenedFrom }
-            CalibrationScreen(graph, onBack = { screen = calibrationOpenedFrom }, onSaved = { screen = Screen.ACCURACY })
+            BackHandler { screen = Screen.ACCURACY }
+            CalibrationScreen(graph, onBack = { screen = Screen.ACCURACY }, onSaved = { screen = Screen.ACCURACY })
         }
         screen == Screen.ACCURACY -> {
             BackHandler { screen = Screen.HOME }
-            AccuracyScreen(graph, onBack = { screen = Screen.HOME }, onCalibrate = { openCalibration(Screen.ACCURACY) })
+            AccuracyScreen(graph, onBack = { screen = Screen.HOME }, onCalibrate = { screen = Screen.CALIBRATION })
         }
-        else -> HomeScreen(
+        screen == Screen.USAGE_ACCESS -> {
+            BackHandler { screen = Screen.HOME }
+            UsageAccessScreen(graph, onGranted = { screen = Screen.HOME }, onBack = { screen = Screen.HOME })
+        }
+        else -> DashboardScreen(
             graph = graph,
             devTools = devTools,
             onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+            onOpenUsageAccess = { screen = Screen.USAGE_ACCESS },
             onOpenAccuracy = { screen = Screen.ACCURACY },
-            onCalibrate = { openCalibration(Screen.HOME) },
             onOpenDevTool = { openTool = it },
         )
     }

@@ -59,6 +59,11 @@ activity's start with its end and are never stored (ADR-025). `UsageEventsSource
 `android.app.usage` (`PolicyGuardTest` pins it). The app works fully without it (time then shows as "—").
 Disclosure and onboarding step: Phase 7.
 
+App names and icons on the dashboard come from `PackageManager` through a single `<queries>` entry for launcher
+activities (ADR-008) — no `QUERY_ALL_PACKAGES`; `PolicyGuardTest` allows exactly that query. Before the Usage-access
+settings open, the app shows its own disclosure screen (*Čas v aplikacích*): what is read, what is stored, what is
+not, and that everything works without it; only the explicit *Povolit* button opens the settings.
+
 Permissions are an **allowlist** in both guards: `PACKAGE_USAGE_STATS` now, `POST_NOTIFICATIONS` from Phase 6.
 Anything else fails CI and needs an ADR plus Honza's OK.
 

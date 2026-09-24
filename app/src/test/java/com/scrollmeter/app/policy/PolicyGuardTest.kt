@@ -96,11 +96,11 @@ class PolicyGuardTest {
     @Test
     fun pureKotlinPackagesHaveNoAndroidImports() {
         val main = File(appDir, "src/main/java/com/scrollmeter/app")
-        val pure = listOf("measurement", "aggregation", "data/model", "usage").flatMap { dir ->
+        val pure = listOf("measurement", "aggregation", "data/model", "usage", "format", "insights").flatMap { dir ->
             File(main, dir).walkTopDown().filter { it.extension == "kt" }.toList()
         }.filterNot { it.name in USAGE_PLATFORM_ADAPTERS }
         assertWithMessage("expected the pure packages to be scanned").that(pure.map { it.name })
-            .containsAtLeast("ScrollMeasurementEngine.kt", "ScrollPipeline.kt", "ForegroundTimeAggregator.kt", "UsageSyncer.kt")
+            .containsAtLeast("ScrollMeasurementEngine.kt", "ScrollPipeline.kt", "ForegroundTimeAggregator.kt", "UsageSyncer.kt", "DistanceFormatter.kt", "DistanceComparisonProvider.kt")
         val hits = pure.filter { file -> file.readLines().any { it.startsWith("import android.") || it.startsWith("import androidx.") } }
             .map { it.name }
         assertWithMessage("pure packages must not import Android").that(hits).isEmpty()
@@ -155,6 +155,25 @@ class PolicyGuardTest {
             }
             assertWithMessage("$section excluded domains").that(excluded).containsAtLeast("root", "file", "database", "sharedpref", "external")
         }
+    }
+
+    /** ADR-008: package visibility only for apps with a launcher entry — one intent query, nothing else. */
+    @Test
+    fun packageVisibilityIsTheLauncherQueryOnly() {
+        val root = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+            .newDocumentBuilder().parse(File(appDir, "src/main/AndroidManifest.xml")).documentElement
+        val queries = root.getElementsByTagName("queries")
+        assertThat(queries.length).isEqualTo(1)
+        val children = queries.item(0).childNodes.let { nodes ->
+            (0 until nodes.length).map { nodes.item(it) }.filterIsInstance<org.w3c.dom.Element>()
+        }
+        assertWithMessage("<queries> children").that(children.map { it.tagName }).containsExactly("intent")
+        fun names(tag: String) = children.single().getElementsByTagName(tag).let { nodes ->
+            (0 until nodes.length).map { (nodes.item(it) as org.w3c.dom.Element).getAttributeNS(ANDROID_NS, "name") }
+        }
+        assertThat(names("action")).containsExactly("android.intent.action.MAIN")
+        assertThat(names("category")).containsExactly("android.intent.category.LAUNCHER")
+        assertThat(children.single().getElementsByTagName("data").length).isEqualTo(0)
     }
 
     /** The one class allowed to read usage events; everything else gets samples from it (ADR-021). */

@@ -13,7 +13,7 @@ finger across the touchscreen.
 
 Project founded 2026-09-23. Merged: Phase 0 (bootstrap, `v0.0`), Phase 1 (measurement proof of concept,
 GO/NO-GO gate, `v0.1`), Phase 2 (calibration: card calibration, accuracy screen, accuracy tooling, `v0.2`),
-Phase 3 (persistence: Room, flushes, sessions, settings, optional time in app, `v0.3`).
+Phase 3 (persistence: Room, flushes, sessions, settings, optional time in app, `v0.3`), Phase 4 (dashboard, `v0.4`).
 Manual on-phone checks still owed are listed under "Dluh ověření" in `handoff.md`. See `PLAN.md` (phases,
 gates) and `handoff.md` (live state).
 
@@ -98,6 +98,15 @@ phone and display resolution it was made on (ADR-024); *Přeskočit – použít
 Accuracy with the calibration in force: `python3 tools/device_accuracy.py --surface view,column --csv-out out/`
 then `python3 tools/accuracy.py out/ground_truth.csv out/measured.csv`. The test list itself shows MAE / MAPE
 over the runs of a series (*Vynulovat* closes a run, *Nová série* starts over).
+
+## Dashboard (Phase 4)
+
+*Přehled* shows today's distance in a ring against the daily goal (500 m until Phase 6 adds the setting),
+this week / month / in total, the top apps today with their names and icons, and one comparison ("To je
+přibližně délka jednoho běžeckého okruhu."). Every number is live — stored plus what the service has not
+written yet. When the service is off, a red banner with *Zapnout měření* comes first. With Usage access the
+app rows add time in app and m/min; without it they show scroll time, and a card offers the feature once
+(*Ukázat jak* → a disclosure screen → Android settings).
 
 ## Stored data and time in app (Phase 3)
 

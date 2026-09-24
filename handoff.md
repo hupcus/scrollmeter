@@ -39,12 +39,44 @@
 | 0 Bootstrap | hotovo, mergnuto (tag `v0.0`) | `phase-0-bootstrap` / [#1](https://github.com/hupcus/scrollmeter/pull/1) | build/test/lint zelené lokálně i v CI; `installDebug` + spuštění na OnePlus OK |
 | 1 Measurement POC | **GO (Honza, 2026-09-23)** | `phase-1-measurement-poc` / [#2](https://github.com/hupcus/scrollmeter/pull/2) | bez doměření Instagramu / TikToku — přijaté riziko |
 | 2 Kalibrace | hotovo, mergnuto (tag `v0.2`) | `phase-2-calibration` / [#4](https://github.com/hupcus/scrollmeter/pull/4) | kalibrace kartou + MAPE s ní → „Dluh ověření“ |
-| 3 Persistence | hotovo, PR otevřený (merge + tag `v0.3` po CI) | `phase-3-persistence` | + čas v aplikaci (D19); restart telefonu a Digital Wellbeing → „Dluh ověření“ V4, V5 |
-| 4 Dashboard | nezačato | — | |
+| 3 Persistence | hotovo, mergnuto (tag `v0.3`) | `phase-3-persistence` / [#5](https://github.com/hupcus/scrollmeter/pull/5) | + čas v aplikaci (D19); restart telefonu a Digital Wellbeing → „Dluh ověření“ V4, V5 |
+| 4 Dashboard | hotovo, PR otevřený (merge + tag `v0.4` po CI) | `phase-4-dashboard` | ADR-028 |
 | 5 Historie + Aplikace | nezačato | — | |
 | 6 Export + Nastavení | nezačato | — | |
 | 7 Onboarding + Policy | nezačato | — | |
 | 8 Release | nezačato | — | |
+
+## Phase 4 — exit report (2026-09-24)
+
+**Hotovo a ověřené** (větev `phase-4-dashboard`):
+- **Přehled** (SPEC §21) nahradil domovskou obrazovku z POC. Obsahuje:
+  - „Dnes“ velkým číslem v prstenci k dennímu cíli („z cíle 500 m“ / „Cíl … splněn“),
+  - tento týden, měsíc a celkem,
+  - top aplikace dnes s názvem a ikonou (4 řádky + „Ostatní“),
+  - jedno srovnání („To je přibližně délka jednoho běžeckého okruhu.“),
+  - řádek „Přesnost měření“,
+  - v debug buildu vývojářské nástroje.
+
+  Všechna čísla jsou živá.
+- **Služba vypnutá (§32):** červený banner „Měření je vypnuté“ + „Zapnout měření“ je první na obrazovce; štítek „Měří se“ se ukazuje jen, když služba opravdu běží.
+- **Čas v aplikacích (D19):**
+  - s oprávněním má řádek aplikace „V aplikaci 12 min · 9,5 m/min“,
+  - bez něj „Scrollování 3 min“ a jedna zavíratelná karta → vlastní obrazovka s vysvětlením (co se čte, co se ukládá, co ne) → teprve pak nastavení Androidu,
+  - po návratu s oprávněním se obrazovka sama zavře.
+- **Formátování (ADR-028):**
+  - `DistanceFormatter`: m/km, desetinné čárky podle jazyka textů, ne telefonu,
+  - `TimeFormatter`: „< 1 min“, neznámé „—“, nikdy „0 min“,
+  - `DistanceComparisonProvider`: reference ze SPEC §22, prahy téměř / přibližně / víc než,
+  - `TopApps`,
+  - české plurály jsou v resources.
+- **Názvy a ikony aplikací** přes `PackageManager` s jediným `<queries>` pro launcher (ADR-008). `PolicyGuardTest` povoluje přesně tenhle dotaz a čistě kotlinovské balíčky `format/` a `insights/` hlídá proti importům Androidu.
+- **Motiv** se řídí `Settings.theme`, výběr přijde ve Phase 6.
+- **Emulátor:**
+  - snímky ověřené subagentem: světlý a tmavý motiv, horní i spodní část, bez Usage access (karta, „Scrollování …“), vypnutá služba (banner) a obrazovka s vysvětlením,
+  - kruh k cíli, km s čárkou a srovnání ověřené na syntetických řádcích vložených jen pro snímek a hned smazaných,
+  - Chrome se měří (5 započtených, zbytek je jeho duplicitní proud podle ADR-020).
+
+**Zjištění:** `uiautomator dump` na emulátoru odpojí službu, objeví se banner a rozhození layoutu posune tapy. Navigovat se proto musí s vypnutou službou (stejná past jako na telefonu).
 
 ## Phase 3 — exit report (2026-09-24)
 
@@ -209,6 +241,13 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 - [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-24 — Phase 4 dashboard (Opus 5.5)
+- Toolchain beze změny.
+- ADR-028 (pravidla přehledu).
+- Kalibrace se z přehledu otevírá přes „Přesnost měření“, zmizela přímá cesta z domovské obrazovky, a tím i logika „odkud byla otevřena“.
+- Bottom navigation (SPEC §43) přijde ve Phase 5 spolu s obrazovkami, na které vede.
+- Denní cíl 500 m je výchozí z `Settings`; volbu přidá Phase 6.
 
 ### 2026-09-24 — Phase 3 persistence + čas v aplikaci (Opus 5.5)
 - Toolchain beze změny pinů. Nově zapojené:
