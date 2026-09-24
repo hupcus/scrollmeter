@@ -13,7 +13,19 @@ Pracuj v `/Users/hupcus/Documents/VIBE-CODE/SCROLLMETER` — ScrollMeter (Androi
 - z `PLAN.md` oddíly 1 (hotová rozhodnutí včetně D19), 5 (testování), 6 (rizika), 7 (git a proces) a **fázi, na kterou je řada** = první nedokončená v tabulce „Stav fází“ v `handoff.md`,
 - ADR v `docs/measurement-decisions.md`.
 
-Ze `docs/SPEC.md` otevírej jen oddíly, které ta fáze cituje. Než začneš, ověř, že na `main` je mergnutý plán „čas v aplikaci“ (D19 v `PLAN.md`, ADR-021/022). Pokud tam není, zeptej se mě.
+Ze `docs/SPEC.md` otevírej jen oddíly, které ta fáze cituje. Než začneš, ověř, že na `main` je mergnutý plán „čas v aplikaci“ (D19 v `PLAN.md`, ADR-021/022). Pokud je PR #3 ještě otevřený a CI je zelené, mergni ho jako první krok — tímto ti to schvaluju.
+
+**Telefon je vrácený do původního stavu** (2026-09-24): ScrollMeter odinstalovaný, služba Usnadnění vypnutá, displej při nabíjení normálně zhasíná. Připrav si ho znovu:
+1. `installDebug`.
+2. Zapni službu přes adb (příkazy v `CLAUDE.md`).
+3. Na dobu práce `settings put global stay_on_while_plugged_in 7`.
+
+Pokud telefon `settings put` odmítne, řekni mi, ať zapnu **Volby vývojáře → Zakázat sledování oprávnění** (je v části s aplikacemi, pod „Deaktivace omezení podřízených procesů“). Když řeknu „vrať telefon“, udělej to v tomhle pořadí:
+1. Vypni službu (`settings delete secure enabled_accessibility_services`, `accessibility_enabled 0`).
+2. `stay_on_while_plugged_in 0`.
+3. Odinstaluj debug build.
+4. Smaž výpisy `uiautomator` ze `/sdcard`.
+5. Nakonec mi řekni, ať přepínač sledování oprávnění vypnu sám. Telefon mezitím zhasne a zamkne se, dlouhé hledání přes uiautomator nefunguje.
 
 **Úkol:** udělej tu jednu fázi přesně v rozsahu `PLAN.md`, nic z pozdějších fází. Pracuj na větvi `phase-N-…` z aktuálního `main`.
 - **Stage 0:** impact analýza, protože fáze sahá na existující moduly.

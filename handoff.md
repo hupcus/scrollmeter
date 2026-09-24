@@ -117,7 +117,13 @@ Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
   - tagline SPEC §55 „Metry místo minut" → nechat, nebo „metry i minuty"? Rozhodne se ve Phase 7.
   - denní pojistný sync přes WorkManager pro někoho, kdo 10+ dní neotevře aplikaci? Návrh: ne.
 - [ ] Tagy: fáze se tagují `v0.N` (v0.0, v0.1 …), ale Phase 8 plánuje release tag `v0.1.0` — kolize názvů, přejmenovat release tag (např. `v1.0.0-rc1`) nejpozději ve Phase 8.
-- [ ] Na testovacím telefonu běží debug služba a každý scroll zapisuje do `files/debug/recording.csv` (roste, dokud se služba nevypne; ScrollMeter → Debug měření → Vymazat soubor smaže).
+- [x] Testovací telefon vrácen do původního stavu (2026-09-24, na Honzovo přání):
+  - služba Usnadnění vypnutá,
+  - `accessibility_enabled 0`,
+  - `stay_on_while_plugged_in 0`,
+  - debug build odinstalovaný (i se záznamem),
+  - výpisy `uiautomator` smazané.
+  Přepínač **Zakázat sledování oprávnění** vrací Honza ručně, telefon byl zamčený. Další session si telefon připraví znovu, postup je v `docs/prompts/continue-next-phase.md`.
 - [ ] Emulátory: ověřit, že pro API 28 existuje arm64 systémový obraz (`sdkmanager --list | grep android-28`).
 - [ ] Ikona a barva aplikace — až Phase 4 (SPEC §42 nechává na implementaci).
 - [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
