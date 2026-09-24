@@ -18,6 +18,10 @@ data class Settings(
     val onboardingCompleted: Boolean = false,
     val privacyDisclosureAccepted: Boolean = false,
     val usageTimeCardDismissed: Boolean = false,
+    /** Spec §25, §26: every notification is opt-in; none is needed for measuring. */
+    val notifyGoal: Boolean = false,
+    val notifyRecord: Boolean = false,
+    val notifySummary: Boolean = false,
 ) {
     companion object {
         /** Spec §25 options; 500 m is the spec's own example. */

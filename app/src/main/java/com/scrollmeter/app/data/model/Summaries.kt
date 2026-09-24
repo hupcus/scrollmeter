@@ -22,3 +22,22 @@ data class DaySummary(
     val activeScrollMs: Long?,
     val foregroundMs: Long?,
 )
+
+/** Days before a date: the best total and how many had a distance (ADR-031). */
+data class PriorDays(val bestMm: Double, val days: Int)
+
+/** One `per_app.csv` row (spec §28 + ADR-021 columns); null = no data of that kind. */
+data class ExportAppDay(
+    val date: String,
+    val packageName: String,
+    val distanceMm: Double?,
+    val measuredEventCount: Long?,
+    val fallbackEventCount: Long?,
+    val unmeasurableEventCount: Long?,
+    val rejectedOutlierCount: Long?,
+    val foregroundMs: Long?,
+    val activeScrollMs: Long?,
+)
+
+/** One `daily_summary.csv` row (spec §28). */
+data class ExportDay(val date: String, val distanceMm: Double?, val events: Long?)

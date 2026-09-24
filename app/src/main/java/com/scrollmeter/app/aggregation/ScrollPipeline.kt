@@ -13,7 +13,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
@@ -32,6 +31,10 @@ import kotlinx.coroutines.withContext
  * What is summed but not yet committed — pending in the accumulator or in a write still running —
  * is published as [MeasurementMonitor.unflushed], so the UI shows every counted millimetre at once
  * instead of up to 10 s late.
+ *
+ * Flushes take [MeasurementMonitor.writeLock]; when "Smazat všechna data" raised
+ * [MeasurementMonitor.dataEpoch], whatever the pipeline still holds is dropped instead of written
+ * (ADR-031). [onFlushed] runs after every committed write — the notification check hangs there.
  */
 class ScrollPipeline(
     private val engine: ScrollMeasurementEngine,
@@ -43,13 +46,12 @@ class ScrollPipeline(
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val onDayChanged: () -> Unit = {},
+    private val onFlushed: () -> Unit = {},
 ) {
     private val accumulator = ScrollAccumulator(zone)
     private val sessions = ScrollSessionManager()
     private val inFlight = ArrayList<Map<Pair<String, String>, Double>>()
-
-    /** The consumer, the ticker and `onInterrupt` may all ask for a flush; they write one after another. */
-    private val flushing = Mutex()
+    private var epoch = monitor.dataEpoch.get()
     private val samples = Channel<ScrollSample>(
         capacity = MeasurementConfig.SAMPLE_CHANNEL_CAPACITY,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -90,6 +92,7 @@ class ScrollPipeline(
 
     /** True when a flush is due. Stored data first, so a failing debug sink cannot lose it. */
     private fun process(sample: ScrollSample): Boolean {
+        discardIfErased()
         val result = engine.process(sample)
         val due = if (sample.packageName == ownPackage) {
             false
@@ -119,25 +122,48 @@ class ScrollPipeline(
      * Writes what is pending, sessions idle for over a minute included. The write itself is not
      * cancellable — a transaction that committed must not be restored and written twice — and a
      * failed write puts everything back for the next flush (spec §61). Flushes never overlap: Room
-     * writes on its own executor, which would otherwise let a second flush start meanwhile.
+     * writes on its own executor, which would otherwise let a second flush start meanwhile. The
+     * consumer, the ticker and `onInterrupt` may all ask for one; they write one after another.
      */
-    suspend fun flush() = flushing.withLock {
+    suspend fun flush() = monitor.writeLock.withLock {
+        discardIfErased()
         sessions.closeIdle(uptimeMs(), nowMs())
         if (!accumulator.hasPending && !sessions.hasClosed) return@withLock
         val deltas = accumulator.drain()
         val closed = sessions.drainClosed()
         val writing = deltas.associate { (it.date to it.packageName) to it.distanceMm }
         inFlight += writing
-        try {
+        val written = try {
             withContext(NonCancellable) { store.write(deltas, closed) }
+            true
         } catch (e: Exception) {
             accumulator.restore(deltas)
             sessions.restore(closed)
             monitor.processingFailures.incrementAndGet()
+            false
         } finally {
             inFlight.remove(writing)
             publishUnflushed()
         }
+        // Outside the write's try: a failing listener must never restore what was committed.
+        if (written) {
+            try {
+                onFlushed()
+            } catch (e: Exception) {
+                monitor.processingFailures.incrementAndGet()
+            }
+        }
+    }
+
+    /** The data was erased since this pipeline last looked: drop what it holds (pipeline thread only). */
+    private fun discardIfErased() {
+        val current = monitor.dataEpoch.get()
+        if (current == epoch) return
+        epoch = current
+        accumulator.drain()
+        sessions.closeAll()
+        sessions.drainClosed()
+        publishUnflushed()
     }
 
     private fun publishUnflushed() {

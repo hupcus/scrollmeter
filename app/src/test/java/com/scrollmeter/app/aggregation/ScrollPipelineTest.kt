@@ -1,6 +1,7 @@
 package com.scrollmeter.app.aggregation
 
 import com.google.common.truth.Truth.assertThat
+import com.scrollmeter.app.data.DataEraser
 import com.scrollmeter.app.measurement.MeasurementConfig
 import com.scrollmeter.app.measurement.MeasurementMonitor
 import com.scrollmeter.app.measurement.MeasurementSettings
@@ -11,6 +12,7 @@ import com.scrollmeter.app.measurement.sample
 import java.io.IOException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -56,7 +58,7 @@ class ScrollPipelineTest {
     private val engine = ScrollMeasurementEngine(OWN_PACKAGE, settings, TestPhone.display)
     private val mmPer100Px = 100 * TestPhone.scale.mmPerPxY
 
-    private fun TestScope.pipeline(wallStartMs: Long = BASE_WALL_MS, onDayChanged: () -> Unit = {}) = ScrollPipeline(
+    private fun TestScope.pipeline(wallStartMs: Long = BASE_WALL_MS, onDayChanged: () -> Unit = {}, onFlushed: () -> Unit = {}) = ScrollPipeline(
         engine = engine,
         ownPackage = OWN_PACKAGE,
         store = store,
@@ -66,6 +68,7 @@ class ScrollPipelineTest {
         nowMs = { wallStartMs + testScheduler.currentTime },
         zone = { UTC },
         onDayChanged = onDayChanged,
+        onFlushed = onFlushed,
     )
 
     @Test
@@ -203,7 +206,7 @@ class ScrollPipelineTest {
     @Test
     fun theDayChangeIsReportedOnceByTheTicker() = runTest {
         var dayChanges = 0
-        val pipeline = pipeline(wallStartMs = NEXT_MIDNIGHT_UTC_MS - 15_000) { dayChanges++ }
+        val pipeline = pipeline(wallStartMs = NEXT_MIDNIGHT_UTC_MS - 15_000, onDayChanged = { dayChanges++ })
         val job = launch { pipeline.run() }
         advanceTimeBy(MeasurementConfig.FLUSH_INTERVAL_MS + 1)
         assertThat(dayChanges).isEqualTo(0)
@@ -211,4 +214,62 @@ class ScrollPipelineTest {
         assertThat(dayChanges).isEqualTo(1)
         job.cancel()
     }
+
+    @Test
+    fun whatWasPendingBeforeAnEraseIsDroppedNotWritten() = runTest {
+        val pipeline = pipeline()
+        val job = launch { pipeline.run() }
+        repeat(3) { pipeline.offer(sample(dy = 100, uptimeMs = it.toLong())) }
+        runCurrent()
+        assertThat(monitor.unflushed.value.values.sum()).isWithin(1e-9).of(3 * mmPer100Px)
+        monitor.writeLock.withLock { monitor.dataEpoch.incrementAndGet() } // "Smazat všechna data"
+        repeat(2) { pipeline.offer(sample(dy = 100, uptimeMs = 10L + it)) }
+        advanceTimeBy(MeasurementConfig.FLUSH_INTERVAL_MS + 1)
+        assertThat(store.distanceMm).isWithin(1e-9).of(2 * mmPer100Px)
+        job.cancel()
+    }
+
+    @Test
+    fun anEraseWaitsForTheWriteInProgress() = runTest {
+        store.writeDurationMs = 5_000
+        var clearedAt = -1L
+        val eraser = DataEraser(
+            monitor = monitor,
+            clearTables = { clearedAt = testScheduler.currentTime },
+            clearSettings = {},
+            forgetCalibration = {},
+            setFloor = {},
+            deleteFiles = {},
+            usageExclusive = { it() },
+        )
+        val pipeline = pipeline()
+        val job = launch { pipeline.run() }
+        repeat(MeasurementConfig.FLUSH_EVENT_COUNT) { pipeline.offer(sample(dy = 100, uptimeMs = it.toLong())) }
+        runCurrent() // the 50th event started a 5 s write
+        val erase = launch { eraser.erase(alsoSettings = false) }
+        advanceTimeBy(1_000)
+        assertThat(clearedAt).isEqualTo(-1L)
+        advanceTimeBy(5_000)
+        assertThat(store.writes).hasSize(1)
+        assertThat(clearedAt).isEqualTo(5_000L)
+        erase.join()
+        job.cancel()
+    }
+
+    @Test
+    fun onFlushedFollowsOnlyACommittedWrite() = runTest {
+        var flushed = 0
+        store.failures = 1
+        val pipeline = pipeline(onFlushed = { flushed++ })
+        val job = launch { pipeline.run() }
+        pipeline.offer(sample(dy = 100, uptimeMs = 0))
+        runCurrent()
+        advanceTimeBy(MeasurementConfig.FLUSH_INTERVAL_MS + 1)
+        assertThat(flushed).isEqualTo(0)
+        advanceTimeBy(MeasurementConfig.FLUSH_INTERVAL_MS)
+        assertThat(flushed).isEqualTo(1)
+        assertThat(store.writes).hasSize(1)
+        job.cancel()
+    }
+
 }

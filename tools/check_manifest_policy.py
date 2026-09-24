@@ -13,7 +13,8 @@ FORBIDDEN list stays to name the hard-rule ones explicitly in the failure messag
 The application must keep `allowBackup="false"` and point `dataExtractionRules` at its rules (ADR-027),
 and every exported component other than the launcher activity must be guarded by a permission.
 
-A manifest whose path contains `/release/` must also carry no debug tooling (FileProvider).
+A release manifest must also carry no debug tooling: the debug build's FileProvider (authority
+`….devtools.files`). The CSV share sheet's own provider (ADR-030) is allowed — not exported.
 Standard library only; exit code 1 on any violation.
 """
 
@@ -25,8 +26,10 @@ from pathlib import Path
 
 A = "{http://schemas.android.com/apk/res/android}"
 SERVICE = "com.scrollmeter.app.accessibility.ScrollAccessibilityService"
-# ADR-021: time in app (Usage access, granted by the user in Settings). Phase 6 adds POST_NOTIFICATIONS.
-ALLOWED_PERMISSIONS = ("android.permission.PACKAGE_USAGE_STATS",)
+# ADR-021: time in app (Usage access, granted by the user in Settings). ADR-030: the optional
+# goal / record / summary notifications (PLAN Phase 6).
+ALLOWED_PERMISSIONS = ("android.permission.PACKAGE_USAGE_STATS", "android.permission.POST_NOTIFICATIONS")
+DEBUG_PROVIDER_AUTHORITY_SUFFIX = ".devtools.files"
 # androidx.core declares and requests this signature permission for its own receivers, named after
 # the application id (com.scrollmeter.app or com.scrollmeter.app.debug) — matched exactly.
 OWN_SIGNATURE_PERMISSION = "{package}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
@@ -84,8 +87,8 @@ def violations(manifest: str, release: bool) -> list[str]:
             found.append("accessibility service declares a foregroundServiceType")
     if release:
         for p in app.iter("provider"):
-            if "FileProvider" in p.get(A + "name", ""):
-                found.append(f"release ships a FileProvider ({p.get(A + 'authorities')})")
+            if p.get(A + "authorities", "").endswith(DEBUG_PROVIDER_AUTHORITY_SUFFIX):
+                found.append(f"release ships the debug FileProvider ({p.get(A + 'authorities')})")
     return found
 
 

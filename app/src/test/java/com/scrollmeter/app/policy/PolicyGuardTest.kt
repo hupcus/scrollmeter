@@ -96,11 +96,14 @@ class PolicyGuardTest {
     @Test
     fun pureKotlinPackagesHaveNoAndroidImports() {
         val main = File(appDir, "src/main/java/com/scrollmeter/app")
-        val pure = listOf("measurement", "aggregation", "data/model", "usage", "format", "insights").flatMap { dir ->
+        val pure = listOf("measurement", "aggregation", "data/model", "usage", "format", "insights", "notifications", "export").flatMap { dir ->
             File(main, dir).walkTopDown().filter { it.extension == "kt" }.toList()
-        }.filterNot { it.name in USAGE_PLATFORM_ADAPTERS }
+        }.filterNot { it.name in USAGE_PLATFORM_ADAPTERS || it.name in PHASE6_PLATFORM_ADAPTERS } + File(main, "data/DataEraser.kt")
         assertWithMessage("expected the pure packages to be scanned").that(pure.map { it.name })
-            .containsAtLeast("ScrollMeasurementEngine.kt", "ScrollPipeline.kt", "ForegroundTimeAggregator.kt", "UsageSyncer.kt", "DistanceFormatter.kt", "DistanceComparisonProvider.kt")
+            .containsAtLeast(
+                "ScrollMeasurementEngine.kt", "ScrollPipeline.kt", "ForegroundTimeAggregator.kt", "UsageSyncer.kt", "DistanceFormatter.kt",
+                "DistanceComparisonProvider.kt", "NotificationRules.kt", "CsvExporter.kt", "DataEraser.kt",
+            )
         val hits = pure.filter { file -> file.readLines().any { it.startsWith("import android.") || it.startsWith("import androidx.") } }
             .map { it.name }
         assertWithMessage("pure packages must not import Android").that(hits).isEmpty()
@@ -121,8 +124,8 @@ class PolicyGuardTest {
     }
 
     /**
-     * Permissions are an allowlist: PACKAGE_USAGE_STATS for time in app (ADR-021). Phase 6 adds
-     * POST_NOTIFICATIONS; anything else needs an ADR and Honza's OK.
+     * Permissions are an allowlist: PACKAGE_USAGE_STATS for time in app (ADR-021), POST_NOTIFICATIONS
+     * for the optional notifications (ADR-030); anything else needs an ADR and Honza's OK.
      */
     @Test
     fun mainManifestRequestsOnlyAllowedPermissions() {
@@ -157,9 +160,12 @@ class PolicyGuardTest {
         }
     }
 
-    /** ADR-008: package visibility only for apps with a launcher entry — one intent query, nothing else. */
+    /**
+     * ADR-008, ADR-030: package visibility only for apps with a launcher entry and for the home
+     * screen — two MAIN intent queries, no data, nothing else.
+     */
     @Test
-    fun packageVisibilityIsTheLauncherQueryOnly() {
+    fun packageVisibilityIsTheLauncherAndHomeQueriesOnly() {
         val root = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
             .newDocumentBuilder().parse(File(appDir, "src/main/AndroidManifest.xml")).documentElement
         val queries = root.getElementsByTagName("queries")
@@ -167,13 +173,42 @@ class PolicyGuardTest {
         val children = queries.item(0).childNodes.let { nodes ->
             (0 until nodes.length).map { nodes.item(it) }.filterIsInstance<org.w3c.dom.Element>()
         }
-        assertWithMessage("<queries> children").that(children.map { it.tagName }).containsExactly("intent")
-        fun names(tag: String) = children.single().getElementsByTagName(tag).let { nodes ->
+        assertWithMessage("<queries> children").that(children.map { it.tagName }).containsExactly("intent", "intent")
+        fun names(intent: org.w3c.dom.Element, tag: String) = intent.getElementsByTagName(tag).let { nodes ->
             (0 until nodes.length).map { (nodes.item(it) as org.w3c.dom.Element).getAttributeNS(ANDROID_NS, "name") }
         }
-        assertThat(names("action")).containsExactly("android.intent.action.MAIN")
-        assertThat(names("category")).containsExactly("android.intent.category.LAUNCHER")
-        assertThat(children.single().getElementsByTagName("data").length).isEqualTo(0)
+        children.forEach { intent ->
+            assertThat(names(intent, "action")).containsExactly("android.intent.action.MAIN")
+            assertThat(intent.getElementsByTagName("data").length).isEqualTo(0)
+        }
+        assertThat(children.flatMap { names(it, "category") })
+            .containsExactly("android.intent.category.LAUNCHER", "android.intent.category.HOME")
+    }
+
+    /**
+     * ADR-030: every provider is a FileProvider that is not exported, grants per-share read access
+     * and names its paths in the manifest — the static `getUriForFile` reads nothing else, so a
+     * provider without the meta-data fails on the first share. The main one reaches cache/exports/ only.
+     */
+    @Test
+    fun providersAreClosedFileProvidersWithTheirPathsInTheManifest() {
+        val builder = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }.newDocumentBuilder()
+        val providers = sourceSets.map { File(it, "AndroidManifest.xml") }.filter { it.isFile }.flatMap { manifest ->
+            builder.parse(manifest).getElementsByTagName("provider").let { nodes -> (0 until nodes.length).map { nodes.item(it) as org.w3c.dom.Element } }
+        }
+        assertThat(providers).isNotEmpty()
+        providers.forEach { provider ->
+            val name = provider.getAttributeNS(ANDROID_NS, "name")
+            assertWithMessage("$name exported").that(provider.getAttributeNS(ANDROID_NS, "exported")).isEqualTo("false")
+            assertWithMessage("$name grantUriPermissions").that(provider.getAttributeNS(ANDROID_NS, "grantUriPermissions")).isEqualTo("true")
+            val paths = provider.getElementsByTagName("meta-data").let { nodes -> (0 until nodes.length).map { nodes.item(it) as org.w3c.dom.Element } }
+                .filter { it.getAttributeNS(ANDROID_NS, "name") == "android.support.FILE_PROVIDER_PATHS" }
+            assertWithMessage("$name FILE_PROVIDER_PATHS meta-data").that(paths).hasSize(1)
+        }
+        val exportPaths = builder.parse(File(appDir, "src/main/res/xml/export_paths.xml")).documentElement.childNodes.let { nodes ->
+            (0 until nodes.length).map { nodes.item(it) }.filterIsInstance<org.w3c.dom.Element>()
+        }
+        assertThat(exportPaths.map { it.tagName to it.getAttribute("path") }).containsExactly("cache-path" to "exports/")
     }
 
     /** The one class allowed to read usage events; everything else gets samples from it (ADR-021). */
@@ -194,8 +229,11 @@ class PolicyGuardTest {
 
     private companion object {
         const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
-        val ALLOWED_PERMISSIONS = setOf("android.permission.PACKAGE_USAGE_STATS")
+        val ALLOWED_PERMISSIONS = setOf("android.permission.PACKAGE_USAGE_STATS", "android.permission.POST_NOTIFICATIONS")
         val USAGE_PLATFORM_ADAPTERS = setOf("UsageEventsSource.kt", "UsageAccessChecker.kt")
+
+        /** The Android ends of notifications and export; their rules and formats stay pure. */
+        val PHASE6_PLATFORM_ADAPTERS = setOf("AndroidNotificationPoster.kt", "CsvExportWriter.kt", "ExportFileProvider.kt")
 
         /**
          * Comments may name forbidden things to explain why they are absent; only code counts —

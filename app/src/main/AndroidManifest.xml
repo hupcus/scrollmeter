@@ -16,13 +16,24 @@
         tools:ignore="ProtectedPermissions" />
 
     <!--
-      ADR-008: app names and icons on the dashboard. Makes apps with a launcher entry visible to
-      PackageManager (API 30+) — no QUERY_ALL_PACKAGES. PolicyGuardTest allows exactly this query.
+      ADR-030 (PLAN Phase 6): the optional goal / record / summary notifications. Asked for at run
+      time on API 33+ only when the user switches one on; measuring never needs it.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      ADR-008: app names and icons. Makes apps with a launcher entry visible to PackageManager
+      (API 30+) — no QUERY_ALL_PACKAGES. ADR-030 adds the home screen, so the default launcher can be
+      suggested for exclusion (Phase 6). PolicyGuardTest allows exactly these two queries.
     -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
         </intent>
     </queries>
 
@@ -58,6 +69,20 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+
+        <!--
+          D15, ADR-030: the CSV share sheet. Not exported; read access is granted per share to the app
+          the user picks, and only cache/exports/ is reachable (res/xml/export_paths.xml).
+        -->
+        <provider
+            android:name=".export.ExportFileProvider"
+            android:authorities="${applicationId}.exports"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/export_paths" />
+        </provider>
     </application>
 
 </manifest>

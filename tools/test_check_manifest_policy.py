@@ -32,7 +32,7 @@ class CheckManifestPolicyTest(unittest.TestCase):
         self.assertEqual(len(tool.violations(bad % "", release=False)), 1)
 
     def test_permission_outside_the_allowlist_is_caught(self):
-        for name in ("android.permission.POST_NOTIFICATIONS", "android.permission.READ_CONTACTS",
+        for name in ("android.permission.READ_CONTACTS", "android.permission.ACCESS_FINE_LOCATION",
                               "com.other.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
                      "com.scrollmeter.app.other.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"):
             bad = GOOD.replace("<application", f'<uses-permission android:name="{name}"/><application')
@@ -67,9 +67,19 @@ class CheckManifestPolicyTest(unittest.TestCase):
         bad = GOOD.replace('android:exported="false"', 'android:exported="true"')
         self.assertIn("accessibility service is not exported=false", tool.violations(bad % "", release=False))
 
-    def test_file_provider_is_allowed_in_debug_only(self):
+    def test_debug_file_provider_is_allowed_in_debug_only(self):
         self.assertEqual(tool.violations(GOOD % PROVIDER, release=False), [])
         self.assertEqual(len(tool.violations(GOOD % PROVIDER, release=True)), 1)
+
+    def test_notifications_are_allowed(self):
+        ok = GOOD.replace("<application", '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><application')
+        self.assertEqual(tool.violations(ok % "", release=True), [])
+
+    def test_the_export_provider_ships_but_not_exported(self):
+        export = ('<provider android:name="com.scrollmeter.app.export.ExportFileProvider" '
+                  'android:authorities="com.scrollmeter.app.exports" android:exported="%s" android:grantUriPermissions="true"/>')
+        self.assertEqual(tool.violations(GOOD % (export % "false"), release=True), [])
+        self.assertEqual(len(tool.violations(GOOD % (export % "true"), release=True)), 1)
 
 
 if __name__ == "__main__":
