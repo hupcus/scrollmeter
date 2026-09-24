@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -62,12 +63,12 @@ import com.scrollmeter.app.settings.UnitPreference
 import com.scrollmeter.app.ui.components.AppIcon
 import com.scrollmeter.app.ui.components.ServiceStatus
 import com.scrollmeter.app.ui.components.appLocale
+import com.scrollmeter.app.ui.components.launchWrite
 import com.scrollmeter.app.ui.components.rememberAppInfo
 import com.scrollmeter.app.ui.components.rememberServiceStatus
 import com.scrollmeter.app.ui.components.rememberToday
 import com.scrollmeter.app.ui.components.rememberUsageGranted
 import java.util.Locale
-import kotlinx.coroutines.launch
 
 /**
  * Přehled (spec §21): today's distance against the goal, this week / month / in total, the top
@@ -86,6 +87,7 @@ fun DashboardScreen(
 ) {
     val locale = appLocale()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val status = rememberServiceStatus(graph)
     val usageGranted = rememberUsageGranted(graph)
     // The screen may stay open across midnight: "Dnes" rolls over without waiting for a resume.
@@ -121,7 +123,7 @@ fun DashboardScreen(
             if (!usageGranted && loadedSettings?.usageTimeCardDismissed == false) {
                 UsageTimeCard(
                     onShow = onOpenUsageAccess,
-                    onDismiss = { scope.launch { graph.settingsRepository.setUsageTimeCardDismissed(true) } },
+                    onDismiss = { scope.launchWrite(context) { graph.settingsRepository.setUsageTimeCardDismissed(true) } },
                 )
             }
             if (settings.showComparisons) todayMm?.let(DistanceComparisonProvider::compare)?.let { ComparisonCard(it) }

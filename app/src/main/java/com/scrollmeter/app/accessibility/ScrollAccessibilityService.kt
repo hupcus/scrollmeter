@@ -11,6 +11,7 @@ import com.scrollmeter.app.BuildConfig
 import com.scrollmeter.app.ScrollMeterApplication
 import com.scrollmeter.app.aggregation.ScrollPipeline
 import com.scrollmeter.app.calibration.CalibrationState
+import com.scrollmeter.app.measurement.MeasurementConfig
 import com.scrollmeter.app.measurement.ScrollMeasurementEngine
 import com.scrollmeter.app.settings.Settings
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +39,8 @@ import kotlinx.coroutines.launch
  * Nothing is converted before the stored calibration and settings are loaded (samples wait in
  * the channel); afterwards every change applies to new events only (spec §65). Time in app is
  * re-synced on connect when the last sync is older than 6 h, and when the day changes (ADR-021).
+ * After every committed flush the optional notifications are checked (spec §26, ADR-031) — never
+ * per event; on connect and at a new day sessions older than the retention are pruned.
  */
 class ScrollAccessibilityService : AccessibilityService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -67,7 +70,11 @@ class ScrollAccessibilityService : AccessibilityService() {
             monitor = graph.monitor,
             sinks = graph.measurementSinks,
             uptimeMs = SystemClock::uptimeMillis,
-            onDayChanged = { syncUsage(graph, onlyIfStale = false) },
+            onDayChanged = {
+                syncUsage(graph, onlyIfStale = false)
+                pruneSessions(graph)
+            },
+            onFlushed = { checkNotifications(graph) },
         )
         this.graph = graph
         this.engine = engine
@@ -94,6 +101,29 @@ class ScrollAccessibilityService : AccessibilityService() {
             }
         }
         syncUsage(graph, onlyIfStale = true)
+        pruneSessions(graph)
+    }
+
+    /** Off the pipeline; the watcher is cheap when nothing is switched on (ADR-031). */
+    private fun checkNotifications(graph: AppGraph) {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                graph.notificationWatcher.check()
+            } catch (e: Exception) {
+                graph.monitor.processingFailures.incrementAndGet()
+            }
+        }
+    }
+
+    /** Sessions have no UI in the MVP: keep [MeasurementConfig.SESSION_RETENTION_DAYS] (ADR-031). */
+    private fun pruneSessions(graph: AppGraph) {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                graph.scrollRepository.pruneSessions(System.currentTimeMillis() - MeasurementConfig.SESSION_RETENTION_DAYS * DAY_MS)
+            } catch (e: Exception) {
+                lifecycle("session prune failed: ${e.javaClass.simpleName}")
+            }
+        }
     }
 
     private fun applyCalibration(graph: AppGraph, engine: ScrollMeasurementEngine, state: CalibrationState) {
@@ -173,5 +203,9 @@ class ScrollAccessibilityService : AccessibilityService() {
         if (BuildConfig.DEBUG) {
             Log.d("ScrollMeter", "service $what id=${System.identityHashCode(this)} connected=${graph?.monitor?.serviceConnected?.value}")
         }
+    }
+
+    private companion object {
+        const val DAY_MS = 24 * 60 * 60_000L
     }
 }

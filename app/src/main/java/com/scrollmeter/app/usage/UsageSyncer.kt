@@ -15,6 +15,9 @@ fun interface UsageStore {
 interface UsageSyncState {
     suspend fun lastSyncMs(): Long?
     suspend fun setLastSyncMs(ms: Long)
+
+    /** Set by "Smazat všechna data": nothing before it is imported again (ADR-031). */
+    suspend fun dataFloorMs(): Long? = null
 }
 
 sealed interface UsageSyncResult {
@@ -29,8 +32,9 @@ sealed interface UsageSyncResult {
  * Window: whole local days from `max(lastSync − 1 day, now − USAGE_SYNC_MAX_DAYS)` to now, read with
  * [MeasurementConfig.USAGE_SYNC_LOOKBACK_MS] of lead-in; every day in it is recomputed and replaced,
  * so running it twice changes nothing. One sync at a time (the app and the service both call it).
- * The own package and the user's excluded apps are left out (D18, spec §14). [reader] blocks —
- * call [sync] from an I/O dispatcher.
+ * The own package and the user's excluded apps are left out (D18, spec §14), and so is everything
+ * before the erase floor — deleted time in app must not come back (ADR-031). [reader] blocks — call
+ * [sync] from an I/O dispatcher.
  */
 class UsageSyncer(
     private val reader: UsageEventsReader,
@@ -48,10 +52,12 @@ class UsageSyncer(
         if (!hasAccess()) return UsageSyncResult.NoAccess
         val now = nowMs()
         val zone = zone()
-        val earliest = now - MeasurementConfig.USAGE_SYNC_MAX_DAYS * DAY_MS
+        val floor = state.dataFloorMs()?.takeIf { it <= now }
+        val earliest = maxOf(now - MeasurementConfig.USAGE_SYNC_MAX_DAYS * DAY_MS, floor ?: Long.MIN_VALUE)
         val since = state.lastSyncMs()?.let { maxOf(it - DAY_MS, earliest) } ?: earliest
         val fromDay = Instant.ofEpochMilli(minOf(since, now)).atZone(zone).toLocalDate()
-        val fromMs = fromDay.atStartOfDay(zone).toInstant().toEpochMilli()
+        // Whole days are replaced, but on the floor's day only what came after it is counted.
+        val fromMs = maxOf(fromDay.atStartOfDay(zone).toInstant().toEpochMilli(), floor ?: Long.MIN_VALUE)
         val toDate = Instant.ofEpochMilli(now).atZone(zone).toLocalDate().toString()
 
         val events = reader.read(fromMs - MeasurementConfig.USAGE_SYNC_LOOKBACK_MS, now)
@@ -60,6 +66,9 @@ class UsageSyncer(
         state.setLastSyncMs(now)
         UsageSyncResult.Synced(fromDay.toString(), toDate, days.size)
     }
+
+    /** Runs [block] while no sync can run — "Smazat všechna data" (ADR-031). */
+    suspend fun exclusive(block: suspend () -> Unit) = mutex.withLock { block() }
 
     /** The service's door: sync only when the last one is older than [maxAgeMs] (PLAN Phase 3). */
     suspend fun syncIfStale(maxAgeMs: Long = MeasurementConfig.USAGE_SYNC_STALE_MS): UsageSyncResult? {

@@ -2,12 +2,15 @@ package com.scrollmeter.app
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -31,6 +34,15 @@ class MainActivity : ComponentActivity() {
                 ThemePreference.LIGHT -> false
                 ThemePreference.DARK -> true
                 else -> isSystemInDarkTheme()
+            }
+            // System bar icons follow the app's theme, not the system's: a forced dark theme on a light
+            // system would otherwise draw dark icons on the dark app.
+            DisposableEffect(dark) {
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark },
+                    navigationBarStyle = SystemBarStyle.auto(LIGHT_SCRIM, DARK_SCRIM) { dark },
+                )
+                onDispose { }
             }
             ScrollMeterTheme(darkTheme = dark) {
                 ScrollMeterNavHost(
@@ -61,5 +73,11 @@ class MainActivity : ComponentActivity() {
         } catch (e: ActivityNotFoundException) {
             startActivity(Intent(Settings.ACTION_SETTINGS))
         }
+    }
+
+    private companion object {
+        // androidx.activity's own defaults for the three-button navigation bar scrim.
+        val LIGHT_SCRIM = Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
+        val DARK_SCRIM = Color.argb(0x80, 0x1b, 0x1b, 0x1b)
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.onSizeChanged
@@ -45,10 +46,12 @@ import com.scrollmeter.app.calibration.CardCalibration
 import com.scrollmeter.app.calibration.DisplaySnapshot
 import com.scrollmeter.app.measurement.PhysicalScaleProvider
 import com.scrollmeter.app.ui.components.Format
+import com.scrollmeter.app.ui.components.appLocale
+import com.scrollmeter.app.ui.components.launchWrite
 import com.scrollmeter.app.ui.theme.CalibrationBarBlue
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 /**
  * Spec §8 "Kalibrace displeje": the user matches a bar to the long edge of a payment card
@@ -67,12 +70,15 @@ import kotlinx.coroutines.launch
 @Composable
 fun CalibrationScreen(graph: AppGraph, onBack: () -> Unit, onSaved: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val locale = appLocale()
     // One change per visit: a double tap must not save twice (each save is a new calibration version).
     var committing by remember { mutableStateOf(false) }
     val commit: (suspend () -> Unit) -> Unit = { change ->
         if (!committing) {
             committing = true
-            scope.launch {
+            // A storage error says so and lets the user try again (spec §61).
+            scope.launchWrite(context, onFailure = { committing = false }) {
                 change()
                 onSaved()
             }
@@ -136,8 +142,8 @@ fun CalibrationScreen(graph: AppGraph, onBack: () -> Unit, onSaved: () -> Unit) 
                 if (usable) {
                     val mmPerPx = CardCalibration.mmPerPx(shownPx)
                     Text(
-                        stringResource(R.string.calibration_value, Format.integer(shownPx.toLong()), Format.decimal(mmPerPx, 4)) +
-                            " · " + stringResource(R.string.calibration_vs_auto, signed((mmPerPx / autoMmPerPx - 1.0) * 100.0)),
+                        stringResource(R.string.calibration_value, Format.integer(shownPx.toLong(), locale), Format.decimal(mmPerPx, 4, locale)) +
+                            " · " + stringResource(R.string.calibration_vs_auto, signed((mmPerPx / autoMmPerPx - 1.0) * 100.0, locale)),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -196,7 +202,7 @@ private fun automaticMmPerPx(display: DisplaySnapshot): Double {
 private fun startLength(state: CalibrationState, display: DisplaySnapshot, autoLengthPx: Int): Int =
     state.manual?.takeIf { it.appliesTo(display) }?.referencePx ?: autoLengthPx
 
-private fun signed(percent: Double): String {
+private fun signed(percent: Double, locale: Locale): String {
     val shown = if (abs(percent) < 0.05) 0.0 else percent // never "-0,0" or "+0,0"
-    return (if (shown > 0) "+" else "") + Format.decimal(shown, 1)
+    return (if (shown > 0) "+" else "") + Format.decimal(shown, 1, locale)
 }

@@ -146,6 +146,114 @@
     <string name="settings_usage_access">Čas v aplikacích</string>
     <string name="settings_accuracy">Přesnost měření</string>
 
+    <!-- Phase 6: Nastavení (spec §44). -->
+    <string name="settings_goal">Denní cíl</string>
+    <string name="settings_excluded">Vyloučené aplikace</string>
+    <string name="settings_excluded_none">Žádné</string>
+    <plurals name="settings_excluded_count">
+        <item quantity="one">%d aplikace</item>
+        <item quantity="few">%d aplikace</item>
+        <item quantity="many">%d aplikace</item>
+        <item quantity="other">%d aplikací</item>
+    </plurals>
+    <string name="settings_section_units">Jednotky</string>
+    <string name="settings_units">Vzdálenost</string>
+    <string name="unit_automatic">Automaticky (metry, od 1 km kilometry)</string>
+    <string name="unit_metres">Vždy metry</string>
+    <string name="unit_kilometres">Vždy kilometry</string>
+    <string name="settings_section_display">Zobrazení</string>
+    <string name="settings_theme">Motiv</string>
+    <string name="theme_system">Podle systému</string>
+    <string name="theme_light">Světlý</string>
+    <string name="theme_dark">Tmavý</string>
+    <string name="settings_comparisons">Srovnání na přehledu</string>
+    <string name="settings_comparisons_body">Např. „To je přibližně délka jednoho běžeckého okruhu.“</string>
+    <string name="settings_section_notifications">Oznámení</string>
+    <string name="notify_goal">Denní cíl dosažen</string>
+    <string name="notify_goal_body">Jednou denně, když přejdeš svůj cíl.</string>
+    <string name="notify_record">Nový rekord</string>
+    <string name="notify_record_body">Když dnes nascrolluješ víc než kterýkoli den předtím.</string>
+    <string name="notify_summary">Shrnutí včerejška</string>
+    <string name="notify_summary_body">S prvním scrollováním dne: kolik to bylo včera.</string>
+    <string name="notify_blocked">Oznámení má ScrollMeter v systému vypnutá, takže nepřijde žádné.</string>
+    <string name="notify_open_settings">Otevřít nastavení oznámení</string>
+    <string name="settings_section_data">Data</string>
+    <string name="settings_export">Exportovat CSV</string>
+    <string name="settings_export_body">per_app.csv a daily_summary.csv</string>
+    <string name="settings_delete">Smazat všechna data</string>
+    <string name="settings_section_privacy">Soukromí</string>
+    <string name="settings_privacy">Jak ScrollMeter chrání soukromí</string>
+    <string name="settings_section_about">O aplikaci</string>
+    <string name="settings_about">Verze, zařízení, metoda měření</string>
+
+    <!-- Spec §25 daily goal. -->
+    <string name="goal_title">Denní cíl</string>
+    <string name="goal_note">Cíl není zákaz: nic neblokuje, jen ukazuje, kolik zbývá.</string>
+    <string name="goal_custom">Vlastní</string>
+    <string name="goal_custom_label">Vlastní cíl</string>
+    <string name="goal_unit_m">m</string>
+    <string name="goal_unit_km">km</string>
+    <string name="goal_custom_error">Zadej číslo od 10 m do 100 km.</string>
+    <string name="save">Uložit</string>
+    <string name="cancel">Zrušit</string>
+
+    <!-- Spec §28 export. -->
+    <string name="export_title">Exportovat CSV</string>
+    <string name="export_intro">per_app.csv má řádek za každý den a aplikaci: vzdálenost, počty událostí a čas v aplikaci. daily_summary.csv má součet za každý den. Vyloučené aplikace v nich nejsou. Soubory vzniknou v telefonu; kam je uložíš nebo komu je pošleš, rozhoduješ ty.</string>
+    <string name="export_save_per_app">Uložit per_app.csv</string>
+    <string name="export_save_daily">Uložit daily_summary.csv</string>
+    <string name="export_share">Sdílet oba soubory</string>
+    <string name="export_saved">Soubor uložen.</string>
+    <string name="export_failed">Export se nepovedl. Zkus to znovu.</string>
+
+    <!-- Spec §45 delete all data. -->
+    <string name="delete_title">Opravdu smazat všechna naměřená data?</string>
+    <string name="delete_body">Smaže se historie, součty aplikací, čas v aplikacích i záznamy jednotlivých scrollování. Vrátit to nejde.</string>
+    <string name="delete_data">Smazat data</string>
+    <string name="delete_everything">Smazat data i nastavení a kalibraci</string>
+    <string name="delete_done">Všechna naměřená data jsou smazaná.</string>
+    <string name="delete_failed">Smazání se nepovedlo celé. Zkus to znovu.</string>
+    <string name="settings_write_failed">Nastavení se nepodařilo uložit. Zkus to znovu.</string>
+
+    <!-- Spec §14, §44 excluded apps. -->
+    <string name="excluded_title">Vyloučené aplikace</string>
+    <string name="excluded_intro">Vyloučená aplikace se přestane měřit a zmizí ze všech součtů, historie i exportu. Když ji znovu zapneš, její dřívější data se vrátí.</string>
+    <string name="excluded_suggested">Navrhujeme vyloučit</string>
+    <string name="excluded_seen">Aplikace s daty</string>
+    <string name="excluded_no_label">Název není k dispozici (aplikace bez ikony na ploše)</string>
+    <string name="excluded_none_seen">Zatím žádná aplikace s daty.</string>
+    <string name="reason_launcher">Domovská obrazovka</string>
+    <string name="reason_keyboard">Klávesnice</string>
+    <string name="reason_system_ui">Systémové rozhraní (lišta, oznámení)</string>
+
+    <!-- Spec §29 privacy (Phase 7 finalises the texts with the onboarding). -->
+    <string name="privacy_title">Soukromí</string>
+    <string name="privacy_intro">ScrollMeter používá službu zpřístupnění pouze k detekci scrollovacích událostí. Nečte ani neukládá text, zprávy, hesla nebo obsah obrazovky. Naměřená data zůstávají v telefonu.</string>
+    <string name="privacy_stores">Ukládá jen: kdy se scrollovalo, v jaké aplikaci (název balíčku), o kolik pixelů se obsah posunul a z toho spočítanou vzdálenost.</string>
+    <string name="privacy_never">Nikdy nečte ani neukládá: text, zprávy, hesla, adresy stránek, obsah obrazovky, vyplněné formuláře ani uživatelská jména.</string>
+    <string name="privacy_usage">ScrollMeter čte ze systému, kdy byla která aplikace v popředí, a ukládá jen součet minut na aplikaci a den. Nic z toho neopouští telefon.</string>
+    <string name="privacy_offline">Aplikace nemá oprávnění k internetu: nic neodesílá, nemá účet, reklamy ani analytiku. Z telefonu data odejdou jen exportem, který spustíš ty, a smažeš je v Nastavení › Data.</string>
+    <string name="privacy_accessibility">Proč služba Usnadnění: Android jinak nedá aplikaci vědět, o kolik se obsah jiné aplikace posunul. Služba poslouchá jen událost „posunuto“ a nemá oprávnění číst obsah oken.</string>
+
+    <!-- Spec §44 About. -->
+    <string name="about_title">O aplikaci</string>
+    <string name="about_version">Verze</string>
+    <string name="about_device">Zařízení</string>
+    <string name="about_android">Android %1$s (API %2$d)</string>
+    <string name="about_method">Metoda měření</string>
+    <string name="about_method_body">Posun, který Android hlásí při scrollování (scrollDeltaX/Y, jinak změna pozice), převedený na milimetry podle fyzické velikosti pixelu tohoto displeje.</string>
+    <string name="about_scale">Měřítko</string>
+
+    <!-- Spec §26 notifications. -->
+    <string name="notification_channel_name">Cíle a rekordy</string>
+    <string name="notification_channel_description">Denní cíl, nový rekord a shrnutí včerejška — každé nejvýš jednou denně.</string>
+    <string name="notification_goal_title">Denní cíl dosažen</string>
+    <string name="notification_goal_text">Dnešní vzdálenost přesáhla tvůj cíl %1$s.</string>
+    <string name="notification_record_title">Nový rekord</string>
+    <string name="notification_record_text">Dnes je to %1$s — víc než kterýkoli den předtím.</string>
+    <string name="notification_summary_title">Včerejší scrollování</string>
+    <string name="notification_summary_text">Včera to dohromady bylo %1$s.</string>
+
     <!-- Spec §8 UX kalibrace; the bar is vertical because 85.60 mm does not fit across a phone (ADR-023). -->
     <string name="calibration_title">Kalibrace displeje</string>
     <string name="calibration_instruction">Přilož platební kartu k displeji a posuvníkem uprav modrou čáru tak, aby měla stejnou délku jako delší strana karty.</string>

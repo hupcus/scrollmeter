@@ -36,4 +36,14 @@ class AppInfoProvider(private val context: Context) {
         cache.put(key, info)
         return info
     }
+
+    /** The label only — for the CSV export, which needs no icons. Blocking, like [load]. */
+    fun label(packageName: String): String = try {
+        val pm = context.packageManager
+        pm.getApplicationInfo(packageName, 0).loadLabel(pm).toString().ifBlank { packageName }
+    } catch (e: PackageManager.NameNotFoundException) {
+        packageName
+    } catch (e: RuntimeException) {
+        packageName
+    }
 }

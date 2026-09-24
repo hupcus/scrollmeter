@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D15, ADR-030: the share sheet sees the two exported CSVs in cache/exports/ and nothing else. -->
+<paths>
+    <cache-path name="exports" path="exports/" />
+</paths>

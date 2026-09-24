@@ -18,13 +18,17 @@ data class Settings(
     val onboardingCompleted: Boolean = false,
     val privacyDisclosureAccepted: Boolean = false,
     val usageTimeCardDismissed: Boolean = false,
+    /** Spec §25, §26: every notification is opt-in; none is needed for measuring. */
+    val notifyGoal: Boolean = false,
+    val notifyRecord: Boolean = false,
+    val notifySummary: Boolean = false,
 ) {
     companion object {
         /** Spec §25 options; 500 m is the spec's own example. */
         const val DEFAULT_DAILY_GOAL_MM = 500_000.0
         val GOAL_PRESETS_MM = listOf(100_000.0, 250_000.0, 500_000.0, 1_000_000.0, 2_000_000.0, 5_000_000.0)
 
-        /** A custom goal outside this range is clamped (PLAN Phase 6: 100 m … 5 km, custom). */
+        /** Custom goals (spec §25, ADR-031): the dialog rejects anything outside; never clamped silently. */
         val GOAL_RANGE_MM = 10_000.0..100_000_000.0
     }
 }

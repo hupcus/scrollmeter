@@ -175,4 +175,74 @@ class ScrollRepositoryTest {
     }
 
     private fun usage(date: String, pkg: String, ms: Long) = UsageDay(date, pkg, ms, 1, null)
+
+    @Test
+    fun anExcludedAppDisappearsFromEveryReadAndComesBack() = runBlocking {
+        val excluded = MutableStateFlow(emptySet<String>())
+        val repo = ScrollRepository(dao, unflushed, excluded)
+        repo.write(listOf(delta(pkg = "a", mm = 10.0), delta(pkg = "launcher", mm = 90.0)), emptyList())
+        repo.replaceDays("2026-09-21", "2026-09-21", listOf(usage("2026-09-21", "launcher", 60_000)), syncedAtMs = 1)
+        unflushed.value = mapOf(("2026-09-21" to "launcher") to 5.0)
+        val day = DateRange.day(LocalDate.parse("2026-09-21"))
+        assertThat(repo.distance(day).first()).isEqualTo(105.0)
+
+        excluded.value = setOf("launcher")
+        assertThat(repo.distance(day).first()).isEqualTo(10.0)
+        assertThat(repo.lifetimeDistance().first()).isEqualTo(10.0)
+        assertThat(repo.apps(day).first().map { it.packageName }).containsExactly("a")
+        assertThat(repo.days(day).first().single().foregroundMs).isNull()
+        assertThat(repo.exportAppDays().map { it.packageName }).containsExactly("a")
+        // The exclusion list itself still sees it, and nothing was deleted.
+        assertThat(repo.seenPackages().first()).containsExactly("a", "launcher")
+
+        excluded.value = emptySet()
+        assertThat(repo.distance(day).first()).isEqualTo(105.0)
+    }
+
+    /** Unreadable settings: the screens fall back to "no exclusions", the export fails instead of leaking. */
+    @Test
+    fun theExportFailsWhenTheExclusionsCannotBeRead() = runBlocking {
+        val repo = ScrollRepository(dao, unflushed, MutableStateFlow(emptySet()), exportExcluded = { throw java.io.IOException("settings") })
+        repo.write(listOf(delta(pkg = "excluded-before")), emptyList())
+        val appDays = runCatching { repo.exportAppDays() }
+        val days = runCatching { repo.exportDays() }
+        assertThat(appDays.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+        assertThat(days.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+    }
+
+    @Test
+    fun exportRowsJoinScrollAndTimeAndDaysSumEvents() = runBlocking {
+        repository.write(listOf(delta(pkg = "a", mm = 10.0, activeMs = 4_000), delta(date = "2026-09-22", pkg = "a", mm = 2.0)), emptyList())
+        repository.replaceDays("2026-09-21", "2026-09-21", listOf(usage("2026-09-21", "a", 60_000), usage("2026-09-21", "yt", 30_000)), syncedAtMs = 1)
+        val rows = repository.exportAppDays()
+        assertThat(rows.map { "${it.date}/${it.packageName}" }).containsExactly("2026-09-21/a", "2026-09-21/yt", "2026-09-22/a").inOrder()
+        assertThat(rows[0].foregroundMs).isEqualTo(60_000)
+        assertThat(rows[0].activeScrollMs).isEqualTo(4_000)
+        assertThat(rows[1].distanceMm).isNull()
+        assertThat(rows[1].measuredEventCount).isNull()
+        val days = repository.exportDays()
+        assertThat(days.map { it.date to it.events }).containsExactly("2026-09-21" to 1L, "2026-09-22" to 1L).inOrder()
+    }
+
+    @Test
+    fun notificationFactsSeeTheBestEarlierDayTodayLiveAndYesterday() = runBlocking {
+        repository.write(
+            listOf(delta(date = "2026-09-20", mm = 300.0), delta(date = "2026-09-21", mm = 100.0), delta(date = "2026-09-22", mm = 50.0), delta(date = "2026-09-23", mm = 20.0)),
+            emptyList(),
+        )
+        unflushed.value = mapOf(("2026-09-23" to "a") to 5.0)
+        val facts = repository.notificationFacts(LocalDate.parse("2026-09-23"), goalMm = 500.0)
+        assertThat(facts.previousBestMm).isEqualTo(300.0)
+        assertThat(facts.priorMeasuredDays).isEqualTo(3)
+        assertThat(facts.todayMm).isEqualTo(25.0)
+        assertThat(facts.yesterdayMm).isEqualTo(50.0)
+    }
+
+    @Test
+    fun oldSessionsArePruned() = runBlocking {
+        repository.write(emptyList(), listOf(ClosedSession("a", 1_000, 2_000, 1.0, 1), ClosedSession("a", 50_000, 60_000, 1.0, 1)))
+        assertThat(repository.pruneSessions(beforeMs = 10_000)).isEqualTo(1)
+        assertThat(dao.sessions().map { it.startTimestamp }).containsExactly(50_000L)
+        Unit
+    }
 }

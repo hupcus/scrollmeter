@@ -26,10 +26,12 @@ class UsageSyncerTest {
     )
     private val state = object : UsageSyncState {
         var last: Long? = null
+        var floor: Long? = null
         override suspend fun lastSyncMs() = last
         override suspend fun setLastSyncMs(ms: Long) {
             last = ms
         }
+        override suspend fun dataFloorMs() = floor
     }
     private val syncer = UsageSyncer(
         reader = { begin, end -> reads += begin to end; events.filter { it.timestampMs in begin..end } },
@@ -93,6 +95,27 @@ class UsageSyncerTest {
         now -= 60 * 60_000L // the clock was set back an hour
         assertThat(syncer.syncIfStale()).isNotNull()
         assertThat(writes).hasSize(3)
+    }
+
+
+    @Test
+    fun timeBeforeTheEraseFloorIsNeverImportedAgain() = runBlocking {
+        state.floor = at("2026-09-21T10:15") // "Smazat všechna data" in the middle of the 10:00–10:30 visit
+        syncer.sync()
+        assertThat(writes.single().first).isEqualTo("2026-09-21")
+        assertThat(writes.single().third.single().foregroundMs).isEqualTo(15 * 60_000L)
+        // Even a last sync from before the erase cannot reach back past the floor.
+        state.last = at("2026-09-19T08:00")
+        syncer.sync()
+        assertThat(writes.last().first).isEqualTo("2026-09-21")
+        assertThat(writes.last().third.single().foregroundMs).isEqualTo(15 * 60_000L)
+    }
+
+    @Test
+    fun exclusiveKeepsASyncOut() = runBlocking {
+        var inside = false
+        syncer.exclusive { inside = true }
+        assertThat(inside).isTrue()
     }
 
     private companion object {

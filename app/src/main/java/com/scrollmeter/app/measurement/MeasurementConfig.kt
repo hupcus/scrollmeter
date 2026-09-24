@@ -80,6 +80,16 @@ object MeasurementConfig {
      */
     const val USAGE_SAME_APP_GRACE_MS = 2_000L
 
+    /** ADR-031: closed sessions older than this are deleted — they have no UI in the MVP (ADR-011). */
+    const val SESSION_RETENTION_DAYS = 90L
+
+    /**
+     * "Nový rekord" (spec §26, ADR-031): only after this many earlier measured days — the second day
+     * of use is not a record worth a notification — and only above [RECORD_MIN_MM].
+     */
+    const val RECORD_MIN_PRIOR_DAYS = 3
+    const val RECORD_MIN_MM = 10_000.0
+
     /**
      * Measurement quality per app (spec §20, ADR-029). Under [QUALITY_MIN_EVENTS] stored events there is
      * too little to judge. LOW when at least half the events carried no usable pixels or 5 % were

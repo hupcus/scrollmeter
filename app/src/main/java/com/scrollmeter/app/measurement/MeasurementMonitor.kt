@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
 import kotlin.math.abs
 
 /** Receives every engine result — the debug event log and logcat hook in here (debug builds only). */
@@ -51,6 +52,18 @@ class MeasurementMonitor(private val ownPackage: String) {
      * (at most one flush interval). The repository adds them to the stored totals.
      */
     val unflushed = MutableStateFlow<Map<Pair<String, String>, Double>>(emptyMap())
+
+    /**
+     * Held by every pipeline flush while it writes, and by "Smazat všechna data" while it clears the
+     * database — so a flush that started before an erase has committed before the tables are emptied.
+     */
+    val writeLock = Mutex()
+
+    /**
+     * Raised by "Smazat všechna data" inside [writeLock]. A pipeline that sees a new value drops what
+     * it holds in memory: those millimetres belong to the deleted data (ADR-031).
+     */
+    val dataEpoch = AtomicLong()
 
     /** Samples lost because the channel overflowed (DROP_OLDEST) — should stay 0. */
     val droppedSamples = AtomicLong()
