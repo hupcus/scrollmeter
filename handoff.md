@@ -42,11 +42,34 @@
 | 3 Persistence | hotovo, mergnuto (tag `v0.3`) | `phase-3-persistence` / [#5](https://github.com/hupcus/scrollmeter/pull/5) | + čas v aplikaci (D19); restart telefonu a Digital Wellbeing → „Dluh ověření“ V4, V5 |
 | 4 Dashboard | hotovo, mergnuto (tag `v0.4`) | `phase-4-dashboard` / [#6](https://github.com/hupcus/scrollmeter/pull/6) | ADR-028; CI zablokované billingem → brána v čistém checkoutu |
 | 5 Historie + Aplikace | hotovo, mergnuto (tag `v0.5`) | `phase-5-history-apps` / [#7](https://github.com/hupcus/scrollmeter/pull/7) | ADR-029; CI zablokované billingem → brána v čistém checkoutu |
-| 6 Export + Nastavení | hotovo, čeká na merge | `phase-6-export-settings` | ADR-030/031; oznámení na telefonu → „Dluh ověření“ V6 |
+| 6 Export + Nastavení | **rozpracováno** — kód, testy, emulátor a `/topshit` hotové; zbývá Stage 2 + PR + merge (oddíl „Zbývá“ v exit reportu) | `phase-6-export-settings` (pushnutá) / PR zatím není | ADR-030/031; oznámení na telefonu → „Dluh ověření“ V6 |
 | 7 Onboarding + Policy | nezačato | — | |
 | 8 Release | nezačato | — | |
 
 ## Phase 6 — exit report (2026-09-24)
+
+**Zbývá** (stav 2026-09-24, poslední commit na větvi `24bce78`):
+1. **Stage 2** nad `git diff 498b301..phase-6-export-settings` — `/topshit` je hotový, neopakovat. Funkční + bezpečnostní review přes subagenta Plan/`model: "fable"`. Zaměřit se na:
+   - `ExportFileProvider` + SAF (žádná cesta mimo `cache/exports/`, grant jen pro jedno sdílení);
+   - PendingIntent oznámení;
+   - závody při mazání: `writeLock` / `dataEpoch` / spodní hranice syncu / `NonCancellable`;
+   - filtr výluk ve všech dotazech DAO (`appDaysBetween` je záměrně bez filtru — jen detail jedné aplikace);
+   - ochrana CSV proti vzorcům;
+   - HOME `<queries>`;
+   - čtení `DEFAULT_INPUT_METHOD`.
+2. Opravit nálezy (test ke každé opravě), znovu brány.
+3. PR s DoD checklistem (SPEC §25, §26, §28, §44, §45). GitHub Actions jsou zablokované billingem → brána v čistém worktree (`git worktree add --detach <scratchpad>/ci-check phase-6-export-settings`, brány + `processReleaseManifest`, pak `git worktree remove --force`) a uvést to v PR.
+4. Squash merge jako `hupcus` (`unset GH_TOKEN GH_CONFIG_DIR`), tag `v0.6`, smazat větev, aktualizovat tabulku fází a memory `project_scrollmeter_android.md`.
+5. Pokračovat Phase 7 (onboarding + policy) podle `PLAN.md`.
+
+Neověřeno na emulátoru, jen čtením kódu: smazání dat zruší i už zobrazená oznámení (`cancelAll()`).
+
+**Emulátor pro další session:**
+- start: `~/Library/Android/sdk/emulator/emulator -avd scrollmeter34 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot-save` na pozadí;
+- `adb root` funguje;
+- `uiautomator dump` odpojí službu → po navigaci ji vrátit `settings put secure enabled_accessibility_services …`;
+- release APK podepsat debug keystorem: `zipalign` + `apksigner` z `build-tools/36.0.0`.
+- Stav: nainstalovaný debug i release build, u debug buildu `POST_NOTIFICATIONS` odebrané s příznakem user-fixed (test cesty po odmítnutí), motiv podle systému.
 
 **Hotovo a ověřené** (větev `phase-6-export-settings`):
 - **Nastavení** (SPEC §44): sekce Měření / Jednotky / Zobrazení / Oznámení / Data / Soukromí / O aplikaci.
