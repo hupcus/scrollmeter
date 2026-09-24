@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
 
@@ -74,6 +75,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
+    // D14: bottom navigation with type-safe (@Serializable) routes, from Phase 5.
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.serialization.core)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

@@ -1,7 +1,6 @@
 package com.scrollmeter.app.ui.dashboard
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,18 +21,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,15 +43,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
-import com.scrollmeter.app.apps.AppInfo
 import com.scrollmeter.app.calibration.CalibrationMethod
 import com.scrollmeter.app.data.model.AppSummary
 import com.scrollmeter.app.data.model.DateRange
-import com.scrollmeter.app.devtools.DevToolEntry
 import com.scrollmeter.app.format.DistanceFormatter
 import com.scrollmeter.app.format.TimeFormatter
 import com.scrollmeter.app.insights.DistanceComparison
@@ -68,58 +59,37 @@ import com.scrollmeter.app.insights.TopApps
 import com.scrollmeter.app.measurement.PhysicalScaleProvider
 import com.scrollmeter.app.settings.Settings
 import com.scrollmeter.app.settings.UnitPreference
+import com.scrollmeter.app.ui.components.AppIcon
+import com.scrollmeter.app.ui.components.ServiceStatus
 import com.scrollmeter.app.ui.components.appLocale
-import java.time.LocalDate
-import java.time.ZoneId
+import com.scrollmeter.app.ui.components.rememberAppInfo
+import com.scrollmeter.app.ui.components.rememberServiceStatus
+import com.scrollmeter.app.ui.components.rememberToday
+import com.scrollmeter.app.ui.components.rememberUsageGranted
 import java.util.Locale
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-
-/** Spec §32: never claim data is being collected unless the service is actually running. */
-enum class ServiceStatus { ON, ENABLED_NOT_RUNNING, OFF }
 
 /**
  * Přehled (spec §21): today's distance against the goal, this week / month / in total, the top
  * apps today, and at most one comparison. Everything reads live from [AppGraph.scrollRepository]
  * (stored + not yet flushed). When the service is not running, a banner says so first (§32).
  * Time in app (D19) appears in the app rows once Usage access is granted; until then one card
- * offers it and can be dismissed for good.
+ * offers it and can be dismissed for good. An app row opens its detail.
  */
 @Composable
 fun DashboardScreen(
     graph: AppGraph,
-    devTools: List<DevToolEntry>,
     onOpenAccessibilitySettings: () -> Unit,
     onOpenUsageAccess: () -> Unit,
     onOpenAccuracy: () -> Unit,
-    onOpenDevTool: (Int) -> Unit,
+    onOpenApp: (String) -> Unit,
 ) {
     val locale = appLocale()
     val scope = rememberCoroutineScope()
-    val connected by graph.monitor.serviceConnected.collectAsStateWithLifecycle()
-    var enabledInSettings by remember { mutableStateOf(graph.statusChecker.isEnabled()) }
-    var usageGranted by remember { mutableStateOf(graph.usageAccessChecker.isGranted()) }
-    var today by remember { mutableStateOf(LocalDate.now()) }
-    LifecycleResumeEffect(Unit) {
-        enabledInSettings = graph.statusChecker.isEnabled()
-        usageGranted = graph.usageAccessChecker.isGranted()
-        today = LocalDate.now()
-        onPauseOrDispose { }
-    }
-    LaunchedEffect(connected) { enabledInSettings = graph.statusChecker.isEnabled() }
-    // The screen may stay open across midnight: roll "Dnes" over without waiting for a resume.
-    LaunchedEffect(today) {
-        val midnight = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        delay((midnight - System.currentTimeMillis()).coerceAtLeast(0) + 1_000)
-        today = LocalDate.now()
-    }
-    val status = when {
-        connected -> ServiceStatus.ON
-        enabledInSettings -> ServiceStatus.ENABLED_NOT_RUNNING
-        else -> ServiceStatus.OFF
-    }
+    val status = rememberServiceStatus(graph)
+    val usageGranted = rememberUsageGranted(graph)
+    // The screen may stay open across midnight: "Dnes" rolls over without waiting for a resume.
+    val today = rememberToday()
 
     val repository = graph.scrollRepository
     // Null until loaded: a card the user dismissed must not flash up while settings are read.
@@ -147,7 +117,7 @@ fun DashboardScreen(
             if (status != ServiceStatus.ON) ServiceBanner(status, onOpenAccessibilitySettings)
             TodayHeader(todayMm, settings.dailyGoalMm, ::distance)
             PeriodStats(distance(weekMm), distance(monthMm), distance(lifetimeMm))
-            TopAppsCard(graph, TopApps.of(apps), usageGranted, settings.unitPreference, locale)
+            TopAppsCard(graph, TopApps.of(apps), usageGranted, settings.unitPreference, locale, onOpenApp)
             if (!usageGranted && loadedSettings?.usageTimeCardDismissed == false) {
                 UsageTimeCard(
                     onShow = onOpenUsageAccess,
@@ -156,12 +126,6 @@ fun DashboardScreen(
             }
             if (settings.showComparisons) todayMm?.let(DistanceComparisonProvider::compare)?.let { ComparisonCard(it) }
             calibration?.let { AccuracyRow(PhysicalScaleProvider.resolve(it, display).method == CalibrationMethod.MANUAL_CARD, onOpenAccuracy) }
-            if (devTools.isNotEmpty()) {
-                Text(stringResource(R.string.home_devtools_title), style = MaterialTheme.typography.titleSmall)
-                devTools.forEachIndexed { index, tool ->
-                    OutlinedButton(onClick = { onOpenDevTool(index) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(tool.titleRes)) }
-                }
-            }
         }
     }
 }
@@ -252,27 +216,24 @@ private fun StatRow(label: String, value: String) {
 }
 
 @Composable
-private fun TopAppsCard(graph: AppGraph, top: TopApps, usageGranted: Boolean, unit: UnitPreference, locale: Locale) {
+private fun TopAppsCard(graph: AppGraph, top: TopApps, usageGranted: Boolean, unit: UnitPreference, locale: Locale, onOpenApp: (String) -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.dashboard_top_apps), style = MaterialTheme.typography.titleMedium)
             if (top.isEmpty) {
                 Text(stringResource(R.string.dashboard_no_scroll_yet), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            top.apps.forEach { app -> AppRow(graph, app, usageGranted, unit, locale) }
-            top.other?.let { AppRow(graph, it, usageGranted, unit, locale) }
+            top.apps.forEach { app -> AppRow(graph, app, usageGranted, unit, locale) { onOpenApp(app.packageName) } }
+            top.other?.let { AppRow(graph, it, usageGranted, unit, locale, onClick = null) }
         }
     }
 }
 
 /** Distance, and time: in app with Usage access, scrolling otherwise (ADR-022). Unknown is "—", never 0. */
 @Composable
-private fun AppRow(graph: AppGraph, app: AppSummary, usageGranted: Boolean, unit: UnitPreference, locale: Locale) {
+private fun AppRow(graph: AppGraph, app: AppSummary, usageGranted: Boolean, unit: UnitPreference, locale: Locale, onClick: (() -> Unit)?) {
     val other = app.packageName == TopApps.OTHER
-    val iconPx = with(LocalDensity.current) { 36.dp.roundToPx() }
-    val info by produceState<AppInfo?>(initialValue = null, app.packageName) {
-        value = if (other) null else withContext(Dispatchers.IO) { graph.appInfoProvider.load(app.packageName, iconPx) }
-    }
+    val info by rememberAppInfo(graph.appInfoProvider, app.packageName, 36.dp, skip = other)
     val label = if (other) stringResource(R.string.dashboard_other_apps) else info?.label ?: app.packageName
     val detail = if (usageGranted) {
         val pace = TimeFormatter.pace(app.distanceMm, app.foregroundMs, locale)
@@ -281,15 +242,8 @@ private fun AppRow(graph: AppGraph, app: AppSummary, usageGranted: Boolean, unit
     } else {
         stringResource(R.string.dashboard_scroll_time, TimeFormatter.duration(app.activeScrollMs))
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        val icon = info?.icon
-        if (icon != null) {
-            Image(icon, contentDescription = null, modifier = Modifier.size(36.dp))
-        } else {
-            Box(Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
-                Text(label.take(1).uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
-            }
-        }
+    Row(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier), verticalAlignment = Alignment.CenterVertically) {
+        AppIcon(info, label)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)

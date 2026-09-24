@@ -23,4 +23,10 @@ class DateRangeTest {
     fun keysAreIsoDates() {
         assertThat(DateRange.day(LocalDate.parse("2026-01-05")).fromKey).isEqualTo("2026-01-05")
     }
+
+    @Test
+    fun allCoversEveryPlausibleDayAsAStringRange() {
+        assertThat(DateRange.ALL.fromKey < "2000-01-01").isTrue()
+        assertThat(DateRange.ALL.toKey > "2999-12-31").isTrue()
+    }
 }

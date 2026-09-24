@@ -20,7 +20,7 @@
 | Kotlin / KSP | 2.3.21 / 2.3.11 | 2.3.21 / 2.3.11 (stdlib 2.3.21) | Compose compiler v Kotlinu |
 | Compose BOM | **2026.06.01** | → compose-ui/foundation/runtime **1.11.4**, material3 **1.4.0** | 2026.08 chce compileSdk 37 + AGP 9.1 |
 | Room / DataStore | 2.8.4 / 1.1.7 | Room 2.8.4 s `@Database` od Phase 3 (schéma v `app/schemas/`, R8 release ověřený na emulátoru); DataStore Preferences 1.1.7 zapojený v Phase 2 (kalibrace) a Phase 3 (nastavení) — pin beze změny, tranzitivně přibylo `com.squareup.okio:okio 3.4.0`, coroutines zůstávají 1.10.2 | |
-| Navigation / Lifecycle / Activity / core-ktx | 2.9.8 / 2.9.4 / 1.13.0 / 1.18.0 | Lifecycle 2.9.4, Activity Compose 1.13.0, core-ktx 1.18.0; Navigation až Phase 4 | |
+| Navigation / Lifecycle / Activity / core-ktx | 2.9.8 / 2.9.4 / 1.13.0 / 1.18.0 | Navigation Compose **2.9.8 zapojená v Phase 5** (type-safe routes) + plugin `kotlin.plugin.serialization` (= Kotlin 2.3.21) a `kotlinx-serialization-core` **1.9.0** — v katalogu byl od Phase 0 `-json`, vyměněn za `-core` (routy JSON nepotřebují); navigation tranzitivně chce core 1.7.3 → pin ho zvedá na 1.9.0. Lifecycle zůstává 2.9.4, coroutines 1.10.2, Activity Compose 1.13.0, core-ktx 1.18.0 | R8 release s routami ověřený na emulátoru |
 | coroutines | 1.10.2 | 1.10.2 | |
 | Testy | JUnit 4.13.2 · Truth 1.4.5 · Robolectric 4.16 · coroutines-test 1.10.2 | vše zapojené; Robolectric (`@Config(sdk = [34])`) pro parser a in-memory Room, coroutines-test pro `ScrollPipelineTest` ve virtuálním čase (Phase 3) | |
 | compileSdk / target / min | 36 / 36 / **28** | 36 / 36 / 28 | `scrollDeltaX/Y` od API 28 |
@@ -41,10 +41,46 @@
 | 2 Kalibrace | hotovo, mergnuto (tag `v0.2`) | `phase-2-calibration` / [#4](https://github.com/hupcus/scrollmeter/pull/4) | kalibrace kartou + MAPE s ní → „Dluh ověření“ |
 | 3 Persistence | hotovo, mergnuto (tag `v0.3`) | `phase-3-persistence` / [#5](https://github.com/hupcus/scrollmeter/pull/5) | + čas v aplikaci (D19); restart telefonu a Digital Wellbeing → „Dluh ověření“ V4, V5 |
 | 4 Dashboard | hotovo, mergnuto (tag `v0.4`) | `phase-4-dashboard` / [#6](https://github.com/hupcus/scrollmeter/pull/6) | ADR-028; CI zablokované billingem → brána v čistém checkoutu |
-| 5 Historie + Aplikace | nezačato | — | |
+| 5 Historie + Aplikace | hotovo, mergnuto (tag `v0.5`) | `phase-5-history-apps` / [#7](https://github.com/hupcus/scrollmeter/pull/7) | ADR-029; CI zablokované billingem → brána v čistém checkoutu |
 | 6 Export + Nastavení | nezačato | — | |
 | 7 Onboarding + Policy | nezačato | — | |
 | 8 Release | nezačato | — | |
+
+## Phase 5 — exit report (2026-09-24)
+
+**Hotovo a ověřené** (větev `phase-5-history-apps`):
+- **Spodní navigace** Přehled / Historie / Aplikace / Nastavení (SPEC §43). Navigation Compose 2.9.8 s `@Serializable` routami (D14). Lišta je jen na čtyřech hlavních obrazovkách; přepnutí záložky si pamatuje stav; dvojí „Zpět“ neodskočí o obrazovku níž.
+- **Historie** (SPEC §23):
+  - 7 dní / 30 dní / 12 měsíců ve vlastním sloupcovém grafu (Canvas, D13);
+  - kulaté osy s jednou jednotkou na osu („0 · 200 m · 400 m“, „0,25 km … 1 km“);
+  - klepnutí na sloupec ukáže den a hodnotu;
+  - pod grafem Průměr / den, Nejvyšší den, Nejnižší den, Celkem — vždy po dnech, od prvního naměřeného dne.
+- **Aplikace** (SPEC §24, D19):
+  - Dnes / 7 dní / 30 dní / Celkem, řazení Vzdálenost | Čas;
+  - podíl na vzdálenosti a kvalita slovem, nikdy procentem přesnosti;
+  - YouTube a jiné aplikace jen s časem: „—“ a „bez dat o scrollu“;
+  - řádek otevře **detail**: souhrn období, tempo, „Scrolluješ X z Y v aplikaci (Z %)“, kvalita s vysvětlením, grafy vzdálenosti a času za 30 dní. Top aplikace na Přehledu vedou do detailu taky.
+- **Kvalita měření** (`MeasurementQuality`, ADR-029):
+  - hodnotí se z čítačů za celou dobu, ne za zvolené období — jinak by ráno všude svítilo „málo dat“;
+  - HIGH jen s kalibrací kartou.
+- **Nastavení** (jádro): stav služby, čas v aplikacích (bez oprávnění → vysvětlení; s oprávněním → systémová stránka, kde jde odebrat), Přesnost měření. V debug buildu jsou tady vývojářské nástroje, z Přehledu zmizely.
+- **Brány:**
+  - 216 JVM testů;
+  - lint: jen 6 starých `SetTextI18n` z debug plochy Phase 1;
+  - debug + release build, 25 Python testů, manifest policy.
+- **Emulátor:**
+  - 19 snímků (světlý i tmavý motiv) zkontroloval subagent;
+  - R8 release: navigace, detail s argumentem, žádné debug třídy v dexu;
+  - útok přes deep-link extras nic neotevřel;
+  - vývojářská obrazovka přes `--es devtool` funguje.
+- **Review:**
+  - `/topshit`: kvalita za celou dobu, lokalizovatelný podtitulek řádku, zbytečný dotaz z detailu pryč.
+  - Stage 2 (Fable): 2× MEDIUM opraveno:
+    - cizí aplikace mohla přes explicitní deep-link extras Navigation otevřít detail s libovolným textem jako názvem → `NavIntents.scrubbed` + `PackageNames.isValid`;
+    - tempo a podíl míchaly dny bez času v aplikaci → `AppPeriodTotals` páruje dny.
+  - Stage 2: 5× LOW opraveno, 1× INFO opraveno; `-json` vyměněn za `-core`.
+
+**Zjištění:** Launcher a systémové balíčky bez spouštěcí ikony (např. `com.google.android.apps.nexuslauncher`) se v seznamu ukazují názvem balíčku. Je to záměr (ADR-008, jediný `<queries>` na LAUNCHER). Phase 6 je stejně navrhne jako výchozí výluky (`resolveActivity(HOME)` potřebuje `<queries>` pro HOME → ADR).
 
 ## Phase 4 — exit report (2026-09-24)
 
@@ -211,9 +247,10 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 - [ ] **Phase 6 „Smazat všechna data“** musí smazat i Room (`clearAllTables()`), ne jen DataStore; `scroll_session` roste bez limitu (~desítky řádků denně) — rozhodnout retenci (bezpečnostní review, INFO).
 - [ ] Vyloučení aplikace platí od chvíle vyloučení (engine: EXCLUDED, sync času: vynechá ji v přepočítaných dnech). Starší řádky zůstávají — Phase 6 rozhodne, jestli je čtení skryje i v historii.
 - [ ] **Instagram + TikTok (+ X, Reddit) doměřit s účtem** → Dluh ověření V1. GO dané bez nich (přijaté riziko). Reddit na telefonu chybí.
-- [ ] YouTube mlčí (ADR-013 poznámka). Sledovat, jestli se chování změní s novou verzí YouTube; jinak „unsupported" v Phase 5 seznamu aplikací.
+- [x] YouTube mlčí (ADR-013 poznámka) — od Phase 5 se v seznamu aplikací ukazuje s časem, „—“ a štítkem „bez dat o scrollu“. Sledovat dál, jestli se chování změní s novou verzí YouTube.
 - [ ] Compose lazy seznamy neměřitelné (ADR-019) — přibývá jich. Hledat zdroj bez čtení obsahu až po GO (backlog).
-- [ ] Launcher počítat do součtu, nebo vyloučit? (Phase 5/6, výchozí výluky)
+- [ ] Launcher počítat do součtu, nebo vyloučit? → Phase 6 výchozí výluky. Do té doby se v Aplikacích ukazuje názvem balíčku (není vidět přes `<queries>` LAUNCHER); `<queries>` pro HOME = ADR.
+- [ ] Kvalita měření se hodnotí s kalibrací platnou *teď* (ADR-029): den změřený před kalibrací kartou může ukázat „vysoká“. Přijato; kdyby vadilo, uložit metodu kalibrace k řádku (migrace Room).
 - [ ] R6: zabíjení procesu ColorOS — Phase 3 flush ≤ 10 s, Phase 7 onboarding (výjimka z optimalizace baterie — ověřit, že pomáhá).
 - [ ] GitHub Actions jsou připnuté na SHA tagů `v4`; bump na aktuální major (checkout v7, setup-java v6, gradle/actions v6, upload-artifact v7) je samostatné rozhodnutí.
 - [ ] Služba nemá instrumentovaný test životního cyklu. Phase 3 to pokrývá jinak: `ScrollPipelineTest` s virtuálním časem (flush, uzavření, zrušení, neúspěšný zápis) a na emulátoru `kill -9`, reinstalace a force-stop. Reconnect bez zabití procesu je ověřený jen čtením kódu.
@@ -245,6 +282,20 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 - [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-24 — Phase 5 historie + aplikace (Opus 5.5, review Fable 5.1)
+- Toolchain:
+  - Navigation Compose 2.9.8 zapojená, pin beze změny;
+  - `kotlinx-serialization-json` v katalogu → `kotlinx-serialization-core` 1.9.0 (stejná verze, jiný artefakt);
+  - plugin `kotlin.plugin.serialization` na verzi Kotlinu.
+- ADR-029:
+  - prahy kvality měření (spec §20);
+  - statistiky historie;
+  - řazení a podíl v seznamu aplikací;
+  - párování tempa;
+  - navigace.
+- Konstanty `QUALITY_*` v `MeasurementConfig` (ADR-029).
+- Vývojářské nástroje se přestěhovaly z Přehledu do Nastavení.
 
 ### 2026-09-24 — Phase 4 dashboard (Opus 5.5)
 - Toolchain beze změny.

@@ -161,5 +161,18 @@ class ScrollRepositoryTest {
         assertThat(days.map { it.date to it.distanceMm }).containsExactly("2026-09-20" to 1.0, "2026-09-21" to 42.0, "2026-09-22" to 5.0).inOrder()
     }
 
+    @Test
+    fun oneAppPerDayJoinsDistanceAndTimeAndTheFirstMeasuredDay() = runBlocking {
+        assertThat(repository.firstMeasuredDay().first()).isNull()
+        repository.write(listOf(delta(date = "2026-09-20", pkg = "a", mm = 3.0, activeMs = 100), delta(date = "2026-09-21", pkg = "b", mm = 9.0)), emptyList())
+        repository.replaceDays("2026-09-20", "2026-09-22", listOf(usage("2026-09-22", "a", 60_000)), 1)
+        unflushed.value = mapOf(("2026-09-21" to "a") to 1.5, ("2026-09-19" to "b") to 1.0)
+        val days = repository.appDays("a", DateRange(LocalDate.parse("2026-09-20"), LocalDate.parse("2026-09-22"))).first()
+        assertThat(days.map { Triple(it.date, it.distanceMm, it.foregroundMs) })
+            .containsExactly(Triple("2026-09-20", 3.0, null), Triple("2026-09-21", 1.5, null), Triple("2026-09-22", null, 60_000L)).inOrder()
+        assertThat(days[0].activeScrollMs).isEqualTo(100)
+        assertThat(repository.firstMeasuredDay().first()).isEqualTo(LocalDate.parse("2026-09-19")) // only in memory so far
+    }
+
     private fun usage(date: String, pkg: String, ms: Long) = UsageDay(date, pkg, ms, 1, null)
 }

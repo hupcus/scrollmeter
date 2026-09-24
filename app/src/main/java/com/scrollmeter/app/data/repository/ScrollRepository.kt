@@ -12,6 +12,7 @@ import com.scrollmeter.app.data.model.DateRange
 import com.scrollmeter.app.data.model.DaySummary
 import com.scrollmeter.app.usage.UsageDay
 import com.scrollmeter.app.usage.UsageStore
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
@@ -62,6 +63,22 @@ class ScrollRepository(
                 extra.map { (date, mm) -> DaySummary(date, mm, null, null) }
             merged.sortedBy { it.date }
         }
+
+    /** One app per day in [range] (app detail), unflushed distance of that app included. */
+    fun appDays(packageName: String, range: DateRange): Flow<List<DaySummary>> =
+        combine(dao.appDaysBetween(packageName, range.fromKey, range.toKey), unflushed) { stored, pending ->
+            val extra = HashMap<String, Double>()
+            pending.forEach { (key, mm) -> if (key.second == packageName && key.first in range) extra.merge(key.first, mm, Double::plus) }
+            if (extra.isEmpty()) return@combine stored
+            val merged = stored.map { day -> extra.remove(day.date)?.let { day.copy(distanceMm = (day.distanceMm ?: 0.0) + it) } ?: day } +
+                extra.map { (date, mm) -> DaySummary(date, mm, null, null) }
+            merged.sortedBy { it.date }
+        }
+
+    /** The first measured day, or null before anything was stored; a day only in memory counts too. */
+    fun firstMeasuredDay(): Flow<LocalDate?> = combine(dao.firstMeasuredDate(), unflushed) { stored, pending ->
+        (listOfNotNull(stored) + pending.keys.map { it.first }).minOrNull()?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+    }
 
     private operator fun DateRange.contains(date: String): Boolean = date in fromKey..toKey
 

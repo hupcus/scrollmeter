@@ -20,7 +20,8 @@ class AppInfoProvider(private val context: Context) {
     private val cache = LruCache<String, AppInfo>(64)
 
     fun load(packageName: String, iconSizePx: Int): AppInfo {
-        cache.get(packageName)?.let { return it }
+        val key = "$packageName@$iconSizePx" // the list and the detail draw different sizes
+        cache.get(key)?.let { return it }
         val pm = context.packageManager
         val info = try {
             val app = pm.getApplicationInfo(packageName, 0)
@@ -32,7 +33,7 @@ class AppInfoProvider(private val context: Context) {
             // Spec §15: a package we cannot read must never crash the screen.
             AppInfo(packageName, packageName, null)
         }
-        cache.put(packageName, info)
+        cache.put(key, info)
         return info
     }
 }

@@ -80,6 +80,19 @@ object MeasurementConfig {
      */
     const val USAGE_SAME_APP_GRACE_MS = 2_000L
 
+    /**
+     * Measurement quality per app (spec §20, ADR-029). Under [QUALITY_MIN_EVENTS] stored events there is
+     * too little to judge. LOW when at least half the events carried no usable pixels or 5 % were
+     * outliers; HIGH when ≥ 90 % of counted events were direct deltas, < 10 % unmeasurable, < 1 %
+     * outliers and the display is calibrated with a card; MEDIUM otherwise.
+     */
+    const val QUALITY_MIN_EVENTS = 20L
+    const val QUALITY_LOW_UNMEASURABLE_SHARE = 0.5
+    const val QUALITY_LOW_OUTLIER_SHARE = 0.05
+    const val QUALITY_HIGH_DIRECT_SHARE = 0.9
+    const val QUALITY_HIGH_MAX_UNMEASURABLE_SHARE = 0.1
+    const val QUALITY_HIGH_MAX_OUTLIER_SHARE = 0.01
+
     /** ISO/IEC 7810 ID-1 card width for manual calibration — used from Phase 2 (spec §8). */
     const val CARD_WIDTH_MM = 85.60
     const val MM_PER_INCH = 25.4

@@ -136,6 +136,30 @@ abstract class ScrollDao {
     )
     abstract fun daysBetween(fromDate: String, toDate: String): Flow<List<DaySummary>>
 
+    /** One app per day — the app detail's chart (spec §24): distance, scroll time and time in app. */
+    @Query(
+        """
+        SELECT date,
+            SUM(distanceMm) AS distanceMm,
+            SUM(activeScrollMs) AS activeScrollMs,
+            SUM(foregroundMs) AS foregroundMs
+        FROM (
+            SELECT date, distanceMm, activeScrollMs, NULL AS foregroundMs
+            FROM daily_app_aggregate WHERE packageName = :packageName AND date BETWEEN :fromDate AND :toDate
+            UNION ALL
+            SELECT date, NULL, NULL, foregroundMs
+            FROM daily_app_usage WHERE packageName = :packageName AND date BETWEEN :fromDate AND :toDate
+        )
+        GROUP BY date
+        ORDER BY date
+        """,
+    )
+    abstract fun appDaysBetween(packageName: String, fromDate: String, toDate: String): Flow<List<DaySummary>>
+
+    /** The first day anything was measured — history statistics start there (spec §23). */
+    @Query("SELECT MIN(date) FROM daily_app_aggregate")
+    abstract fun firstMeasuredDate(): Flow<String?>
+
     @Query("SELECT * FROM daily_app_aggregate WHERE date = :date AND packageName = :packageName")
     abstract suspend fun aggregate(date: String, packageName: String): DailyAppAggregateEntity?
 
