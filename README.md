@@ -12,7 +12,8 @@ finger across the touchscreen.
 ## Status
 
 Project founded 2026-09-23. Merged: Phase 0 (bootstrap, `v0.0`), Phase 1 (measurement proof of concept,
-GO/NO-GO gate, `v0.1`), Phase 2 (calibration: card calibration, accuracy screen, accuracy tooling, `v0.2`).
+GO/NO-GO gate, `v0.1`), Phase 2 (calibration: card calibration, accuracy screen, accuracy tooling, `v0.2`),
+Phase 3 (persistence: Room, flushes, sessions, settings, optional time in app, `v0.3`).
 Manual on-phone checks still owed are listed under "Dluh ověření" in `handoff.md`. See `PLAN.md` (phases,
 gates) and `handoff.md` (live state).
 
@@ -97,6 +98,18 @@ phone and display resolution it was made on (ADR-024); *Přeskočit – použít
 Accuracy with the calibration in force: `python3 tools/device_accuracy.py --surface view,column --csv-out out/`
 then `python3 tools/accuracy.py out/ground_truth.csv out/measured.csv`. The test list itself shows MAE / MAPE
 over the runs of a series (*Vynulovat* closes a run, *Nová série* starts over).
+
+## Stored data and time in app (Phase 3)
+
+Distances are stored per day and app in an app-private Room database (`scrollmeter.db`) and survive app
+restarts; Home shows *Dnes* from it (at most 10 s behind the live counter). Time in app is optional: grant
+*Přístup k údajům o využití* to ScrollMeter in Android settings (on an emulator:
+`adb shell appops set com.scrollmeter.app.debug GET_USAGE_STATS allow`) and open the app — it snapshots the
+last days into `daily_app_usage`. Inspect a debug build's data with
+`adb shell "run-as com.scrollmeter.app.debug sqlite3 databases/scrollmeter.db 'select * from daily_app_aggregate'"`.
+
+Note: `adb shell am force-stop` turns the accessibility service off (Android removes it from the enabled list);
+turn it on again in Usnadnění.
 
 The debug CSV holds numbers and identifiers only (time, package, window id, view class, deltas, scroll
 positions, distance, source, accepted/rejected) — never text from the screen.

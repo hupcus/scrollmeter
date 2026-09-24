@@ -3,21 +3,21 @@ package com.scrollmeter.app.accessibility
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.BuildConfig
 import com.scrollmeter.app.ScrollMeterApplication
+import com.scrollmeter.app.aggregation.ScrollPipeline
 import com.scrollmeter.app.calibration.CalibrationState
-import com.scrollmeter.app.measurement.MeasurementConfig
 import com.scrollmeter.app.measurement.ScrollMeasurementEngine
-import com.scrollmeter.app.measurement.ScrollSample
+import com.scrollmeter.app.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -28,19 +28,24 @@ import kotlinx.coroutines.launch
  * Receives only `TYPE_VIEW_SCROLLED` (res/xml/accessibility_service_config.xml) with
  * `canRetrieveWindowContent="false"`: it cannot read screen content and does not try.
  *
- * Pipeline (spec §62, §63, D5): the callback parses primitives and hands them to a bounded
- * channel, then returns. One consumer coroutine on Dispatchers.Default runs the engine and
- * the sinks. No Room, no I/O, no PackageManager on the callback path.
+ * Pipeline (spec §16, §62, §63, D5): the callback parses primitives and hands them to
+ * [ScrollPipeline]'s bounded channel, then returns — no Room, no I/O, no PackageManager on the
+ * callback path. The pipeline runs on one thread at a time: it measures, sums in memory and
+ * writes to Room every 10 s / 50 events / new day, and once more on unbind, interrupt and destroy.
  *
- * The consumer converts nothing before the stored calibration is loaded (samples wait in the
- * channel), then follows every calibration change: new events use the new scale, earlier
- * results keep theirs (spec §65).
+ * Nothing is converted before the stored calibration and settings are loaded (samples wait in
+ * the channel); afterwards every change applies to new events only (spec §65). Time in app is
+ * re-synced on connect when the last sync is older than 6 h, and when the day changes (ADR-021).
  */
 class ScrollAccessibilityService : AccessibilityService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** Engine, accumulator and sessions are touched from this dispatcher only — never in parallel. */
+    private val pipelineDispatcher = Dispatchers.Default.limitedParallelism(1)
     private var graph: AppGraph? = null
     private var engine: ScrollMeasurementEngine? = null
-    private var samples: Channel<ScrollSample>? = null
+    private var pipeline: ScrollPipeline? = null
+    private var pipelineJob: Job? = null
 
     /** The latest stored calibration — re-applied when rotation changes the display. */
     @Volatile
@@ -48,42 +53,43 @@ class ScrollAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        // A repeated connect replaces the pipeline instead of orphaning the old consumer.
+        // A repeated connect replaces the pipeline; the old one flushes and ends on its own.
         stopPipeline()
         val graph = (application as ScrollMeterApplication).graph
-        // Replaced by the stored calibration before the consumer processes its first sample.
+        // Replaced by the stored calibration before the pipeline processes its first sample.
         val engine = graph.newEngine(calibration)
-        val channel = Channel<ScrollSample>(
-            capacity = MeasurementConfig.SAMPLE_CHANNEL_CAPACITY,
-            onBufferOverflow = BufferOverflow.DROP_OLDEST,
-            onUndeliveredElement = { graph.monitor.droppedSamples.incrementAndGet() },
+        val pipeline = ScrollPipeline(
+            engine = engine,
+            ownPackage = graph.ownPackage,
+            store = graph.scrollRepository,
+            monitor = graph.monitor,
+            sinks = graph.measurementSinks,
+            uptimeMs = SystemClock::uptimeMillis,
+            onDayChanged = { syncUsage(graph, onlyIfStale = false) },
         )
         this.graph = graph
         this.engine = engine
-        this.samples = channel
+        this.pipeline = pipeline
         graph.monitor.onServiceConnected(System.currentTimeMillis())
         lifecycle("connected")
 
-        serviceScope.launch {
+        pipelineJob = serviceScope.launch(pipelineDispatcher) {
             val calibrations = graph.calibrationRepository.state
+            val settings = graph.settingsRepository.settings
             applyCalibration(graph, engine, calibrations.first())
-            val follower = launch { calibrations.collect { applyCalibration(graph, engine, it) } }
+            applySettings(graph, settings.first())
+            val followers = listOf(
+                launch { calibrations.collect { applyCalibration(graph, engine, it) } },
+                launch { settings.collect { applySettings(graph, it) } },
+            )
             try {
-                for (sample in channel) {
-                    try {
-                        val result = engine.process(sample)
-                        graph.monitor.record(result)
-                        graph.measurementSinks.forEach { it.onResult(result) }
-                    } catch (e: Exception) {
-                        // Spec §61: one bad sample must not stop the consumer.
-                        graph.monitor.processingFailures.incrementAndGet()
-                    }
-                }
+                pipeline.run()
             } finally {
-                // The channel was closed (unbind / reconnect): stop following this engine.
-                follower.cancel()
+                // The pipeline ended (unbind / reconnect / destroy): stop following this engine.
+                followers.forEach { it.cancel() }
             }
         }
+        syncUsage(graph, onlyIfStale = true)
     }
 
     private fun applyCalibration(graph: AppGraph, engine: ScrollMeasurementEngine, state: CalibrationState) {
@@ -96,11 +102,28 @@ class ScrollAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Spec §14: user-excluded apps become EXCLUDED from the next event on. */
+    private fun applySettings(graph: AppGraph, settings: Settings) {
+        graph.measurementSettings.excludedPackages = settings.excludedPackages
+    }
+
+    /** Off the pipeline: reading usage events is I/O. Without Usage access this is a no-op. */
+    private fun syncUsage(graph: AppGraph, onlyIfStale: Boolean) {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                if (onlyIfStale) graph.usageSyncer.syncIfStale() else graph.usageSyncer.sync()
+            } catch (e: Exception) {
+                // Spec §61: time in app stays as last synced; the next trigger retries.
+                lifecycle("usage sync failed: ${e.javaClass.simpleName}")
+            }
+        }
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        val channel = samples ?: return
+        val pipeline = pipeline ?: return
         try {
             val sample = AccessibilityEventParser.parse(event ?: return, System.currentTimeMillis()) ?: return
-            channel.trySend(sample)
+            pipeline.offer(sample)
         } catch (e: Exception) {
             // Spec §61: ignore the event and count it; never let the service die.
             graph?.monitor?.processingFailures?.incrementAndGet()
@@ -115,8 +138,9 @@ class ScrollAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
-        // Nothing to flush yet: Phase 1 keeps totals in RAM only.
         lifecycle("interrupt")
+        val pipeline = pipeline ?: return
+        serviceScope.launch(pipelineDispatcher) { pipeline.flush() }
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -128,13 +152,15 @@ class ScrollAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         lifecycle("destroy")
         stopPipeline()
-        serviceScope.cancel()
+        // Let the pipeline process what is queued and write its final flush, then stop the rest.
+        pipelineJob?.invokeOnCompletion { serviceScope.cancel() } ?: serviceScope.cancel()
         super.onDestroy()
     }
 
+    /** Closes the channel: the pipeline drains it, writes a last flush and ends. */
     private fun stopPipeline() {
-        samples?.close()
-        samples = null
+        pipeline?.close()
+        pipeline = null
         graph?.monitor?.onServiceDisconnected()
     }
 

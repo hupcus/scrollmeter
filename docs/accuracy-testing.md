@@ -203,6 +203,26 @@ Finger geometry: 1000 px drag → 808 px (= 1000 − 168 − 24), 600 → 408, 3
 (the toolbar snapping back?) — the engine counts what the app reports; not verified visually.
 Largest single Chrome event seen: ~1117 px against an outlier limit of 10 527 px (4 × diagonal).
 
+## Persistence and time in app (Phase 3)
+
+Emulator `scrollmeter34` (AVD, API 34, google_apis arm64, pixel_6 1080 × 2400), debug build, Settings scrolled
+with `adb shell input swipe`; stored rows read with `run-as … sqlite3`, compared with the logcat sum of counted
+events (`adb logcat -s ScrollMeter:D`).
+
+| Check | Result |
+|---|---|
+| Flush after a quiet 12 s | DB 242.026 mm / 22 events = logcat 242.027 mm / 22 (display rounding) |
+| Idle session (> 60 s) written by the ticker | 1 session, 242.026 mm, 21 counted events |
+| `kill -9` right after scrolling | the unflushed ~4 s lost (463.85 mm); the system restarted the service, next flush added up (704.19 mm) |
+| `am force-stop` right after scrolling | the unflushed ~3 s lost (94.58 mm); **Android also removes the service from `enabled_accessibility_services`** — measurement is off until the user turns it on again (Home shows *Měření je vypnuté*) |
+| Screen off → on | measurement continues, nothing lost |
+| Two apps | one row per package; debug test mode measures ScrollMeter live but never stores it |
+| Reinstall (`adb install -r`) | service stays enabled, data kept |
+| Time in app vs the system (`dumpsys usagestats`, today) | launcher 13:34.4 vs 13:34 · Settings 3:19.7 vs 3:20 · googlesdksetup 1.1 s vs 0:01 |
+
+Owed on a real phone (handoff.md "Dluh ověření"): phone restart, and time in app for today and yesterday against
+Digital Wellbeing (± 5 %).
+
 ## Battery (Phase 8)
 
 | Date | Device | Scenario | Duration | Events | Room writes | CPU / wakeups | Battery % | Notes |

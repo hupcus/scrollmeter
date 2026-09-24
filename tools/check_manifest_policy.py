@@ -6,6 +6,10 @@ permissions and components contributed by libraries. CI runs it after the Gradle
 
     python3 tools/check_manifest_policy.py app/build/intermediates/merged_manifests/*/process*Manifest/AndroidManifest.xml
 
+Permissions are an allowlist (PLAN Phase 3): anything the build requests beyond it — from our
+manifest or from a library — fails, so a new permission needs an ADR and a change here. The
+FORBIDDEN list stays to name the hard-rule ones explicitly in the failure message.
+
 A manifest whose path contains `/release/` must also carry no debug tooling (FileProvider).
 Standard library only; exit code 1 on any violation.
 """
@@ -18,6 +22,11 @@ from pathlib import Path
 
 A = "{http://schemas.android.com/apk/res/android}"
 SERVICE = "com.scrollmeter.app.accessibility.ScrollAccessibilityService"
+# ADR-021: time in app (Usage access, granted by the user in Settings). Phase 6 adds POST_NOTIFICATIONS.
+ALLOWED_PERMISSIONS = ("android.permission.PACKAGE_USAGE_STATS",)
+# androidx.core declares and requests this signature permission for its own receivers; it is
+# prefixed by the application id (com.scrollmeter.app or com.scrollmeter.app.debug).
+ALLOWED_PERMISSION_SUFFIXES = (".DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",)
 FORBIDDEN_PERMISSIONS = (
     "android.permission.INTERNET",
     "android.permission.ACCESS_NETWORK_STATE",
@@ -27,6 +36,12 @@ FORBIDDEN_PERMISSIONS = (
 )
 
 
+def allowed(name: str) -> bool:
+    return name in ALLOWED_PERMISSIONS or (
+        name.startswith("com.scrollmeter.app") and name.endswith(ALLOWED_PERMISSION_SUFFIXES)
+    )
+
+
 def violations(manifest: str, release: bool) -> list[str]:
     root = ET.fromstring(manifest)
     found = []
@@ -34,6 +49,8 @@ def violations(manifest: str, release: bool) -> list[str]:
         name = perm.get(A + "name", "")
         if any(name.startswith(f) for f in FORBIDDEN_PERMISSIONS):
             found.append(f"forbidden permission {name}")
+        elif not allowed(name):
+            found.append(f"permission not in the allowlist {name}")
     app = root.find("application")
     if app is None:
         return found + ["no <application>"]

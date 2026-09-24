@@ -5,7 +5,7 @@
     <string name="accessibility_service_label">ScrollMeter — měření scrollování</string>
     <string name="accessibility_service_description">ScrollMeter měří, o kolik se při scrollování posune obsah na displeji, a převádí to na metry. Služba přijímá jen události scrollování: čísla o posunu a název aplikace. Nečte text, zprávy ani obsah obrazovky, nic neovládá a data nikam neposílá — aplikace nemá přístup k internetu.</string>
 
-    <string name="home_subtitle">Prototyp měření a kalibrace (fáze 2)</string>
+    <string name="home_subtitle">Prototyp měření, kalibrace a ukládání (fáze 3)</string>
     <string name="home_status_on">Měření je zapnuté</string>
     <string name="home_status_on_body">Služba přijímá jen události scrollování.</string>
     <string name="home_status_not_running">Měření je povolené, ale služba neběží</string>
@@ -14,9 +14,8 @@
     <string name="home_status_off_body">Zapni službu ScrollMeter v nastavení Usnadnění.</string>
     <string name="home_enable_button">Zapnout měření</string>
     <string name="home_settings_button">Otevřít nastavení Usnadnění</string>
-    <string name="home_live_title">Od spuštění služby</string>
-    <string name="home_live_events">%1$s započtených událostí z %2$s</string>
-    <string name="home_live_note">Jen v paměti — ukládání přijde v další fázi.</string>
+    <string name="home_today_title">Dnes</string>
+    <string name="home_live_events">Od spuštění služby %1$s · %2$s započtených událostí z %3$s</string>
     <string name="home_devtools_title">Vývojářské nástroje</string>
     <string name="home_accuracy_title">Přesnost měření</string>
     <string name="home_accuracy_manual">Kalibrováno platební kartou · 1 pixel = %1$s mm</string>

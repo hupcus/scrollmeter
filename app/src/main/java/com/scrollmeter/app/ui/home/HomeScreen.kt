@@ -29,18 +29,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
 import com.scrollmeter.app.calibration.CalibrationMethod
+import com.scrollmeter.app.data.model.DateRange
 import com.scrollmeter.app.devtools.DevToolEntry
 import com.scrollmeter.app.measurement.PhysicalScale
 import com.scrollmeter.app.measurement.PhysicalScaleProvider
 import com.scrollmeter.app.ui.components.Format
+import java.time.LocalDate
 
 /** Spec §32: never claim data is being collected unless the service is actually running. */
 enum class ServiceStatus { ON, ENABLED_NOT_RUNNING, OFF }
 
 /**
- * POC home: service status with the way to Accessibility settings, the RAM-only total since the
- * service started, the calibration in use with the way to the accuracy screen, and (debug builds)
- * the developer screens. Replaced by the dashboard in Phase 4.
+ * POC home: service status with the way to Accessibility settings, today's stored total (it lags
+ * the live counter by at most one flush, 10 s), the calibration in use with the way to the accuracy
+ * screen, and (debug builds) the developer screens. Replaced by the dashboard in Phase 4.
  */
 @Composable
 fun HomeScreen(
@@ -56,10 +58,14 @@ fun HomeScreen(
     val calibration by graph.calibrationRepository.state.collectAsStateWithLifecycle(initialValue = null)
     val display = remember(LocalConfiguration.current.orientation) { graph.displayMetricsProvider.read() }
     var enabledInSettings by remember { mutableStateOf(graph.statusChecker.isEnabled()) }
+    var today by remember { mutableStateOf(LocalDate.now()) }
     LifecycleResumeEffect(Unit) {
         enabledInSettings = graph.statusChecker.isEnabled()
+        today = LocalDate.now()
         onPauseOrDispose { }
     }
+    val todayMm by remember(today) { graph.scrollRepository.distance(DateRange.day(today)) }
+        .collectAsStateWithLifecycle(initialValue = null)
     LaunchedEffect(connected) { enabledInSettings = graph.statusChecker.isEnabled() }
     val status = when {
         connected -> ServiceStatus.ON
@@ -75,20 +81,20 @@ fun HomeScreen(
             Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
             Text(stringResource(R.string.home_subtitle), style = MaterialTheme.typography.bodyMedium)
             StatusCard(status, onOpenAccessibilitySettings)
-            if (status == ServiceStatus.ON) {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(R.string.home_live_title), style = MaterialTheme.typography.titleMedium)
-                        Text(Format.metres(totals.countedMm), style = MaterialTheme.typography.displaySmall)
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.home_today_title), style = MaterialTheme.typography.titleMedium)
+                    Text(todayMm?.let(Format::metres) ?: "—", style = MaterialTheme.typography.displaySmall)
+                    if (status == ServiceStatus.ON) {
                         Text(
                             stringResource(
                                 R.string.home_live_events,
+                                Format.metres(totals.countedMm),
                                 Format.integer(totals.direct + totals.fallback),
                                 Format.integer(totals.events - totals.excluded),
                             ),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
                         )
-                        Text(stringResource(R.string.home_live_note), style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }

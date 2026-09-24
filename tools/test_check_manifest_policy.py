@@ -6,6 +6,7 @@ import check_manifest_policy as tool
 
 GOOD = """<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.scrollmeter.app">
   <uses-permission android:name="com.scrollmeter.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"/>
+  <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"/>
   <application android:allowBackup="false">
     <service android:name="com.scrollmeter.app.accessibility.ScrollAccessibilityService"
         android:exported="false" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"/>
@@ -26,6 +27,16 @@ class CheckManifestPolicyTest(unittest.TestCase):
     def test_foreground_service_types_are_caught_by_prefix(self):
         bad = GOOD.replace("<application", '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/><application')
         self.assertEqual(len(tool.violations(bad % "", release=False)), 1)
+
+    def test_permission_outside_the_allowlist_is_caught(self):
+        for name in ("android.permission.POST_NOTIFICATIONS", "android.permission.READ_CONTACTS",
+                     "com.other.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"):
+            bad = GOOD.replace("<application", f'<uses-permission android:name="{name}"/><application')
+            self.assertEqual(tool.violations(bad % "", release=True), [f"permission not in the allowlist {name}"])
+
+    def test_debug_application_id_permission_is_allowed(self):
+        debug = GOOD.replace("com.scrollmeter.app.DYNAMIC", "com.scrollmeter.app.debug.DYNAMIC")
+        self.assertEqual(tool.violations(debug % "", release=False), [])
 
     def test_exported_service_is_caught(self):
         bad = GOOD.replace('android:exported="false"', 'android:exported="true"')

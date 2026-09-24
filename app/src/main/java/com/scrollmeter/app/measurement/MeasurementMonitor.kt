@@ -12,7 +12,7 @@ fun interface MeasurementSink {
     fun onResult(result: MeasurementResult)
 }
 
-/** Counters since the service last connected. RAM only — persistence arrives in Phase 3. */
+/** Counters since the service last connected, in RAM — the stored totals are in Room (Phase 3). */
 data class LiveTotals(
     val connectedAtWallMs: Long = 0L,
     val countedMm: Double = 0.0,
