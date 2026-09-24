@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -28,9 +29,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
 import com.scrollmeter.app.apps.PackageNames
+import com.scrollmeter.app.onboarding.AccessibilityGate
 import com.scrollmeter.app.devtools.DevTools
 import com.scrollmeter.app.ui.apps.AppDetailScreen
 import com.scrollmeter.app.ui.apps.AppsScreen
@@ -38,6 +41,7 @@ import com.scrollmeter.app.ui.calibration.AccuracyScreen
 import com.scrollmeter.app.ui.calibration.CalibrationScreen
 import com.scrollmeter.app.ui.dashboard.DashboardScreen
 import com.scrollmeter.app.ui.history.HistoryScreen
+import com.scrollmeter.app.ui.onboarding.DisclosureScreen
 import com.scrollmeter.app.ui.settings.AboutScreen
 import com.scrollmeter.app.ui.settings.ExcludedAppsScreen
 import com.scrollmeter.app.ui.settings.ExportScreen
@@ -45,6 +49,7 @@ import com.scrollmeter.app.ui.settings.PrivacyScreen
 import com.scrollmeter.app.ui.settings.SettingsActions
 import com.scrollmeter.app.ui.settings.SettingsScreen
 import com.scrollmeter.app.ui.usage.UsageAccessScreen
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
 // Type-safe routes (D14). A package name is the only argument; it is ours, read back from Room.
@@ -61,6 +66,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object ExportRoute
 @Serializable data object PrivacyRoute
 @Serializable data object AboutRoute
+@Serializable data object DisclosureRoute
 
 private class TopLevel(val route: Any, @get:StringRes val label: Int, @get:DrawableRes val icon: Int)
 
@@ -74,7 +80,7 @@ private val TOP_LEVEL = listOf(
 /**
  * Přehled / Historie / Aplikace / Nastavení in a bottom bar (spec §43); the bar hides on the screens
  * below them (app detail, Přesnost, Kalibrace, Čas v aplikacích, Vyloučené aplikace, Export,
- * Soukromí, O aplikaci, developer screens). Switching tabs
+ * Soukromí, O aplikaci, the disclosure, developer screens). Switching tabs
  * keeps each tab's state. [initialDevTool] opens a developer screen from the launch intent (debug).
  */
 @Composable
@@ -83,6 +89,16 @@ fun ScrollMeterNavHost(graph: AppGraph, initialDevTool: String?, onOpenAccessibi
     val entry by nav.currentBackStackEntryAsState()
     val destination = entry?.destination
     val onTopLevel = TOP_LEVEL.any { destination?.hasRoute(it.route::class) == true }
+    // Spec §30: the dashboard banner and Nastavení reach the accessibility settings only through the
+    // prominent disclosure while it has not been accepted (ADR-032).
+    val disclosureAccepted by remember(graph) { graph.settingsRepository.settings.map { it.privacyDisclosureAccepted } }
+        .collectAsStateWithLifecycle(initialValue = false)
+    val openAccessibilitySettings = {
+        when (AccessibilityGate.route(disclosureAccepted)) {
+            AccessibilityGate.Route.OPEN_SETTINGS -> onOpenAccessibilitySettings()
+            AccessibilityGate.Route.SHOW_DISCLOSURE -> nav.open(DisclosureRoute)
+        }
+    }
     var launchHandled by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(initialDevTool) {
         if (!launchHandled && initialDevTool != null) nav.navigate(DevToolRoute(initialDevTool))
@@ -115,7 +131,7 @@ fun ScrollMeterNavHost(graph: AppGraph, initialDevTool: String?, onOpenAccessibi
             composable<OverviewRoute> {
                 DashboardScreen(
                     graph = graph,
-                    onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+                    onOpenAccessibilitySettings = openAccessibilitySettings,
                     onOpenUsageAccess = { nav.open(UsageAccessRoute) },
                     onOpenAccuracy = { nav.open(AccuracyRoute) },
                     onOpenApp = { nav.open(AppDetailRoute(it)) },
@@ -128,7 +144,7 @@ fun ScrollMeterNavHost(graph: AppGraph, initialDevTool: String?, onOpenAccessibi
                     graph = graph,
                     devTools = DevTools.entries,
                     actions = SettingsActions(
-                        openAccessibilitySettings = onOpenAccessibilitySettings,
+                        openAccessibilitySettings = openAccessibilitySettings,
                         openUsageAccess = { nav.open(UsageAccessRoute) },
                         openAccuracy = { nav.open(AccuracyRoute) },
                         openExcluded = { nav.open(ExcludedAppsRoute) },
@@ -143,6 +159,12 @@ fun ScrollMeterNavHost(graph: AppGraph, initialDevTool: String?, onOpenAccessibi
             composable<ExportRoute> { back -> ExportScreen(graph, onBack = { nav.leave(back) }) }
             composable<PrivacyRoute> { back -> PrivacyScreen(onBack = { nav.leave(back) }) }
             composable<AboutRoute> { back -> AboutScreen(graph, onBack = { nav.leave(back) }) }
+            composable<DisclosureRoute> { back ->
+                DisclosureScreen(graph, onAccepted = {
+                    nav.leave(back)
+                    onOpenAccessibilitySettings()
+                }, onBack = { nav.leave(back) })
+            }
             composable<AppDetailRoute> { back ->
                 val packageName = back.toRoute<AppDetailRoute>().packageName
                 // Defence in depth next to MainActivity's deep-link scrub: never show an arbitrary string as an app name.

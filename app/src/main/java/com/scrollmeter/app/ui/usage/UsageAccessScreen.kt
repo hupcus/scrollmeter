@@ -25,10 +25,10 @@ import com.scrollmeter.app.R
  * The disclosure before Usage-access settings (ADR-021, User Data policy: app usage is sensitive).
  * Says what is read, what is stored, what is not, and that the app works without it; only the
  * explicit "Povolit" opens the settings. Coming back with access granted closes the screen.
- * Phase 7 reuses it as onboarding step 6.
+ * The onboarding shows it as its optional step 6 with [header] as the step indicator.
  */
 @Composable
-fun UsageAccessScreen(graph: AppGraph, onGranted: () -> Unit, onBack: () -> Unit) {
+fun UsageAccessScreen(graph: AppGraph, onGranted: () -> Unit, onBack: () -> Unit, header: (@Composable () -> Unit)? = null) {
     val context = LocalContext.current
     LifecycleResumeEffect(Unit) {
         if (graph.usageAccessChecker.isGranted()) onGranted()
@@ -39,6 +39,7 @@ fun UsageAccessScreen(graph: AppGraph, onGranted: () -> Unit, onBack: () -> Unit
             modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            header?.invoke()
             Text(stringResource(R.string.usage_access_title), style = MaterialTheme.typography.headlineMedium)
             Text(stringResource(R.string.usage_access_intro), style = MaterialTheme.typography.bodyLarge)
             Text(stringResource(R.string.usage_access_what), style = MaterialTheme.typography.bodyLarge)

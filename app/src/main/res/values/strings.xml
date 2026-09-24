@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ScrollMeter</string>
+    <string name="app_name" translatable="false">ScrollMeter</string>
 
     <string name="accessibility_service_label">ScrollMeter — měření scrollování</string>
     <string name="accessibility_service_description">ScrollMeter měří, o kolik se při scrollování posune obsah na displeji, a převádí to na metry. Služba přijímá jen události scrollování: čísla o posunu a název aplikace. Nečte text, zprávy ani obsah obrazovky, nic neovládá a data nikam neposílá — aplikace nemá přístup k internetu.</string>
 
-    <!-- Locale for numbers: the language the strings are in, not the device's (Czech UI → decimal comma). -->
-    <string name="number_locale" translatable="false">cs</string>
+    <!-- Locale for numbers: the language the strings are in, not the device's (Czech UI → decimal comma).
+         Every translation sets its own language tag here (values-en → en). -->
+    <string name="number_locale">cs</string>
 
     <!-- Spec §21 Dashboard, §32 status. -->
     <string name="dashboard_measuring">Měří se</string>
@@ -79,6 +80,41 @@
         <item quantity="many">%d× maraton</item>
         <item quantity="other">%d× maraton</item>
     </plurals>
+
+    <!-- Spec §31 onboarding (ADR-032). -->
+    <string name="onboarding_step">Krok %1$d z %2$d</string>
+    <string name="onboarding_start">Začít</string>
+    <string name="onboarding_next">Pokračovat</string>
+    <string name="onboarding_welcome_title">Kolik toho denně nascrolluješ?</string>
+    <string name="onboarding_welcome_body">ScrollMeter měří, o kolik se při scrollování posune obsah na displeji — v sociálních sítích, v prohlížeči i jinde — a ukáže to v metrech a kilometrech.</string>
+    <string name="onboarding_welcome_claim">Screen time ti řekne jak dlouho. ScrollMeter ti ukáže jak daleko.</string>
+    <string name="onboarding_how_title">Jak měření funguje</string>
+    <string name="onboarding_how_delta">Když scrolluješ, Android hlásí, o kolik pixelů se obsah posunul. ScrollMeter to sečte a podle velikosti pixelu tvého displeje převede na délku.</string>
+    <string name="onboarding_how_not_content">Měří se posun obsahu, ne obsah obrazovky: ScrollMeter neví, co čteš ani píšeš — jen jak daleko to ujelo.</string>
+    <string name="onboarding_how_fling">Počítá se i dojezd po švihnutí prstem, takže vzdálenost bývá delší než dráha prstu.</string>
+    <string name="onboarding_how_limits">Některé aplikace scrollování nehlásí (třeba YouTube) — v nich ScrollMeter nic nenaměří.</string>
+
+    <!-- Spec §30: the prominent disclosure, word for word (TranslationsTest pins it against the spec). -->
+    <string name="disclosure_title">Povolit měření scrollování</string>
+    <string name="disclosure_why">ScrollMeter potřebuje přístup ke službě Zpřístupnění, aby Android aplikaci informoval o scrollování v ostatních aplikacích.</string>
+    <string name="disclosure_what">ScrollMeter používá pouze scrollovací události a název aplikace, ve které ke scrollování došlo.</string>
+    <string name="disclosure_not">Nečte ani neukládá text obrazovky, zprávy, hesla ani obsah formulářů.</string>
+    <string name="disclosure_local">Data jsou zpracována a uložena pouze v tomto zařízení.</string>
+    <string name="disclosure_accept">Rozumím a chci pokračovat</string>
+    <string name="disclosure_open_settings">Otevřít nastavení zpřístupnění</string>
+
+    <string name="onboarding_enable_title">Zapni měření</string>
+    <string name="onboarding_enable_steps">V nastavení, které se otevře, najdi ScrollMeter (bývá v části „Stažené aplikace“ nebo „Nainstalované aplikace“) a zapni ho. Android ukáže obecné varování, co služby Usnadnění smějí — ScrollMeter z toho používá jen události scrollování.</string>
+    <string name="onboarding_enable_restricted">Když Android napíše „Omezené nastavení“: otevři Nastavení › Aplikace › ScrollMeter, vpravo nahoře v nabídce ⋮ zvol „Povolit omezená nastavení“ a zkus to znovu. Týká se to aplikací nainstalovaných mimo Obchod Play.</string>
+    <string name="onboarding_enable_force_stop">Když ScrollMeter v nastavení aplikací vynuceně zastavíš, Android měření vypne. Pak ho tady nebo na přehledu zapni znovu.</string>
+    <string name="onboarding_enable_waiting">Měření zatím není zapnuté.</string>
+    <string name="onboarding_enable_done">Měření je zapnuté.</string>
+
+    <string name="onboarding_calibration_title">Zkalibruj displej</string>
+    <string name="onboarding_calibration_body">ScrollMeter převádí pixely na milimetry podle údajů, které o sobě hlásí displej. Přesnější je kalibrace platební kartou: přiložíš ji k displeji a upravíš čáru na její délku. Zabere to asi minutu a jde to udělat i později v Nastavení › Přesnost měření.</string>
+    <string name="onboarding_calibration_card">Zkalibrovat platební kartou</string>
+    <string name="onboarding_calibration_auto">Použít automatický odhad</string>
+    <string name="onboarding_calibration_done">Displej už je zkalibrovaný platební kartou.</string>
 
     <!-- ADR-021: disclosure before Usage-access settings (text of PLAN Phase 6 / Phase 7 step 6). -->
     <string name="usage_access_title">Čas v aplikacích</string>
@@ -226,13 +262,14 @@
     <string name="reason_keyboard">Klávesnice</string>
     <string name="reason_system_ui">Systémové rozhraní (lišta, oznámení)</string>
 
-    <!-- Spec §29 privacy (Phase 7 finalises the texts with the onboarding). -->
+    <!-- Spec §29 privacy (final, Phase 7). -->
     <string name="privacy_title">Soukromí</string>
     <string name="privacy_intro">ScrollMeter používá službu zpřístupnění pouze k detekci scrollovacích událostí. Nečte ani neukládá text, zprávy, hesla nebo obsah obrazovky. Naměřená data zůstávají v telefonu.</string>
     <string name="privacy_stores">Ukládá jen: kdy se scrollovalo, v jaké aplikaci (název balíčku), o kolik pixelů se obsah posunul a z toho spočítanou vzdálenost.</string>
     <string name="privacy_never">Nikdy nečte ani neukládá: text, zprávy, hesla, adresy stránek, obsah obrazovky, vyplněné formuláře ani uživatelská jména.</string>
     <string name="privacy_usage">ScrollMeter čte ze systému, kdy byla která aplikace v popředí, a ukládá jen součet minut na aplikaci a den. Nic z toho neopouští telefon.</string>
     <string name="privacy_offline">Aplikace nemá oprávnění k internetu: nic neodesílá, nemá účet, reklamy ani analytiku. Z telefonu data odejdou jen exportem, který spustíš ty, a smažeš je v Nastavení › Data.</string>
+    <string name="privacy_backup">Data se nezálohují do cloudu ani nepřenášejí na nový telefon. Kdo si je chce odnést, použije Export CSV.</string>
     <string name="privacy_accessibility">Proč služba Usnadnění: Android jinak nedá aplikaci vědět, o kolik se obsah jiné aplikace posunul. Služba poslouchá jen událost „posunuto“ a nemá oprávnění číst obsah oken.</string>
 
     <!-- Spec §44 About. -->

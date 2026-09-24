@@ -96,13 +96,13 @@ class PolicyGuardTest {
     @Test
     fun pureKotlinPackagesHaveNoAndroidImports() {
         val main = File(appDir, "src/main/java/com/scrollmeter/app")
-        val pure = listOf("measurement", "aggregation", "data/model", "usage", "format", "insights", "notifications", "export").flatMap { dir ->
+        val pure = listOf("measurement", "aggregation", "data/model", "usage", "format", "insights", "notifications", "export", "onboarding").flatMap { dir ->
             File(main, dir).walkTopDown().filter { it.extension == "kt" }.toList()
         }.filterNot { it.name in USAGE_PLATFORM_ADAPTERS || it.name in PHASE6_PLATFORM_ADAPTERS } + File(main, "data/DataEraser.kt")
         assertWithMessage("expected the pure packages to be scanned").that(pure.map { it.name })
             .containsAtLeast(
                 "ScrollMeasurementEngine.kt", "ScrollPipeline.kt", "ForegroundTimeAggregator.kt", "UsageSyncer.kt", "DistanceFormatter.kt",
-                "DistanceComparisonProvider.kt", "NotificationRules.kt", "CsvExporter.kt", "DataEraser.kt",
+                "DistanceComparisonProvider.kt", "NotificationRules.kt", "CsvExporter.kt", "DataEraser.kt", "OnboardingFlow.kt",
             )
         val hits = pure.filter { file -> file.readLines().any { it.startsWith("import android.") || it.startsWith("import androidx.") } }
             .map { it.name }
