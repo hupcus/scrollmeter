@@ -13,6 +13,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -45,6 +47,9 @@ class ScrollPipeline(
     private val accumulator = ScrollAccumulator(zone)
     private val sessions = ScrollSessionManager()
     private val inFlight = ArrayList<Map<Pair<String, String>, Double>>()
+
+    /** The consumer, the ticker and `onInterrupt` may all ask for a flush; they write one after another. */
+    private val flushing = Mutex()
     private val samples = Channel<ScrollSample>(
         capacity = MeasurementConfig.SAMPLE_CHANNEL_CAPACITY,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -113,11 +118,12 @@ class ScrollPipeline(
     /**
      * Writes what is pending, sessions idle for over a minute included. The write itself is not
      * cancellable — a transaction that committed must not be restored and written twice — and a
-     * failed write puts everything back for the next flush (spec §61).
+     * failed write puts everything back for the next flush (spec §61). Flushes never overlap: Room
+     * writes on its own executor, which would otherwise let a second flush start meanwhile.
      */
-    suspend fun flush() {
+    suspend fun flush() = flushing.withLock {
         sessions.closeIdle(uptimeMs(), nowMs())
-        if (!accumulator.hasPending && !sessions.hasClosed) return
+        if (!accumulator.hasPending && !sessions.hasClosed) return@withLock
         val deltas = accumulator.drain()
         val closed = sessions.drainClosed()
         val writing = deltas.associate { (it.date to it.packageName) to it.distanceMm }

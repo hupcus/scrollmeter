@@ -35,6 +35,8 @@ import com.scrollmeter.app.measurement.PhysicalScale
 import com.scrollmeter.app.measurement.PhysicalScaleProvider
 import com.scrollmeter.app.ui.components.Format
 import java.time.LocalDate
+import java.time.ZoneId
+import kotlinx.coroutines.delay
 
 /** Spec §32: never claim data is being collected unless the service is actually running. */
 enum class ServiceStatus { ON, ENABLED_NOT_RUNNING, OFF }
@@ -62,6 +64,12 @@ fun HomeScreen(
         enabledInSettings = graph.statusChecker.isEnabled()
         today = LocalDate.now()
         onPauseOrDispose { }
+    }
+    // The screen may stay open across midnight: roll "Dnes" over without waiting for a resume.
+    LaunchedEffect(today) {
+        val midnight = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        delay((midnight - System.currentTimeMillis()).coerceAtLeast(0) + 1_000)
+        today = LocalDate.now()
     }
     val todayMm by remember(today) { graph.scrollRepository.distance(DateRange.day(today)) }
         .collectAsStateWithLifecycle(initialValue = null)

@@ -19,10 +19,10 @@
 | AGP | **8.13.2** | 8.13.2 | AGP 9 ne (built-in Kotlin, KSP/Room ekosystém) |
 | Kotlin / KSP | 2.3.21 / 2.3.11 | 2.3.21 / 2.3.11 (stdlib 2.3.21) | Compose compiler v Kotlinu |
 | Compose BOM | **2026.06.01** | → compose-ui/foundation/runtime **1.11.4**, material3 **1.4.0** | 2026.08 chce compileSdk 37 + AGP 9.1 |
-| Room / DataStore | 2.8.4 / 1.1.7 | Room 2.8.4 (runtime + KSP compiler zapojené, zatím bez `@Database`); DataStore Preferences 1.1.7 zapojený v Phase 2 (kalibrace) — pin beze změny, tranzitivně přibylo `com.squareup.okio:okio 3.4.0`, coroutines zůstávají 1.10.2 | |
+| Room / DataStore | 2.8.4 / 1.1.7 | Room 2.8.4 s `@Database` od Phase 3 (schéma v `app/schemas/`, R8 release ověřený na emulátoru); DataStore Preferences 1.1.7 zapojený v Phase 2 (kalibrace) a Phase 3 (nastavení) — pin beze změny, tranzitivně přibylo `com.squareup.okio:okio 3.4.0`, coroutines zůstávají 1.10.2 | |
 | Navigation / Lifecycle / Activity / core-ktx | 2.9.8 / 2.9.4 / 1.13.0 / 1.18.0 | Lifecycle 2.9.4, Activity Compose 1.13.0, core-ktx 1.18.0; Navigation až Phase 4 | |
 | coroutines | 1.10.2 | 1.10.2 | |
-| Testy | JUnit 4.13.2 · Truth 1.4.5 · Robolectric 4.16 | JUnit 4.13.2 + Truth 1.4.5; Robolectric až s Room (Phase 3) | |
+| Testy | JUnit 4.13.2 · Truth 1.4.5 · Robolectric 4.16 · coroutines-test 1.10.2 | vše zapojené; Robolectric (`@Config(sdk = [34])`) pro parser a in-memory Room, coroutines-test pro `ScrollPipelineTest` ve virtuálním čase (Phase 3) | |
 | compileSdk / target / min | 36 / 36 / **28** | 36 / 36 / 28 | `scrollDeltaX/Y` od API 28 |
 | DI | žádné (ruční `AppGraph`) | `ScrollMeterApplication.graph` | ADR-003 |
 
@@ -39,12 +39,53 @@
 | 0 Bootstrap | hotovo, mergnuto (tag `v0.0`) | `phase-0-bootstrap` / [#1](https://github.com/hupcus/scrollmeter/pull/1) | build/test/lint zelené lokálně i v CI; `installDebug` + spuštění na OnePlus OK |
 | 1 Measurement POC | **GO (Honza, 2026-09-23)** | `phase-1-measurement-poc` / [#2](https://github.com/hupcus/scrollmeter/pull/2) | bez doměření Instagramu / TikToku — přijaté riziko |
 | 2 Kalibrace | hotovo, mergnuto (tag `v0.2`) | `phase-2-calibration` / [#4](https://github.com/hupcus/scrollmeter/pull/4) | kalibrace kartou + MAPE s ní → „Dluh ověření“ |
-| 3 Persistence | nezačato — **další na řadě** | — | + čas v aplikaci (D19) |
+| 3 Persistence | hotovo, PR otevřený (merge + tag `v0.3` po CI) | `phase-3-persistence` | + čas v aplikaci (D19); restart telefonu a Digital Wellbeing → „Dluh ověření“ V4, V5 |
 | 4 Dashboard | nezačato | — | |
 | 5 Historie + Aplikace | nezačato | — | |
 | 6 Export + Nastavení | nezačato | — | |
 | 7 Onboarding + Policy | nezačato | — | |
 | 8 Release | nezačato | — | |
+
+## Phase 3 — exit report (2026-09-24)
+
+**Hotovo a ověřené** (větev `phase-3-persistence`):
+- **Room v1** (`scrollmeter.db`, schéma `app/schemas/…/1.json` v gitu):
+  - `daily_app_aggregate` (SPEC §17 + `calibrationVersion` + `activeScrollMs`),
+  - `scroll_session`,
+  - `daily_app_usage`.
+  Flush je jedna transakce „insert-or-add“ (`INSERT OR IGNORE` + `UPDATE x = x + :x`). UPSERT nejde, protože API 28 má SQLite 3.22 — ADR-026.
+- **`ScrollPipeline`** (čistý Kotlin, jedno vlákno) zapisuje:
+  - každých 10 s, když něco čeká,
+  - při 50. eventu,
+  - při novém dni,
+  - při `onInterrupt`,
+  - na konci služby.
+
+  Zápis je `NonCancellable` a neúspěšný zápis se zopakuje při dalším flushi. Vlastní balíček se neukládá nikdy.
+- „Dnes“ na domovské obrazovce je živé: uložené + ještě nezapsané.
+- **Čas v aplikaci** (ADR-021, ADR-025):
+  - UsageStats → `ForegroundTimeAggregator` (lokální dny, DST, tolerance 2 s při přechodu mezi aktivitami) → `UsageSyncer` (okno od posledního syncu, dny se nahrazují).
+  - Sync při otevření aplikace, při připojení služby (když je poslední sync starší než 6 h) a při změně dne.
+  - Oprávnění `PACKAGE_USAGE_STATS` je volitelné.
+- **`SettingsRepository`** (DataStore): předává vyloučené aplikace enginu a při chybě čtení je nikdy nevynuluje.
+- **Oprávnění jako allowlist** v obou strážích, včetně `uses-permission-sdk-23` a exportovaných komponent.
+- **ADR-027:** nic neodchází přes zálohu ani přenos na nový telefon (`dataExtractionRules`).
+- **Emulátor API 34** (tabulka v `docs/accuracy-testing.md`):
+  - DB = součet z logcatu,
+  - `kill -9` ztratil jen nezapsané ~4 s a služba se sama vrátila,
+  - vypnutí a zapnutí obrazovky je OK,
+  - dvě aplikace = dva řádky,
+  - čas v aplikaci = systémový `totalTimeUsed` (13:34,4 vs 13:34; 3:19,7 vs 3:20),
+  - restart emulátoru: data drží, služba se sama vrátí,
+  - **release build s R8** běží (Room OK, bez vývojářských nástrojů).
+- Review:
+  - `/topshit`: oprava spánku v mezerách sessions a přidání živých součtů,
+  - bezpečnostní review (Fable): 2× MEDIUM a 3× LOW opraveno, 2× INFO do Phase 6,
+  - funkční review: 1× HIGH (výluky při chybě čtení) už opravené v `d1cccd4`; 1× MEDIUM (překrývající se flushe) → mutex a test, který bez mutexu padá; 1× LOW (Home přes půlnoc) opraveno.
+
+**Zjištění:** `am force-stop` na API 34 **vypne službu Usnadnění** (smaže ji z `enabled_accessibility_services`). Měření zůstane vypnuté, dokud ho uživatel znovu nezapne; domovská obrazovka to řekne. Pro Phase 7 to znamená: onboarding a nápověda musí vysvětlit, že vynucené zastavení měření vypne.
+
+**Odloženo:** restart telefonu (V4) a porovnání s Digital Wellbeing ± 5 % (V5) → „Dluh ověření“.
 
 ## Phase 2 — exit report (2026-09-24)
 
@@ -124,18 +165,22 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 | V1 | **Instagram + TikTok (+ X, Reddit) s účtem** | 1 → 5 | Honza + session | přihlásit se, 20–30 s scrollovat v každé; session vytáhne `recording.csv` a spustí `tools/analyze_debug_csv.py` | může změnit smysl produktu (mlčí-li jako YouTube) — doporučeno co nejdřív |
 | V2 | Kalibrace skutečnou kartou | 2 | Honza | Domů → Zkalibrovat displej; telefon na výšku na stole, karta na výšku vpravo od modré čáry, horní hranou na horní linku, posuvníkem a − / + spodní linku ke spodní hraně karty → Uložit kalibraci | mm/px dál než 5 % od 0,0630 → chyba v raw px kalibrační obrazovky (místní oprava) |
 | V3 | MAPE vlastního test listu s `MANUAL_CARD` | 2 | session | po V2: `python3 tools/device_accuracy.py --surface view,column --markdown --csv-out <dir>` + `tools/accuracy.py` → zapsat do `docs/accuracy-testing.md` | MAPE ≥ 5 % → hledat v kalibraci / pipeline |
+| V4 | Restart telefonu (ColorOS) | 3 | Honza + session | na emulátoru ověřeno (data drží, služba se sama vrátí); na OnePlusu: nascrollovat, počkat 15 s, restartovat; po startu Domů → „Dnes“ drží hodnotu a služba běží | služba se nezapne → ColorOS ji po restartu nevrací (Phase 7 nápověda) |
+| V5 | Čas v aplikaci proti Digital Wellbeing | 3 | Honza + session | povolit „Přístup k údajům o využití“, otevřít aplikaci; session porovná `daily_app_usage` pro dnešek a včerejšek s Digitální rovnováhou (± 5 %) → `docs/accuracy-testing.md` | odchylka > 5 % → ADR-025 (tolerance, uzavírače) přeladit |
 
 ## Otevřené body
 
 - [x] **OnePlus blokoval `settings put` přes adb** (`WRITE_SECURE_SETTINGS` denied — ColorOS „sledování oprávnění“). Vyřešeno 2026-09-23: Možnosti pro vývojáře → úplně dole **„Zakázat sledování oprávnění“** zapnuto (bez restartu), `settings put` funguje. Zároveň zapnuto „Při dobíjení nevypínat obrazovku“ (`stay_on_while_plugged_in=7`). Po resetu telefonu / aktualizaci OS zkontrolovat znovu.
-- [ ] Přenos dat na nový telefon (device-to-device): `allowBackup="false"` vypíná cloud backup, D2D transfer zůstává na výchozím chování platformy — rozhodnout v Phase 6 (export/nastavení).
+- [x] Přenos dat na nový telefon (device-to-device): rozhodnuto ADR-027 — nic se nepřenáší (`dataExtractionRules`), data si uživatel odnese CSV exportem (Phase 6).
+- [ ] **Phase 6 „Smazat všechna data“** musí smazat i Room (`clearAllTables()`), ne jen DataStore; `scroll_session` roste bez limitu (~desítky řádků denně) — rozhodnout retenci (bezpečnostní review, INFO).
+- [ ] Vyloučení aplikace platí od chvíle vyloučení (engine: EXCLUDED, sync času: vynechá ji v přepočítaných dnech). Starší řádky zůstávají — Phase 6 rozhodne, jestli je čtení skryje i v historii.
 - [ ] **Instagram + TikTok (+ X, Reddit) doměřit s účtem** → Dluh ověření V1. GO dané bez nich (přijaté riziko). Reddit na telefonu chybí.
 - [ ] YouTube mlčí (ADR-013 poznámka). Sledovat, jestli se chování změní s novou verzí YouTube; jinak „unsupported" v Phase 5 seznamu aplikací.
 - [ ] Compose lazy seznamy neměřitelné (ADR-019) — přibývá jich. Hledat zdroj bez čtení obsahu až po GO (backlog).
 - [ ] Launcher počítat do součtu, nebo vyloučit? (Phase 5/6, výchozí výluky)
 - [ ] R6: zabíjení procesu ColorOS — Phase 3 flush ≤ 10 s, Phase 7 onboarding (výjimka z optimalizace baterie — ověřit, že pomáhá).
 - [ ] GitHub Actions jsou připnuté na SHA tagů `v4`; bump na aktuální major (checkout v7, setup-java v6, gradle/actions v6, upload-artifact v7) je samostatné rozhodnutí.
-- [ ] Služba nemá instrumentovaný test životního cyklu (reconnect, `onUnbind`) — zbytkové riziko do Phase 3, kdy začne zapisovat do Room.
+- [ ] Služba nemá instrumentovaný test životního cyklu. Phase 3 to pokrývá jinak: `ScrollPipelineTest` s virtuálním časem (flush, uzavření, zrušení, neúspěšný zápis) a na emulátoru `kill -9`, reinstalace a force-stop. Reconnect bez zabití procesu je ověřený jen čtením kódu.
 - [ ] Debug CSV export leží v app-specific external storage — na API 28/29 čitelný aplikacemi s `READ_EXTERNAL_STORAGE`. Jen debug, testovací telefon je API 34; přijato.
 - [x] R2: Chrome bez `canRetrieveWindowContent` hlásí — ADR-013 uzavřeno (2026-09-23).
 - [ ] **Čas v aplikaci (D19, ADR-021/022)** — naplánováno do Phase 3–8 podle Honzova přání „kolik času a kolik metrů v které aplikaci". Výchozí volby (Honza může změnit):
@@ -147,7 +192,7 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
   **Otevřené pro Honzu:**
   - tagline SPEC §55 „Metry místo minut" → nechat, nebo „metry i minuty"? Rozhodne se ve Phase 7.
   - denní pojistný sync přes WorkManager pro někoho, kdo 10+ dní neotevře aplikaci? Návrh: ne.
-- [ ] **`calibrationVersion` po ztrátě dat začne znovu od 0** (poškozený soubor DataStore → prázdný, v Phase 6 „Smazat všechna data“). Phase 3 musí rozhodnout, jestli má být verze unikátní napříč historií agregací (např. držet maximum i v Room).
+- [x] `calibrationVersion` po ztrátě dat začne znovu od 0 — rozhodnuto ADR-026: verze je informativní („nejnovější kalibrace, se kterou se řádek měřil“), nic se na ni nenapojuje; opakovat se může jen při ztrátě souboru kalibrace při zachované DB. Nic dalšího se nedělá.
 - [ ] Repo nemá Gradle dependency verification (`gradle/verification-metadata.xml`) — supply-chain pojistka nad piny; samostatné rozhodnutí.
 - [ ] Testovací telefon: USB spojení dnes 2× na chvíli vypadlo — zkontrolovat kabel / port.
 - [ ] Tagy: fáze se tagují `v0.N` (v0.0, v0.1 …), ale Phase 8 plánuje release tag `v0.1.0` — kolize názvů, přejmenovat release tag (např. `v1.0.0-rc1`) nejpozději ve Phase 8.
@@ -164,6 +209,19 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 - [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-24 — Phase 3 persistence + čas v aplikaci (Opus 5.5)
+- Toolchain beze změny pinů. Nově zapojené:
+  - Room `@Database` (2.8.4, KSP),
+  - Robolectric pro testy DAO,
+  - `kotlinx-coroutines-test` 1.10.2 jako `testImplementation` (verze už byla v katalogu).
+- ADR-025 (čas v aplikaci — detaily), ADR-026 (persistence, flush, vlastní balíček se neukládá, `calibrationVersion` informativní), ADR-027 (žádná záloha ani D2D přenos).
+- Mezery sessions a aktivního scrollování se posuzují na uptime **i** na reálném čase, protože `eventTime` v hlubokém spánku stojí (nález `/topshit`).
+- Klíč posledního syncu je `usage_sync_last_ms` (čas syncu), ne `usageSyncLastEventTs` z PLAN — okno potřebuje čas syncu.
+- Ověřovací prostředí:
+  - emulátor `scrollmeter34`,
+  - pomocné skripty jsou v scratchpadu a neverzují se,
+  - postup je v `docs/accuracy-testing.md`.
 
 ### 2026-09-24 — Phase 2 mergnuta, režim „dodělat celou aplikaci“ (Opus 5.5)
 - Honza rozhodl pokračovat ve vývoji bez čekání na ruční testy a svěřil rozhodování session (viz „Režim práce“). Kalibrace kartou a MAPE s ní → Dluh ověření V2, V3; Instagram/TikTok → V1.

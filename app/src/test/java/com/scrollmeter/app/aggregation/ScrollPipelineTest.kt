@@ -23,8 +23,22 @@ class ScrollPipelineTest {
     private class FakeStore : AggregateStore {
         val writes = mutableListOf<Pair<List<AggregateDelta>, List<ClosedSession>>>()
         var failures = 0
+        var writeDurationMs = 0L
+        private var writing = 0
+        var maxConcurrentWrites = 0
 
         override suspend fun write(deltas: List<AggregateDelta>, sessions: List<ClosedSession>) {
+            writing++
+            maxConcurrentWrites = maxOf(maxConcurrentWrites, writing)
+            try {
+                if (writeDurationMs > 0) kotlinx.coroutines.delay(writeDurationMs) // Room writes elsewhere; the caller suspends
+                record(deltas, sessions)
+            } finally {
+                writing--
+            }
+        }
+
+        private fun record(deltas: List<AggregateDelta>, sessions: List<ClosedSession>) {
             if (failures > 0) {
                 failures--
                 throw IOException("disk full")
@@ -135,6 +149,24 @@ class ScrollPipelineTest {
         runCurrent()
         advanceTimeBy(MeasurementConfig.SCROLL_SESSION_GAP_MS + MeasurementConfig.FLUSH_INTERVAL_MS + 1)
         assertThat(store.sessions).hasSize(1)
+        job.cancel()
+    }
+
+    @Test
+    fun flushesNeverOverlapWhileAWriteIsSuspended() = runTest {
+        store.writeDurationMs = 3_000
+        val pipeline = pipeline()
+        val job = launch { pipeline.run() }
+        pipeline.offer(sample(dy = 100, uptimeMs = 1))
+        runCurrent()
+        launch { pipeline.flush() } // e.g. onInterrupt
+        runCurrent()
+        pipeline.offer(sample(dy = 100, uptimeMs = 2))
+        runCurrent()
+        launch { pipeline.flush() } // a second request while the first write is still running
+        advanceTimeBy(10_000)
+        assertThat(store.maxConcurrentWrites).isEqualTo(1)
+        assertThat(store.distanceMm).isWithin(1e-9).of(2 * mmPer100Px)
         job.cancel()
     }
 

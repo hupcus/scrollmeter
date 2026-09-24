@@ -218,10 +218,12 @@ events (`adb logcat -s ScrollMeter:D`).
 | Screen off → on | measurement continues, nothing lost |
 | Two apps | one row per package; debug test mode measures ScrollMeter live but never stores it |
 | Reinstall (`adb install -r`) | service stays enabled, data kept |
+| Reboot (`adb reboot`) | data kept (1876.274 mm, 4 usage rows); the service rebinds by itself; the next flush adds up (+90.774 mm) |
+| Release build (R8, signed locally with the debug key, never distributed) | runs; Room works under R8; Home shows the measured 0.47 m; no developer tools; no crash |
 | Time in app vs the system (`dumpsys usagestats`, today) | launcher 13:34.4 vs 13:34 · Settings 3:19.7 vs 3:20 · googlesdksetup 1.1 s vs 0:01 |
 
-Owed on a real phone (handoff.md "Dluh ověření"): phone restart, and time in app for today and yesterday against
-Digital Wellbeing (± 5 %).
+Owed on a real phone (handoff.md "Dluh ověření"): a restart of the ColorOS test phone (does the service come back
+there?), and time in app for today and yesterday against Digital Wellbeing (± 5 %).
 
 ## Battery (Phase 8)
 
