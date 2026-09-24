@@ -10,6 +10,12 @@ data class DateRange(val from: LocalDate, val to: LocalDate) {
     val toKey: String get() = to.toString()
 
     companion object {
+        /**
+         * Every stored day. Both ends are four-digit years so the keys still compare as strings
+         * (`LocalDate.MAX` prints "+999999999-12-31", which sorts before "2026-…").
+         */
+        val ALL = DateRange(LocalDate.of(1970, 1, 1), LocalDate.of(9999, 12, 31))
+
         fun day(date: LocalDate) = DateRange(date, date)
 
         /** Monday–Sunday (spec §19, `WeekFields.ISO`). */
