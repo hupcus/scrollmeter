@@ -45,6 +45,14 @@ android {
         buildConfig = true
     }
 
+    // Czech is the default (values/, D17), English the one translation (values-en/, ADR-032). The
+    // generated locale config lets Android 13+ pick the app's language per app; the filter drops the
+    // libraries' other translations, so a German phone does not get German dialogs in a Czech app.
+    androidResources {
+        generateLocaleConfig = true
+        localeFilters += listOf("cs", "en")
+    }
+
     testOptions {
         unitTests {
             // Robolectric (AccessibilityEvent parser test) needs the merged manifest and resources.

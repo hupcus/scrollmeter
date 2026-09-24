@@ -96,13 +96,13 @@ class PolicyGuardTest {
     @Test
     fun pureKotlinPackagesHaveNoAndroidImports() {
         val main = File(appDir, "src/main/java/com/scrollmeter/app")
-        val pure = listOf("measurement", "aggregation", "data/model", "usage", "format", "insights", "notifications", "export").flatMap { dir ->
+        val pure = listOf("measurement", "aggregation", "data/model", "usage", "format", "insights", "notifications", "export", "onboarding").flatMap { dir ->
             File(main, dir).walkTopDown().filter { it.extension == "kt" }.toList()
         }.filterNot { it.name in USAGE_PLATFORM_ADAPTERS || it.name in PHASE6_PLATFORM_ADAPTERS } + File(main, "data/DataEraser.kt")
         assertWithMessage("expected the pure packages to be scanned").that(pure.map { it.name })
             .containsAtLeast(
                 "ScrollMeasurementEngine.kt", "ScrollPipeline.kt", "ForegroundTimeAggregator.kt", "UsageSyncer.kt", "DistanceFormatter.kt",
-                "DistanceComparisonProvider.kt", "NotificationRules.kt", "CsvExporter.kt", "DataEraser.kt",
+                "DistanceComparisonProvider.kt", "NotificationRules.kt", "CsvExporter.kt", "DataEraser.kt", "OnboardingFlow.kt",
             )
         val hits = pure.filter { file -> file.readLines().any { it.startsWith("import android.") || it.startsWith("import androidx.") } }
             .map { it.name }
@@ -219,6 +219,29 @@ class PolicyGuardTest {
     }
 
     /**
+     * Spec §30, ADR-032: the accessibility settings open only after the prominent disclosure. One place
+     * builds that intent — MainActivity — and hands it only to the onboarding and the gated NavHost.
+     */
+    @Test
+    fun onlyMainActivityOpensTheAccessibilitySettings() {
+        // The constants and their string values ("android.settings.ACCESSIBILITY_SETTINGS", the details page).
+        val opener = Regex("""ACCESSIBILITY_SETTINGS|ACCESSIBILITY_DETAILS_SETTINGS|android\.settings\.ACCESSIBILITY""")
+        val openers = sources.filter { it.extension in setOf("kt", "java", "xml") && opener.containsMatchIn(stripComments(it.readText(), it.extension)) }
+        assertThat(openers.map { it.name }).containsExactly("MainActivity.kt")
+        val navHost = stripComments(sources.single { it.name == "ScrollMeterNavHost.kt" }.readText(), "kt")
+        assertThat(navHost).contains("AccessibilityGate.route(")
+        assertWithMessage("the NavHost passes the ungated callback on").that(rawCallbackPassedOn(navHost)).isEmpty()
+    }
+
+    @Test
+    fun theGateGuardSeesARawCallbackPassedOn() {
+        val gated = "fun X(onOpenAccessibilitySettings: () -> Unit) { Dashboard(onOpenAccessibilitySettings = gated); onOpenAccessibilitySettings() }"
+        assertThat(rawCallbackPassedOn(gated)).isEmpty()
+        assertThat(rawCallbackPassedOn("Dashboard(onOpenAccessibilitySettings = onOpenAccessibilitySettings)")).hasSize(1)
+        assertThat(rawCallbackPassedOn("Settings(open = onOpenAccessibilitySettings, x)")).hasSize(1)
+    }
+
+    /**
      * CLAUDE.md: every tunable constant lives in MeasurementConfig. A `const val` whose name the ADR
      * log mentions is a tunable by definition — declaring it anywhere else fails.
      */
@@ -246,6 +269,13 @@ class PolicyGuardTest {
 
     private companion object {
         const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
+
+        /**
+         * The NavHost's ungated callback may be declared (`name:`), used as a parameter name of another
+         * screen (`name =`) and called (`name(`) — any other use hands it on past the gate.
+         */
+        fun rawCallbackPassedOn(code: String): List<String> =
+            Regex("""onOpenAccessibilitySettings(?!\s*[(:=])""").findAll(code).map { it.value }.toList()
         val ALLOWED_PERMISSIONS = setOf("android.permission.PACKAGE_USAGE_STATS", "android.permission.POST_NOTIFICATIONS")
         val USAGE_PLATFORM_ADAPTERS = setOf("UsageEventsSource.kt", "UsageAccessChecker.kt")
 

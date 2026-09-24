@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English (Phase 7, D17): every string of values/ — TranslationsTest keeps the two in step. -->
+<resources>
+    <string name="accessibility_service_label">ScrollMeter — scroll measurement</string>
+    <string name="accessibility_service_description">ScrollMeter measures how far content moves on the screen while you scroll and turns it into metres. The service receives only scroll events: numbers about the movement and the name of the app. It does not read text, messages or screen content, controls nothing and sends no data anywhere — the app has no internet access.</string>
+
+    <string name="number_locale">en</string>
+
+    <string name="dashboard_measuring">Measuring</string>
+    <string name="home_status_not_running">Measuring is allowed, but the service is not running</string>
+    <string name="home_status_not_running_body">Turn the ScrollMeter service off in the Accessibility settings and turn it on again.</string>
+    <string name="home_status_off">Measuring is off</string>
+    <string name="home_status_off_body">Nothing is being counted right now. Turn on the ScrollMeter service in the Accessibility settings.</string>
+    <string name="home_enable_button">Turn on measuring</string>
+    <string name="home_settings_button">Open Accessibility settings</string>
+    <string name="home_today_title">Today</string>
+    <string name="dashboard_goal">of your %1$s goal</string>
+    <string name="dashboard_goal_reached">Goal of %1$s reached</string>
+    <string name="dashboard_week">This week</string>
+    <string name="dashboard_month">This month</string>
+    <string name="dashboard_lifetime">All time</string>
+    <string name="dashboard_top_apps">Top apps today</string>
+    <string name="dashboard_other_apps">Other</string>
+    <string name="dashboard_no_scroll_yet">No scrolling yet today. As soon as you scroll in another app, it shows up here.</string>
+    <string name="dashboard_time_in_app">In app %1$s</string>
+    <string name="dashboard_time_in_app_pace">In app %1$s · %2$s</string>
+    <string name="dashboard_scroll_time">Scrolling %1$s</string>
+    <string name="dashboard_comparison_title">To picture it</string>
+    <string name="dashboard_usage_card_title">Want to see time in apps too?</string>
+    <string name="dashboard_usage_card_body">For every app you will see how many minutes you spend in it and how many metres a minute you scroll.</string>
+    <string name="dashboard_usage_card_show">Show me how</string>
+    <string name="not_now">Not now</string>
+    <string name="home_devtools_title">Developer tools</string>
+    <string name="home_accuracy_title">Measurement accuracy</string>
+    <string name="home_accuracy_manual_short">Calibrated with a payment card</string>
+    <string name="home_accuracy_auto_short">Automatic estimate · calibrate the display for better accuracy</string>
+
+    <string name="comparison_sentence">That is %1$s %2$s.</string>
+    <string name="comparison_almost">almost</string>
+    <string name="comparison_about">about</string>
+    <string name="comparison_more_than">more than</string>
+    <plurals name="comparison_football_field">
+        <item quantity="one">the length of a football pitch</item>
+        <item quantity="other">the length of %d football pitches</item>
+    </plurals>
+    <plurals name="comparison_eiffel_tower">
+        <item quantity="one">the height of the Eiffel Tower</item>
+        <item quantity="other">%d× the height of the Eiffel Tower</item>
+    </plurals>
+    <plurals name="comparison_running_track_lap">
+        <item quantity="one">one lap of a running track</item>
+        <item quantity="other">%d laps of a running track</item>
+    </plurals>
+    <plurals name="comparison_run_5k">
+        <item quantity="one">a 5 km run</item>
+        <item quantity="other">%d× a 5 km run</item>
+    </plurals>
+    <plurals name="comparison_half_marathon">
+        <item quantity="one">a half marathon</item>
+        <item quantity="other">%d× a half marathon</item>
+    </plurals>
+    <plurals name="comparison_marathon">
+        <item quantity="one">a marathon</item>
+        <item quantity="other">%d× a marathon</item>
+    </plurals>
+
+    <string name="onboarding_step">Step %1$d of %2$d</string>
+    <string name="onboarding_start">Get started</string>
+    <string name="onboarding_next">Continue</string>
+    <string name="onboarding_welcome_title">How far do you scroll every day?</string>
+    <string name="onboarding_welcome_body">ScrollMeter measures how far content moves on the screen while you scroll — in social apps, in the browser and elsewhere — and shows it in metres and kilometres.</string>
+    <string name="onboarding_welcome_claim">Screen time tells you how long. ScrollMeter shows you how far.</string>
+    <string name="onboarding_how_title">How measuring works</string>
+    <string name="onboarding_how_delta">When you scroll, Android reports how many pixels the content moved. ScrollMeter adds that up and turns it into a length using the pixel size of your display.</string>
+    <string name="onboarding_how_not_content">What is measured is the movement of the content, not what is on the screen: ScrollMeter does not know what you read or write — only how far it moved.</string>
+    <string name="onboarding_how_fling">The glide after a flick counts too, so the distance is usually longer than your finger’s path.</string>
+    <string name="onboarding_how_limits">Some apps do not report scrolling (YouTube, for example) — ScrollMeter measures nothing in them.</string>
+
+    <string name="disclosure_title">Allow scroll measurement</string>
+    <string name="disclosure_why">ScrollMeter needs access to the Accessibility service so that Android tells the app about scrolling in other apps.</string>
+    <string name="disclosure_what">ScrollMeter uses only scroll events and the name of the app in which the scrolling happened.</string>
+    <string name="disclosure_not">It does not read or store screen text, messages, passwords or form contents.</string>
+    <string name="disclosure_local">The data is processed and stored only on this device.</string>
+    <string name="disclosure_accept">I understand and want to continue</string>
+    <string name="disclosure_open_settings">Open accessibility settings</string>
+
+    <string name="onboarding_enable_title">Turn on measuring</string>
+    <string name="onboarding_enable_steps">In the settings that open, find ScrollMeter (usually under “Downloaded apps” or “Installed apps”) and turn it on. Android shows a general warning about what accessibility services may do — ScrollMeter uses only scroll events.</string>
+    <string name="onboarding_enable_restricted">If Android says “Restricted setting”: open Settings › Apps › ScrollMeter, choose “Allow restricted settings” in the ⋮ menu at the top right and try again. This applies to apps installed outside the Play Store.</string>
+    <string name="onboarding_open_app_info">Open app info</string>
+    <string name="onboarding_enable_force_stop">If you force stop ScrollMeter in the app settings, Android turns measuring off. Turn it on again here or on the overview.</string>
+    <string name="onboarding_enable_waiting">Measuring is not on yet.</string>
+    <string name="onboarding_enable_done">Measuring is on.</string>
+
+    <string name="onboarding_calibration_title">Calibrate the display</string>
+    <string name="onboarding_calibration_body">ScrollMeter converts pixels to millimetres using what the display reports about itself. Calibrating with a payment card is more accurate: you hold it against the display and match a line to its length. It takes about a minute and can also be done later in Settings › Measurement accuracy.</string>
+    <string name="onboarding_calibration_card">Calibrate with a payment card</string>
+    <string name="onboarding_calibration_auto">Use the automatic estimate</string>
+    <string name="onboarding_calibration_done">The display is already calibrated with a payment card.</string>
+
+    <string name="usage_access_title">Time in apps</string>
+    <string name="usage_access_intro">ScrollMeter can add to the distance how much time you spend in each app.</string>
+    <string name="usage_access_what">For that it needs “Usage access”. ScrollMeter reads from the system when which app was in the foreground and stores only the total minutes per app and day. None of it leaves the phone.</string>
+    <string name="usage_access_not">It does not read app content, messages or browser history. You can remove the permission any time in the Android settings.</string>
+    <string name="usage_access_optional">Without it ScrollMeter keeps measuring — time in apps just shows “—”.</string>
+    <string name="usage_access_steps">In the settings that open, find ScrollMeter and turn on “Permit usage access”.</string>
+    <string name="usage_access_allow">Allow</string>
+
+    <string name="back">Back</string>
+
+    <string name="nav_overview">Overview</string>
+    <string name="nav_history">History</string>
+    <string name="nav_apps">Apps</string>
+    <string name="nav_settings">Settings</string>
+
+    <string name="history_title">History</string>
+    <string name="period_7_days">7 days</string>
+    <string name="period_30_days">30 days</string>
+    <string name="period_12_months">12 months</string>
+    <string name="period_today">Today</string>
+    <string name="period_lifetime">All time</string>
+    <string name="history_average">Average / day</string>
+    <string name="history_max">Highest day</string>
+    <string name="history_min">Lowest day</string>
+    <string name="history_total">Total</string>
+    <string name="history_day_value">%1$s · %2$s</string>
+    <string name="history_empty">Nothing measured yet. As soon as you scroll, the chart appears here.</string>
+    <string name="history_chart_description">Distance chart: total %1$s, highest day %2$s</string>
+
+    <string name="apps_title">Apps</string>
+    <string name="apps_sort_distance">Distance</string>
+    <string name="apps_sort_time">Time</string>
+    <string name="apps_empty">Nothing for this period yet.</string>
+    <string name="apps_no_scroll_data">no scroll data</string>
+    <string name="apps_share_quality">%1$s %% · %2$s</string>
+    <string name="quality_high">Measurement quality: high</string>
+    <string name="quality_medium">Measurement quality: medium</string>
+    <string name="quality_low">Measurement quality: low</string>
+    <string name="quality_unknown">Measurement quality: not enough data</string>
+    <string name="quality_high_info">This app reports standard Android scroll data and the display is calibrated, so the measurement is probably reliable.</string>
+    <string name="quality_medium_info">The measurement is usable, but either the display is not calibrated with a card or the app often reports only a position instead of a movement.</string>
+    <string name="quality_low_info">Many events from this app carry no usable movement, so the measured distance is likely lower than the real one.</string>
+    <string name="quality_unknown_info">There are not enough events from this app to judge yet.</string>
+    <string name="app_detail_distance">Distance</string>
+    <string name="app_detail_time_in_app">Time in app</string>
+    <string name="app_detail_scroll_time">Scrolling time</string>
+    <string name="app_detail_pace">Pace</string>
+    <string name="app_detail_distance_chart">Distance over 30 days</string>
+    <string name="app_detail_time_chart">Time in app over 30 days</string>
+    <string name="app_detail_scroll_chart">Scrolling time over 30 days</string>
+    <string name="app_detail_scroll_share">You scroll %1$s of %2$s in the app (%3$s %%).</string>
+    <string name="app_detail_no_scroll">This app does not report scrolling — ScrollMeter only knows the time spent in it.</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_measurement">Measuring</string>
+    <string name="settings_service">Accessibility service</string>
+    <string name="settings_on">On</string>
+    <string name="settings_off">Off</string>
+    <string name="settings_usage_access">Time in apps</string>
+    <string name="settings_accuracy">Measurement accuracy</string>
+
+    <string name="settings_goal">Daily goal</string>
+    <string name="settings_excluded">Excluded apps</string>
+    <string name="settings_excluded_none">None</string>
+    <plurals name="settings_excluded_count">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+    <string name="settings_section_units">Units</string>
+    <string name="settings_units">Distance</string>
+    <string name="unit_automatic">Automatic (metres, kilometres from 1 km)</string>
+    <string name="unit_metres">Always metres</string>
+    <string name="unit_kilometres">Always kilometres</string>
+    <string name="settings_section_display">Display</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">System default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_comparisons">Comparisons on the overview</string>
+    <string name="settings_comparisons_body">E.g. “That is about one lap of a running track.”</string>
+    <string name="settings_section_notifications">Notifications</string>
+    <string name="notify_goal">Daily goal reached</string>
+    <string name="notify_goal_body">Once a day, when you pass your goal.</string>
+    <string name="notify_record">New record</string>
+    <string name="notify_record_body">When you scroll more today than on any day before.</string>
+    <string name="notify_summary">Yesterday’s summary</string>
+    <string name="notify_summary_body">With the first scroll of the day: how much it was yesterday.</string>
+    <string name="notify_blocked">Notifications for ScrollMeter are off in the system, so none will arrive.</string>
+    <string name="notify_open_settings">Open notification settings</string>
+    <string name="settings_section_data">Data</string>
+    <string name="settings_export">Export CSV</string>
+    <string name="settings_export_body">per_app.csv and daily_summary.csv</string>
+    <string name="settings_delete">Delete all data</string>
+    <string name="settings_section_privacy">Privacy</string>
+    <string name="settings_privacy">How ScrollMeter protects your privacy</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_about">Version, device, measuring method</string>
+
+    <string name="goal_title">Daily goal</string>
+    <string name="goal_note">A goal is not a ban: it blocks nothing, it only shows how much is left.</string>
+    <string name="goal_custom">Custom</string>
+    <string name="goal_custom_label">Custom goal</string>
+    <string name="goal_unit_m">m</string>
+    <string name="goal_unit_km">km</string>
+    <string name="goal_custom_error">Enter a number from 10 m to 100 km.</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="export_title">Export CSV</string>
+    <string name="export_intro">per_app.csv has a row for every day and app: distance, event counts and time in app. daily_summary.csv has the total for every day. Excluded apps are not in them. The files are created on the phone; where you save them or whom you send them to is up to you.</string>
+    <string name="export_save_per_app">Save per_app.csv</string>
+    <string name="export_save_daily">Save daily_summary.csv</string>
+    <string name="export_share">Share both files</string>
+    <string name="export_saved">File saved.</string>
+    <string name="export_failed">The export did not work. Try again.</string>
+
+    <string name="delete_title">Really delete all measured data?</string>
+    <string name="delete_body">This deletes the history, app totals, time in apps and the records of individual scrolls. It cannot be undone.</string>
+    <string name="delete_data">Delete data</string>
+    <string name="delete_everything">Delete data, settings and calibration</string>
+    <string name="delete_done">All measured data is deleted.</string>
+    <string name="delete_failed">Not everything could be deleted. Try again.</string>
+    <string name="settings_write_failed">The setting could not be saved. Try again.</string>
+
+    <string name="excluded_title">Excluded apps</string>
+    <string name="excluded_intro">An excluded app is no longer measured and disappears from all totals, the history and the export. When you switch it back on, its earlier data returns.</string>
+    <string name="excluded_suggested">Suggested exclusions</string>
+    <string name="excluded_seen">Apps with data</string>
+    <string name="excluded_no_label">Name not available (app without a home screen icon)</string>
+    <string name="excluded_none_seen">No app with data yet.</string>
+    <string name="reason_launcher">Home screen</string>
+    <string name="reason_keyboard">Keyboard</string>
+    <string name="reason_system_ui">System UI (status bar, notifications)</string>
+
+    <string name="privacy_title">Privacy</string>
+    <string name="privacy_intro">ScrollMeter uses the accessibility service only to detect scroll events. It does not read or store text, messages, passwords or screen content. The measured data stays on the phone.</string>
+    <string name="privacy_stores">It stores only: when scrolling happened, in which app (package name), how many pixels the content moved and the distance calculated from that.</string>
+    <string name="privacy_never">It never reads or stores: text, messages, passwords, web addresses, screen content, filled-in forms or user names.</string>
+    <string name="privacy_usage">ScrollMeter reads from the system when which app was in the foreground and stores only the total minutes per app and day. None of it leaves the phone.</string>
+    <string name="privacy_offline">The app has no internet permission: it sends nothing and has no account, ads or analytics. Data leaves the phone only through an export you start yourself, and you delete it in Settings › Data.</string>
+    <string name="privacy_backup">The data is not backed up to the cloud or moved to a new phone. To take it along, use Export CSV.</string>
+    <string name="privacy_accessibility">Why the Accessibility service: otherwise Android does not tell an app how far the content of another app moved. The service listens only to the “scrolled” event and has no permission to read window content.</string>
+
+    <string name="about_title">About</string>
+    <string name="about_version">Version</string>
+    <string name="about_device">Device</string>
+    <string name="about_android">Android %1$s (API %2$d)</string>
+    <string name="about_method">Measuring method</string>
+    <string name="about_method_body">The movement Android reports while scrolling (scrollDeltaX/Y, otherwise the change of position), converted to millimetres using the physical pixel size of this display.</string>
+    <string name="about_scale">Scale</string>
+
+    <string name="notification_channel_name">Goals and records</string>
+    <string name="notification_channel_description">Daily goal, new record and yesterday’s summary — each at most once a day.</string>
+    <string name="notification_goal_title">Daily goal reached</string>
+    <string name="notification_goal_text">Today’s distance passed your goal of %1$s.</string>
+    <string name="notification_record_title">New record</string>
+    <string name="notification_record_text">Today it is %1$s — more than on any day before.</string>
+    <string name="notification_summary_title">Yesterday’s scrolling</string>
+    <string name="notification_summary_text">Yesterday it came to %1$s in total.</string>
+
+    <string name="calibration_title">Display calibration</string>
+    <string name="calibration_instruction">Put a payment card against the display and use the slider to make the blue line as long as the card’s longer side.</string>
+    <string name="calibration_hint">Place the card upright right next to the blue line, its top edge on the top mark. Fine-tune the bottom mark with − and +.</string>
+    <string name="calibration_value">Line %1$s px · 1 pixel = %2$s mm</string>
+    <string name="calibration_vs_auto">compared with the automatic estimate: %1$s %%</string>
+    <string name="calibration_too_small">A longer line does not fit here. Hold the phone upright.</string>
+    <string name="calibration_shorter">Shorten the line by 1 pixel</string>
+    <string name="calibration_longer">Lengthen the line by 1 pixel</string>
+    <string name="calibration_save">Save calibration</string>
+    <string name="calibration_skip">Skip – use the automatic estimate</string>
+
+    <string name="accuracy_title">Measurement accuracy</string>
+    <string name="accuracy_method_label">Calibration</string>
+    <string name="accuracy_method_manual">Payment card</string>
+    <string name="accuracy_method_display">Display data (xdpi / ydpi)</string>
+    <string name="accuracy_method_unknown">Estimate from the interface density</string>
+    <string name="accuracy_confidence_high">Confidence: high</string>
+    <string name="accuracy_confidence_medium">Confidence: medium</string>
+    <string name="accuracy_confidence_low">Confidence: low</string>
+    <string name="accuracy_px_uniform">1 pixel = %1$s mm</string>
+    <string name="accuracy_px_axes">1 pixel = %1$s mm horizontally · %2$s mm vertically</string>
+    <string name="accuracy_calibrated_label">Calibrated</string>
+    <string name="accuracy_auto_note">An automatic estimate from what the display reports about itself. Calibrating with a payment card is more accurate.</string>
+    <string name="accuracy_stale">The saved calibration belongs to another phone or another display resolution, so it is not used now. Calibrate the display again.</string>
+    <string name="accuracy_device">%1$s · %2$d × %3$d px · xdpi %4$s · ydpi %5$s</string>
+    <string name="accuracy_history_note">A new calibration applies only to newly measured data. Distances already measured are not recalculated.</string>
+    <string name="accuracy_recalibrate">Recalibrate</string>
+    <string name="accuracy_calibrate">Calibrate with a payment card</string>
+</resources>

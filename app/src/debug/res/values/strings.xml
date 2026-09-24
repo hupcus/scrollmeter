@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Developer screens — debug builds only. -->
-<resources>
+<!-- Developer screens — debug builds only, Czech only (not translated). -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="devtools_back">← Zpět</string>
     <string name="devtools_debug_title">Debug měření</string>
     <string name="devtools_debug_clear">Vymazat</string>

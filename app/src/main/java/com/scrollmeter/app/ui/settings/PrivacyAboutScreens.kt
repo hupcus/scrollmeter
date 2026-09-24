@@ -28,8 +28,8 @@ import com.scrollmeter.app.ui.calibration.pixelLine
 import com.scrollmeter.app.ui.components.ScreenHeader
 
 /**
- * Soukromí (spec §29 text, D19 paragraph): what is read, what is stored, what never is, and why
- * the accessibility service. Phase 7 reuses the texts in the onboarding.
+ * Soukromí (spec §29 text, D19 paragraph): what is read, what is stored, what never is, that nothing
+ * goes to a backup or a new phone (ADR-027), and why the accessibility service.
  */
 @Composable
 fun PrivacyScreen(onBack: () -> Unit) {
@@ -40,7 +40,7 @@ fun PrivacyScreen(onBack: () -> Unit) {
         ScreenHeader(stringResource(R.string.privacy_title), onBack)
         listOf(
             R.string.privacy_intro, R.string.privacy_stores, R.string.privacy_never, R.string.privacy_usage,
-            R.string.privacy_offline, R.string.privacy_accessibility,
+            R.string.privacy_offline, R.string.privacy_backup, R.string.privacy_accessibility,
         ).forEach { Text(stringResource(it), style = MaterialTheme.typography.bodyLarge) }
     }
 }

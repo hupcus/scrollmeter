@@ -75,9 +75,11 @@ com.scrollmeter.app
 │                   SuggestedExclusions (launcher / keyboard / System UI — ADR-030), PackageNames
 ├── notifications   NotificationRules, NotificationWatcher (pure Kotlin — ADR-031);
 │                   AndroidNotificationPoster (the only Android part — ADR-030)
-├── ui              navigation (routes + bottom bar), dashboard, history, apps (list + detail), calibration,
-│                   usage, settings (+ excluded apps, export, privacy, about), components (BarChart,
-│                   PeriodSelector, AppIcon, LiveState, SettingsParts), theme; onboarding comes in Phase 7
+├── onboarding      OnboardingFlow, AccessibilityGate (pure Kotlin — ADR-032)
+├── ui              navigation (routes + bottom bar), onboarding (steps + the disclosure screen), dashboard,
+│                   history, apps (list + detail), calibration, usage, settings (+ excluded apps, export,
+│                   privacy, about), components (BarChart, PeriodSelector, AppIcon, LiveState, SettingsParts,
+│                   SafeWrites), theme
 ├── export          CsvExporter (pure Kotlin), CsvExportWriter (SAF + share), ExportFileProvider — ADR-030/031
 ├── data/DataEraser "Smazat všechna data" (write lock + data epoch + usage floor — ADR-031)
 ├── AppGraph.kt, ScrollMeterApplication.kt, MainActivity.kt
@@ -128,5 +130,17 @@ each tab's state. Below them, without the bar:
 - Nastavení → Vyloučené aplikace · Export CSV · Soukromí · O aplikaci (goal, units, theme and delete are dialogs),
 - Nastavení → developer screens (`DevToolRoute`, registered only when `DevTools.entries` is non-empty — debug).
 
+- Přehled banner or Nastavení → the accessibility settings, through `DisclosureRoute` while the disclosure has not
+  been accepted (`AccessibilityGate`, ADR-032).
+
 A "Zpět" tap leaves a screen only while it is the resumed one, so a double tap cannot pop the screen below.
-Onboarding (Phase 7) will be a separate graph shown until `onboardingCompleted`.
+
+**Onboarding** (spec §31, ADR-032): `MainActivity` shows `OnboardingScreen` instead of the NavHost until
+`Settings.onboardingCompleted` (nothing while the settings load, so neither flashes). Its six steps are one
+composable with a saved step index — not routes: "Zpět" walks back a step, the calibration screen is reused
+inline, Usage access is the existing screen with a step header. A debug developer screen asked for by the launch
+intent skips the onboarding. *Smazat data i nastavení* clears the flag, so the onboarding returns.
+
+**Languages** (D17, ADR-032): Czech in `values/` is the default, English in `values-en/`; `number_locale` in each
+sets how numbers are written. `generateLocaleConfig` lists cs + en for Android 13+'s per-app language, and
+`localeFilters` keeps library translations to those two.

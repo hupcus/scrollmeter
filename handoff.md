@@ -43,8 +43,44 @@
 | 4 Dashboard | hotovo, mergnuto (tag `v0.4`) | `phase-4-dashboard` / [#6](https://github.com/hupcus/scrollmeter/pull/6) | ADR-028; CI zablokované billingem → brána v čistém checkoutu |
 | 5 Historie + Aplikace | hotovo, mergnuto (tag `v0.5`) | `phase-5-history-apps` / [#7](https://github.com/hupcus/scrollmeter/pull/7) | ADR-029; CI zablokované billingem → brána v čistém checkoutu |
 | 6 Export + Nastavení | hotovo, mergnuto (tag `v0.6`) | `phase-6-export-settings` / [#8](https://github.com/hupcus/scrollmeter/pull/8) | ADR-030/031; oznámení a export na telefonu → „Dluh ověření“ V6; CI zablokované billingem → brána v čistém checkoutu |
-| 7 Onboarding + Policy | nezačato | — | |
+| 7 Onboarding + Policy | hotovo, mergnuto (tag `v0.7`) | `phase-7-onboarding-policy` / [#9](https://github.com/hupcus/scrollmeter/pull/9) | ADR-032; onboarding se sideloadem a volba jazyka na telefonu → „Dluh ověření“ V7; CI zablokované billingem → brána v čistém checkoutu |
 | 8 Release | nezačato | — | |
+
+## Phase 7 — exit report (2026-09-24)
+
+**Hotovo a ověřené** (větev `phase-7-onboarding-policy`):
+- **Onboarding** (SPEC §31, ADR-032), 5 kroků + volitelný 6.:
+  1. Kolik toho denně nascrolluješ? (ikona, claim „Screen time ti řekne jak dlouho…“);
+  2. Jak měření funguje (posun obsahu, ne obsah; dojezd se počítá; YouTube nehlásí);
+  3. **prominent disclosure** doslova podle SPEC §30 → „Rozumím a chci pokračovat“;
+  4. Zapni měření → „Otevřít nastavení zpřístupnění“; po návratu se zapnutou službou krok sám pokračuje. Na Androidu 13+ nápověda k „Omezenému nastavení“ + tlačítko „Otevřít informace o aplikaci“; upozornění, že vynucené zastavení měření vypne;
+  5. kalibrace kartou (obrazovka kalibrace uvnitř onboardingu) nebo automatický odhad;
+  6. Čas v aplikacích — Povolit / Teď ne.
+  - Nejde přeskočit před souhlasem ani před zapnutím služby (`OnboardingFlow`); dokončí se i bez Usage access; Zpět vrací o krok.
+- **Brána disclosure:** aplikace ukáže přehled až po dokončení onboardingu; banner „Zapnout měření“ a Nastavení › Služba Usnadnění vedou bez souhlasu nejdřív na disclosure (`AccessibilityGate`, `DisclosureRoute`). Záměr nastavení staví jen `MainActivity` (hlídá `PolicyGuardTest`). „Smazat data i nastavení“ vrátí onboarding.
+- **Angličtina** (`values-en/`, všechny texty), čísla podle jazyka textů; **volba jazyka aplikace** v Androidu 13+ (`generateLocaleConfig`, cs + en); překlady knihoven omezené na cs + en.
+- **Soukromí:** přibyl odstavec, že se nic nezálohuje do cloudu ani nepřenáší na nový telefon.
+- **Dokumenty:** `docs/accessibility-policy.md` finální, nový `docs/play-listing.md` (texty listingu cs/en, odpovědi Accessibility declaration, Data safety, oprávnění, text zásad ochrany soukromí, scénář videa, hodnocení obsahu), ADR-032.
+- **Brány:** 257 JVM testů (nové: pravidla onboardingu, brána, `TranslationsTest` — klíče, formátovací argumenty, plurály, disclosure a úvod Soukromí proti SPEC), lint jen 6 starých `SetTextI18n`, debug + release build, Python testy, manifest policy.
+- **Emulátor (API 34):**
+  - čistá instalace anglicky (systémový jazyk emulátoru) i česky (volba jazyka aplikace) — celý onboarding až na přehled;
+  - Zpět mezi kroky, automatický posun po návratu z nastavení, služba už zapnutá → „Měření je zapnuté“;
+  - „Smazat data i nastavení“ → onboarding znovu; vývojářská obrazovka z launch intentu onboarding obejde;
+  - banner bez souhlasu → disclosure → systémové nastavení Usnadnění; „Otevřít informace o aplikaci“ → systémové Informace o aplikaci;
+  - release s R8: celý onboarding bez pádu;
+  - 24 snímků (cs/en, světlý/tmavý) zkontrolovali 2 subagenti.
+- **Review:**
+  - `/topshit`: tlačítko na „Povolit omezená nastavení“, viditelná ikona na uvítací obrazovce, dvojí klepnutí na disclosure, nadpisy pro TalkBack, anglická věta u kalibrace.
+  - Stage 2 (Fable): žádný HIGH ani MEDIUM, žádné porušení tvrdých pravidel; 6× LOW opraveno:
+    - souhlas v onboardingu je až za celým textem (ve scrollu), ne pevně dole — nejde klepnout před dočtením;
+    - chyba čtení nastavení po souhlasu už nevrací krok 4 zpátky na disclosure;
+    - strážce „nastavení Usnadnění otevírá jen MainActivity“ chytá i řetězcové akce a předání neošetřeného callbacku dál (s vlastním testem);
+    - `TranslationsTest` pozná všechny formátovací specifikátory (`%1$.1f`, `%,d` …);
+    - „Smazat data i nastavení“ běží v aplikačním scope a ohlásí výsledek, i když mezitím naskočí onboarding;
+    - dokumenty: brána disclosure mimo onboarding otevírá nastavení rovnou po souhlasu (ADR-032), text zásad ochrany soukromí zmiňuje název třídy (neukládá se).
+  - INFO opraveno: NavHost dostává uložený souhlas z MainActivity (žádné první snímky s výchozí hodnotou).
+
+**Rozhodnutí:** claim „Metry místo minut“ vypuštěn (aplikace od D19 ukazuje i minuty) — „Zjisti, kolik toho skutečně nascrolluješ.“ / „Screen time ti řekne jak dlouho. ScrollMeter ti ukáže jak daleko.“ Krok s výjimkou z optimalizace baterie **není**: potřeboval by nové oprávnění a nic neukazuje, že proti ColorOS pomáhá (R6).
 
 ## Phase 6 — exit report (2026-09-24)
 
@@ -299,6 +335,7 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 | V4 | Restart telefonu (ColorOS) | 3 | Honza + session | na emulátoru ověřeno (data drží, služba se sama vrátí); na OnePlusu: nascrollovat, počkat 15 s, restartovat; po startu Domů → „Dnes“ drží hodnotu a služba běží | služba se nezapne → ColorOS ji po restartu nevrací (Phase 7 nápověda) |
 | V5 | Čas v aplikaci proti Digital Wellbeing | 3 | Honza + session | povolit „Přístup k údajům o využití“, otevřít aplikaci; session porovná `daily_app_usage` pro dnešek a včerejšek s Digitální rovnováhou (± 5 %) → `docs/accuracy-testing.md` | odchylka > 5 % → ADR-025 (tolerance, uzavírače) přeladit |
 | V6 | Oznámení a export na telefonu | 6 | Honza + session | na emulátoru ověřeno (výzva k povolení, cíl / rekord / shrnutí přijdou jednou denně, export přes výběr souboru i sdílení); na OnePlusu: zapnout „Denní cíl dosažen“, nastavit cíl 100 m, nascrollovat → oznámení přijde do ~10 s; Export CSV → Sdílet → otevřít v Tabulkách Google / Excelu (čeština a čísla správně) | oznámení nepřijde → ColorOS ho tlumí (Phase 7 nápověda); CSV se rozpadne → ADR-031 formát |
+| V7 | Onboarding se sideloadem + volba jazyka | 7 | Honza + session | APK z GitHub Release nainstalovat **přes Soubory / prohlížeč** (ne adb — ten omezení nespustí); projít onboarding: krok 4 → Android napíše „Omezené nastavení“ → „Otevřít informace o aplikaci“ → ⋮ → „Povolit omezená nastavení“ → zpět → zapnout službu; pak Nastavení Androidu › Aplikace › ScrollMeter › Jazyk → English | ColorOS nabídku ⋮ nemá nebo ji jmenuje jinak → upravit nápovědu kroku 4 (text z telefonu) |
 
 ## Otevřené body
 
@@ -327,7 +364,7 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
   - vlastní aplikace a launcher se vylučují i z času,
   - žádný WorkManager.
   **Otevřené pro Honzu:**
-  - tagline SPEC §55 „Metry místo minut" → nechat, nebo „metry i minuty"? Rozhodne se ve Phase 7.
+  - ~~tagline SPEC §55 „Metry místo minut"~~ → rozhodnuto ve Phase 7 (ADR-032): vypuštěn, claim „Zjisti, kolik toho skutečně nascrolluješ.“ Honza může změnit v `docs/play-listing.md`.
   - denní pojistný sync přes WorkManager pro někoho, kdo 10+ dní neotevře aplikaci? Návrh: ne.
 - [x] `calibrationVersion` po ztrátě dat začne znovu od 0 — rozhodnuto ADR-026: verze je informativní („nejnovější kalibrace, se kterou se řádek měřil“), nic se na ni nenapojuje; opakovat se může jen při ztrátě souboru kalibrace při zachované DB. Nic dalšího se nedělá.
 - [ ] Repo nemá Gradle dependency verification (`gradle/verification-metadata.xml`) — supply-chain pojistka nad piny; samostatné rozhodnutí.
@@ -342,10 +379,18 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
   - automatické otáčení vrácené na původní hodnotu (`accelerometer_rotation 1`, `user_rotation 0`; Phase 2 testovala landscape).
   Přepínač **Zakázat sledování oprávnění** vrací Honza ručně. Další session si telefon připraví znovu, postup je v `docs/prompts/continue-next-phase.md`.
 - [ ] Emulátory: ověřit, že pro API 28 existuje arm64 systémový obraz (`sdkmanager --list | grep android-28`).
-- [ ] Ikona a barva aplikace — až Phase 4 (SPEC §42 nechává na implementaci).
+- [ ] Ikona a barva aplikace: pořád zástupná značka (pravítko se šipkou na modré `#1E4FD8`) — SPEC §42 nechává na implementaci; finální ikona před vydáním na Play (Honza / grafik).
+- [ ] Výchozí jazyk pro Play: `values/` je čeština (D17) — telefon v němčině uvidí češtinu (v Androidu 13+ si může přepnout na angličtinu). Pro zahraniční vydání zvážit angličtinu jako výchozí; rozhodnutí Honzy.
+- [ ] Zásady ochrany soukromí potřebují veřejnou URL (Play to u Accessibility API vyžaduje); text je v `docs/play-listing.md`, kde ho zveřejnit, rozhoduje Honza.
 - [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-24 — Phase 7 onboarding + policy (Opus 5.5, review Fable 5.1)
+- ADR-032: onboarding, brána disclosure, nápovědy kroku 4, jazyky, claim.
+- Toolchain beze změny pinů; nově `androidResources { generateLocaleConfig = true; localeFilters += cs, en }` (AGP 8.13.2 obojí umí) a `res/resources.properties` (`unqualifiedResLocale=cs`).
+- `number_locale` je přeložitelný (cs / en), `app_name` nepřeložitelný; debug texty `tools:ignore="MissingTranslation"`.
+- Stage 0 (`/impact`, bez grafu): riziko HIGH — vstupní brána aplikace a hranice Play policy.
 
 ### 2026-09-24 — Phase 6 export, nastavení, oznámení (Opus 5.5)
 - Oprávnění `POST_NOTIFICATIONS` (plán ho povoluje pro Phase 6), druhý `<queries>` (HOME), `ExportFileProvider` — ADR-030.
