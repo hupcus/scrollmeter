@@ -61,7 +61,8 @@
   - Formát: BOM, CRLF, desetinná tečka, prázdné = neznámé, ochrana proti vzorcům.
 - **Smazat všechna data** (SPEC §45):
   - dvě tlačítka: data / data i nastavení a kalibrace;
-  - smaže Room, živý nezapsaný stav i sdílené kopie.
+  - smaže Room, živý nezapsaný stav, sdílené kopie i zobrazená oznámení;
+  - jednou spuštěné mazání nejde přerušit (odchod z obrazovky ani otočení ho nenechá napůl).
   - Rozpracovaný flush ani sync času v aplikaci smazaná data nevrátí: zámek zápisu, epocha dat a spodní hranice pro sync.
 - **Oznámení** (SPEC §26): Denní cíl dosažen / Nový rekord / Shrnutí včerejška.
   - Všechna jsou volitelná, každé nejvýš 1× denně, kontrola po každém zapsaném flushi.
@@ -79,6 +80,9 @@
   - cizí uid provider nepřečte a path traversal odmítne;
   - smazání (obě varianty) — po něm jen nová data, čas v Nastavení nezačal znovu od 33 min;
   - snímky světlý i tmavý motiv.
+- **Review:**
+  - `/topshit`: mazání bylo navázané na obrazovku (odchod / otočení uprostřed = napůl smazaná data) → `NonCancellable` + test; smazání uklidí i zobrazená oznámení; export říká, že vyloučené aplikace v něm nejsou.
+  - Kontrola 28 snímků (2 subagenti): ikony stavového řádku při vynuceném tmavém motivu tmavé na tmavém → řídí se motivem aplikace; „Export CSV“ → „Exportovat CSV“; „sessions“ → česky; neznámý balíček se ukazoval dvakrát → jednou celý + vysvětlení.
 - **Chyby nalezené až na zařízení a opravené:**
   - Sdílení padalo: `FileProvider.getUriForFile` (androidx.core 1.18) čte cesty jen z meta-data v manifestu, ne z konstruktoru podtřídy. Opraveno a hlídáno testem `PolicyGuardTest`.
   - Pole „Vlastní cíl“ nedostalo fokus.

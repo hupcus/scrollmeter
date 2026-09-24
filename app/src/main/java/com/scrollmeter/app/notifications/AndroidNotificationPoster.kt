@@ -31,6 +31,9 @@ class AndroidNotificationPoster(private val context: Context) : NotificationPost
         return permitted && manager.areNotificationsEnabled()
     }
 
+    /** "Smazat všechna data": a posted "Nový rekord 24 m" is measured data too. */
+    fun clearShown() = manager.cancelAll()
+
     override fun post(notice: Notice, settings: Settings) {
         if (!canPost()) return
         ensureChannel()

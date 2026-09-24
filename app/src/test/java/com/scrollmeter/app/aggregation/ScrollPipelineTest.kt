@@ -239,7 +239,7 @@ class ScrollPipelineTest {
             clearSettings = {},
             forgetCalibration = {},
             setFloor = {},
-            deleteFiles = {},
+            clearLeftovers = {},
             usageExclusive = { it() },
         )
         val pipeline = pipeline()

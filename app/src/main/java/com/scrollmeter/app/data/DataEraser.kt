@@ -1,7 +1,9 @@
 package com.scrollmeter.app.data
 
 import com.scrollmeter.app.measurement.MeasurementMonitor
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * "Smazat všechna data" (spec §45, ADR-031). Deletes every measured value — daily aggregates, time
@@ -13,7 +15,11 @@ import kotlinx.coroutines.sync.withLock
  *   with [MeasurementMonitor.dataEpoch] raised, so a flush either committed before the clear or
  *   sees the new epoch and drops what it holds;
  * - time in app: [setFloor] runs first and the usage sync never imports events before the floor;
- *   the whole erase runs inside [usageExclusive], so a sync already running finishes first.
+ *   the whole erase runs inside [usageExclusive], so a sync already running finishes first;
+ * - a half-done erase: it cannot be cancelled once started (the screen that asked may be gone —
+ *   back pressed, phone rotated — before it ends).
+ *
+ * [clearLeftovers] removes what lives outside the stores: shared CSV copies, posted notifications.
  */
 class DataEraser(
     private val monitor: MeasurementMonitor,
@@ -21,11 +27,11 @@ class DataEraser(
     private val clearSettings: suspend () -> Unit,
     private val forgetCalibration: suspend () -> Unit,
     private val setFloor: suspend (Long) -> Unit,
-    private val deleteFiles: suspend () -> Unit,
+    private val clearLeftovers: suspend () -> Unit,
     private val usageExclusive: suspend (suspend () -> Unit) -> Unit,
     private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
-    suspend fun erase(alsoSettings: Boolean) {
+    suspend fun erase(alsoSettings: Boolean) = withContext(NonCancellable) {
         usageExclusive {
             if (alsoSettings) {
                 clearSettings()
@@ -38,6 +44,6 @@ class DataEraser(
             }
         }
         monitor.unflushed.value = emptyMap()
-        deleteFiles()
+        clearLeftovers()
     }
 }

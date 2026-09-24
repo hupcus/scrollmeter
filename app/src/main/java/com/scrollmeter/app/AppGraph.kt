@@ -71,12 +71,14 @@ class AppGraph(context: Context) {
     val csvExportWriter by lazy { CsvExportWriter(appContext, scrollRepository, appInfoProvider) }
 
     /** After every flush of the service (ADR-031); a no-op until the user switches a notification on. */
+    private val notificationPoster by lazy { AndroidNotificationPoster(appContext) }
+
     val notificationWatcher by lazy {
         NotificationWatcher(
             settings = { settingsRepository.stored.first() },
             facts = { today, settings -> scrollRepository.notificationFacts(today, settings.dailyGoalMm) },
             state = settingsRepository,
-            poster = AndroidNotificationPoster(appContext),
+            poster = notificationPoster,
         )
     }
 
@@ -88,7 +90,10 @@ class AppGraph(context: Context) {
             clearSettings = settingsRepository::clear,
             forgetCalibration = calibrationRepository::useAutomatic,
             setFloor = settingsRepository::setDataFloorMs,
-            deleteFiles = { withContext(Dispatchers.IO) { csvExportWriter.deleteCached() } },
+            clearLeftovers = {
+                withContext(Dispatchers.IO) { csvExportWriter.deleteCached() }
+                notificationPoster.clearShown()
+            },
             usageExclusive = usageSyncer::exclusive,
         )
     }

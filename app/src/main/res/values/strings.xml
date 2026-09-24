@@ -199,7 +199,7 @@
 
     <!-- Spec §28 export. -->
     <string name="export_title">Exportovat CSV</string>
-    <string name="export_intro">per_app.csv má řádek za každý den a aplikaci: vzdálenost, počty událostí a čas v aplikaci. daily_summary.csv má součet za každý den. Soubory vzniknou v telefonu; kam je uložíš nebo komu je pošleš, rozhoduješ ty.</string>
+    <string name="export_intro">per_app.csv má řádek za každý den a aplikaci: vzdálenost, počty událostí a čas v aplikaci. daily_summary.csv má součet za každý den. Vyloučené aplikace v nich nejsou. Soubory vzniknou v telefonu; kam je uložíš nebo komu je pošleš, rozhoduješ ty.</string>
     <string name="export_save_per_app">Uložit per_app.csv</string>
     <string name="export_save_daily">Uložit daily_summary.csv</string>
     <string name="export_share">Sdílet oba soubory</string>
