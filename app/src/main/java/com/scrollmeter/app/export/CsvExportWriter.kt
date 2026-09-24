@@ -3,6 +3,7 @@ package com.scrollmeter.app.export
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.core.content.FileProvider
 import com.scrollmeter.app.apps.AppInfoProvider
 import com.scrollmeter.app.data.repository.ScrollRepository
@@ -31,11 +32,20 @@ class CsvExportWriter(
         return ExportFiles(perApp, CsvExporter.daily(repository.exportDays()))
     }
 
-    /** Writes [content] to a document the user created through SAF; truncates what was there. */
+    /**
+     * Writes [content] to the document the user just created through SAF (`CreateDocument` always
+     * makes a new one). A failed write deletes it — a half file where the user chose would pass for
+     * an export.
+     */
     @Throws(IOException::class)
     fun write(uri: Uri, content: String) {
-        val out = context.contentResolver.openOutputStream(uri, "wt") ?: throw IOException("no output stream for the chosen file")
-        out.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+        try {
+            val out = context.contentResolver.openOutputStream(uri, "wt") ?: throw IOException("no output stream for the chosen file")
+            out.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+        } catch (e: IOException) {
+            runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }
+            throw e
+        }
     }
 
     /** Both files in the app's cache, offered to whichever app the user picks in the share sheet. */

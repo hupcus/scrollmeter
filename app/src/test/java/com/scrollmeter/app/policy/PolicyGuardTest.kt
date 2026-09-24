@@ -218,6 +218,23 @@ class PolicyGuardTest {
         assertThat(readers).containsExactly("UsageEventsSource.kt")
     }
 
+    /**
+     * CLAUDE.md: every tunable constant lives in MeasurementConfig. A `const val` whose name the ADR
+     * log mentions is a tunable by definition — declaring it anywhere else fails.
+     */
+    @Test
+    fun constantsNamedInTheAdrLogLiveInMeasurementConfig() {
+        val adrNames = Regex("""\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b""").findAll(File(appDir.canonicalFile.parentFile, "docs/measurement-decisions.md").readText())
+            .map { it.value }.toSet()
+        val declaration = Regex("""const val ([A-Z][A-Z0-9_]+)\b""")
+        val misplaced = sources.filter { it.extension == "kt" && it.name != "MeasurementConfig.kt" }.flatMap { file ->
+            declaration.findAll(stripComments(file.readText(), "kt")).map { it.groupValues[1] }.filter { it in adrNames }
+                .map { "${file.relativeTo(appDir)}: $it" }
+        }
+        assertWithMessage("ADR tunables declared outside MeasurementConfig").that(misplaced).isEmpty()
+        assertThat(adrNames).containsAtLeast("RECORD_MIN_PRIOR_DAYS", "RECORD_MIN_MM", "SESSION_RETENTION_DAYS")
+    }
+
     @Test
     fun commentStrippingDoesNotHideCodeAfterAStringWithSlashes() {
         val code = stripComments("val u = \"https://x\"; val leak = event.text // why\n/* block .source */ val c = '\"'; x()", "kt")

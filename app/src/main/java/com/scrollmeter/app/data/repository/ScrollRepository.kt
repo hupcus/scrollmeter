@@ -42,6 +42,11 @@ class ScrollRepository(
     private val dao: ScrollDao,
     private val unflushed: Flow<Map<Pair<String, String>, Double>> = flowOf(emptyMap()),
     private val excluded: Flow<Set<String>> = flowOf(emptySet()),
+    /**
+     * The exclusions for the export, read so that an unreadable settings file fails the export rather
+     * than put excluded apps into the files (the screens' [excluded] falls back to "none").
+     */
+    private val exportExcluded: suspend () -> Set<String> = { excluded.first() },
 ) : AggregateStore, UsageStore {
     /** Pending distance without excluded apps (one may have been excluded while still pending). */
     private fun <T> withExcluded(block: (List<String>, Flow<Map<Pair<String, String>, Double>>) -> Flow<T>): Flow<T> =
@@ -123,9 +128,9 @@ class ScrollRepository(
         )
     }
 
-    suspend fun exportAppDays(): List<ExportAppDay> = dao.exportAppDays(excluded.first().toList())
+    suspend fun exportAppDays(): List<ExportAppDay> = dao.exportAppDays(exportExcluded().toList())
 
-    suspend fun exportDays(): List<ExportDay> = dao.exportDays(excluded.first().toList())
+    suspend fun exportDays(): List<ExportDay> = dao.exportDays(exportExcluded().toList())
 
     suspend fun pruneSessions(beforeMs: Long): Int = dao.deleteSessionsBefore(beforeMs)
 

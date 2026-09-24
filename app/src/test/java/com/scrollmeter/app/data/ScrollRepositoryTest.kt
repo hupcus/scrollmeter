@@ -199,6 +199,17 @@ class ScrollRepositoryTest {
         assertThat(repo.distance(day).first()).isEqualTo(105.0)
     }
 
+    /** Unreadable settings: the screens fall back to "no exclusions", the export fails instead of leaking. */
+    @Test
+    fun theExportFailsWhenTheExclusionsCannotBeRead() = runBlocking {
+        val repo = ScrollRepository(dao, unflushed, MutableStateFlow(emptySet()), exportExcluded = { throw java.io.IOException("settings") })
+        repo.write(listOf(delta(pkg = "excluded-before")), emptyList())
+        val appDays = runCatching { repo.exportAppDays() }
+        val days = runCatching { repo.exportDays() }
+        assertThat(appDays.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+        assertThat(days.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+    }
+
     @Test
     fun exportRowsJoinScrollAndTimeAndDaysSumEvents() = runBlocking {
         repository.write(listOf(delta(pkg = "a", mm = 10.0, activeMs = 4_000), delta(date = "2026-09-22", pkg = "a", mm = 2.0)), emptyList())

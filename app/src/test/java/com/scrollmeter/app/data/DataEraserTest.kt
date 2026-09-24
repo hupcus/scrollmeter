@@ -15,6 +15,7 @@ class DataEraserTest {
     private var usageLocked = false
     private var tablesReached: CompletableDeferred<Unit>? = null
     private var tablesMayFinish: CompletableDeferred<Unit>? = null
+    private var settingsFailure: Exception? = null
 
     private val eraser = DataEraser(
         monitor = monitor,
@@ -23,7 +24,10 @@ class DataEraserTest {
             tablesMayFinish?.await()
             calls += "tables:locked=${monitor.writeLock.isLocked},usage=$usageLocked,epoch=${monitor.dataEpoch.get()}"
         },
-        clearSettings = { calls += "settings" },
+        clearSettings = {
+            settingsFailure?.let { throw it }
+            calls += "settings:locked=${monitor.writeLock.isLocked}"
+        },
         forgetCalibration = { calls += "calibration" },
         setFloor = { calls += "floor:$it" },
         clearLeftovers = { calls += "leftovers" },
@@ -38,15 +42,19 @@ class DataEraserTest {
     @Test
     fun dataOnlyKeepsSettingsAndCalibration() = runBlocking {
         monitor.unflushed.value = mapOf(("2026-09-24" to "a") to 3.0)
-        eraser.erase(alsoSettings = false)
-        assertThat(calls).containsExactly("floor:42", "tables:locked=true,usage=true,epoch=1", "leftovers").inOrder()
+        assertThat(eraser.erase(alsoSettings = false)).isTrue()
+        assertThat(calls).containsExactly("leftovers", "floor:42", "tables:locked=true,usage=true,epoch=1", "leftovers").inOrder()
         assertThat(monitor.unflushed.value).isEmpty()
     }
 
     @Test
     fun everythingClearsSettingsFirstSoTheFloorSurvives() = runBlocking {
-        eraser.erase(alsoSettings = true)
-        assertThat(calls).containsExactly("settings", "calibration", "floor:42", "tables:locked=true,usage=true,epoch=1", "leftovers").inOrder()
+        assertThat(eraser.erase(alsoSettings = true)).isTrue()
+        // Settings go under the write lock too: a notification posted just before cannot leave its
+        // "already posted today" mark behind.
+        assertThat(calls).containsExactly(
+            "leftovers", "settings:locked=true", "calibration", "floor:42", "tables:locked=true,usage=true,epoch=1", "leftovers",
+        ).inOrder()
         assertThat(monitor.writeLock.isLocked).isFalse()
     }
 
@@ -60,7 +68,18 @@ class DataEraserTest {
         val cancelling = launch { caller.cancelAndJoin() }
         tablesMayFinish!!.complete(Unit)
         cancelling.join()
-        assertThat(calls).containsExactly("settings", "calibration", "floor:42", "tables:locked=true,usage=true,epoch=1", "leftovers").inOrder()
+        assertThat(calls).containsExactly(
+            "leftovers", "settings:locked=true", "calibration", "floor:42", "tables:locked=true,usage=true,epoch=1", "leftovers",
+        ).inOrder()
+        assertThat(monitor.writeLock.isLocked).isFalse()
+    }
+
+    /** Spec §61: a storage error in one step reports failure, releases the lock and still deletes the data. */
+    @Test
+    fun aFailingStepIsReportedAndTheOthersStillRun() = runBlocking {
+        settingsFailure = java.io.IOException("disk")
+        assertThat(eraser.erase(alsoSettings = true)).isFalse()
+        assertThat(calls).containsExactly("leftovers", "calibration", "floor:42", "tables:locked=true,usage=true,epoch=1", "leftovers").inOrder()
         assertThat(monitor.writeLock.isLocked).isFalse()
     }
 }

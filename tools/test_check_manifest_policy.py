@@ -81,6 +81,16 @@ class CheckManifestPolicyTest(unittest.TestCase):
         self.assertEqual(tool.violations(GOOD % (export % "false"), release=True), [])
         self.assertEqual(len(tool.violations(GOOD % (export % "true"), release=True)), 1)
 
+    def test_release_providers_are_an_allowlist(self):
+        startup = ('<provider android:name="androidx.startup.InitializationProvider" '
+                   'android:authorities="com.scrollmeter.app.androidx-startup" android:exported="false"/>')
+        other = ('<provider android:name="androidx.core.content.FileProvider" '
+                 'android:authorities="com.scrollmeter.app.other" android:exported="false" android:grantUriPermissions="true"/>')
+        self.assertEqual(tool.violations(GOOD % startup, release=True), [])
+        self.assertEqual(tool.violations(GOOD % other, release=True),
+                         ["provider not in the release allowlist (com.scrollmeter.app.other)"])
+        self.assertEqual(tool.violations(GOOD % other, release=False), [])
+
 
 if __name__ == "__main__":
     unittest.main()

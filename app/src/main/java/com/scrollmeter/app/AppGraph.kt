@@ -48,7 +48,12 @@ class AppGraph(context: Context) {
     /** One Room instance per process — the service writes, the UI reads its Flows (D8). */
     val database by lazy { ScrollDatabase.create(appContext) }
     val scrollRepository by lazy {
-        ScrollRepository(database.scrollDao(), monitor.unflushed, settingsRepository.settings.map { it.excludedPackages })
+        ScrollRepository(
+            database.scrollDao(),
+            monitor.unflushed,
+            settingsRepository.settings.map { it.excludedPackages },
+            exportExcluded = { settingsRepository.stored.first().excludedPackages },
+        )
     }
 
     val usageAccessChecker by lazy { UsageAccessChecker(appContext) }
@@ -79,6 +84,8 @@ class AppGraph(context: Context) {
             facts = { today, settings -> scrollRepository.notificationFacts(today, settings.dailyGoalMm) },
             state = settingsRepository,
             poster = notificationPoster,
+            epoch = monitor.dataEpoch::get,
+            postLock = monitor.writeLock,
         )
     }
 

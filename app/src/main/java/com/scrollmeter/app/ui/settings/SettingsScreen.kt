@@ -54,6 +54,7 @@ import com.scrollmeter.app.ui.components.ServiceStatus
 import com.scrollmeter.app.ui.components.SettingRow
 import com.scrollmeter.app.ui.components.SwitchRow
 import com.scrollmeter.app.ui.components.appLocale
+import com.scrollmeter.app.ui.components.launchWrite
 import com.scrollmeter.app.ui.components.rememberServiceStatus
 import com.scrollmeter.app.ui.components.rememberUsageGranted
 import kotlinx.coroutines.launch
@@ -106,7 +107,7 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
         askingFor = null
         notificationsAllowed = notificationsAllowed(context)
         if (!granted) permissionRefused = true
-        if (granted && kind != null) scope.launch { repository.setNotify(kind, true) }
+        if (granted && kind != null) scope.launchWrite(context) { repository.setNotify(kind, true) }
     }
 
     fun setNotify(kind: NotificationKind, on: Boolean) {
@@ -116,7 +117,7 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
             askingFor = kind
             permission.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            scope.launch { repository.setNotify(kind, on) }
+            scope.launchWrite(context) { repository.setNotify(kind, on) }
         }
     }
 
@@ -178,7 +179,7 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
             SettingRow(stringResource(R.string.settings_theme), stringResource(themeLabel(current.theme))) { dialog = SettingsDialog.THEME }
             HorizontalDivider()
             SwitchRow(stringResource(R.string.settings_comparisons), stringResource(R.string.settings_comparisons_body), current.showComparisons) { on ->
-                scope.launch { repository.setShowComparisons(on) }
+                scope.launchWrite(context) { repository.setShowComparisons(on) }
             }
         }
 
@@ -228,7 +229,7 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
             onDismiss = { dialog = null },
             onSave = { mm ->
                 dialog = null
-                scope.launch { repository.setDailyGoalMm(mm) }
+                scope.launchWrite(context) { repository.setDailyGoalMm(mm) }
             },
         )
         SettingsDialog.UNITS -> ChoiceDialog(
@@ -238,7 +239,7 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
             label = { stringResource(unitLabel(it)) },
             onSelect = {
                 dialog = null
-                scope.launch { repository.setUnitPreference(it) }
+                scope.launchWrite(context) { repository.setUnitPreference(it) }
             },
             onDismiss = { dialog = null },
         )
@@ -249,7 +250,7 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
             label = { stringResource(themeLabel(it)) },
             onSelect = {
                 dialog = null
-                scope.launch { repository.setTheme(it) }
+                scope.launchWrite(context) { repository.setTheme(it) }
             },
             onDismiss = { dialog = null },
         )
@@ -258,8 +259,8 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
             onDelete = { alsoSettings ->
                 dialog = null
                 scope.launch {
-                    graph.dataEraser.erase(alsoSettings)
-                    Toast.makeText(context, R.string.delete_done, Toast.LENGTH_SHORT).show()
+                    val ok = graph.dataEraser.erase(alsoSettings)
+                    Toast.makeText(context, if (ok) R.string.delete_done else R.string.delete_failed, Toast.LENGTH_LONG).show()
                 }
             },
         )

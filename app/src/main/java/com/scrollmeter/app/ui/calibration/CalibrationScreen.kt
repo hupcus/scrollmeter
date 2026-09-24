@@ -28,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.onSizeChanged
@@ -46,11 +47,11 @@ import com.scrollmeter.app.calibration.DisplaySnapshot
 import com.scrollmeter.app.measurement.PhysicalScaleProvider
 import com.scrollmeter.app.ui.components.Format
 import com.scrollmeter.app.ui.components.appLocale
+import com.scrollmeter.app.ui.components.launchWrite
 import com.scrollmeter.app.ui.theme.CalibrationBarBlue
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 /**
  * Spec §8 "Kalibrace displeje": the user matches a bar to the long edge of a payment card
@@ -69,13 +70,15 @@ import kotlinx.coroutines.launch
 @Composable
 fun CalibrationScreen(graph: AppGraph, onBack: () -> Unit, onSaved: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val locale = appLocale()
     // One change per visit: a double tap must not save twice (each save is a new calibration version).
     var committing by remember { mutableStateOf(false) }
     val commit: (suspend () -> Unit) -> Unit = { change ->
         if (!committing) {
             committing = true
-            scope.launch {
+            // A storage error says so and lets the user try again (spec §61).
+            scope.launchWrite(context, onFailure = { committing = false }) {
                 change()
                 onSaved()
             }

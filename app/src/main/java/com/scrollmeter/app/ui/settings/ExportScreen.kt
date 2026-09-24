@@ -30,6 +30,7 @@ import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
 import com.scrollmeter.app.export.CsvExporter
 import com.scrollmeter.app.export.ExportFiles
+import com.scrollmeter.app.export.attemptExport
 import com.scrollmeter.app.ui.components.ScreenHeader
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
@@ -51,15 +52,7 @@ fun ExportScreen(graph: AppGraph, onBack: () -> Unit) {
         if (busy) return
         busy = true
         scope.launch {
-            val ok = try {
-                block()
-                true
-            } catch (e: IOException) {
-                false
-            } catch (e: RuntimeException) {
-                // Spec §61: a failed export says so and leaves the data alone.
-                false
-            }
+            val ok = attemptExport(block)
             busy = false
             if (!ok) Toast.makeText(context, R.string.export_failed, Toast.LENGTH_LONG).show()
         }

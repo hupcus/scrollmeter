@@ -212,6 +212,8 @@
     <string name="delete_data">Smazat data</string>
     <string name="delete_everything">Smazat data i nastavení a kalibraci</string>
     <string name="delete_done">Všechna naměřená data jsou smazaná.</string>
+    <string name="delete_failed">Smazání se nepovedlo celé. Zkus to znovu.</string>
+    <string name="settings_write_failed">Nastavení se nepodařilo uložit. Zkus to znovu.</string>
 
     <!-- Spec §14, §44 excluded apps. -->
     <string name="excluded_title">Vyloučené aplikace</string>

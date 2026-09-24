@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,9 +35,9 @@ import com.scrollmeter.app.apps.ExclusionSuggestion
 import com.scrollmeter.app.ui.components.AppIcon
 import com.scrollmeter.app.ui.components.ScreenHeader
 import com.scrollmeter.app.ui.components.SectionTitle
+import com.scrollmeter.app.ui.components.launchWrite
 import com.scrollmeter.app.ui.components.rememberAppInfo
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -47,6 +48,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun ExcludedAppsScreen(graph: AppGraph, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val settings by graph.settingsRepository.settings.collectAsStateWithLifecycle(initialValue = null)
     val seen by remember { graph.scrollRepository.seenPackages() }.collectAsStateWithLifecycle(initialValue = emptyList())
     val suggestions by produceState(initialValue = emptyList<ExclusionSuggestion>()) {
@@ -61,7 +63,7 @@ fun ExcludedAppsScreen(graph: AppGraph, onBack: () -> Unit) {
     val sorted = others.sortedWith(compareBy<String> { (labels[it] ?: it).lowercase() }.thenBy { it })
 
     fun toggle(pkg: String, on: Boolean) {
-        scope.launch { graph.settingsRepository.setExcluded(pkg, on) }
+        scope.launchWrite(context) { graph.settingsRepository.setExcluded(pkg, on) }
     }
 
     LazyColumn(

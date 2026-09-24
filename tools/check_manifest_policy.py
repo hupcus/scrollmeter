@@ -14,7 +14,8 @@ The application must keep `allowBackup="false"` and point `dataExtractionRules` 
 and every exported component other than the launcher activity must be guarded by a permission.
 
 A release manifest must also carry no debug tooling: the debug build's FileProvider (authority
-`….devtools.files`). The CSV share sheet's own provider (ADR-030) is allowed — not exported.
+`….devtools.files`) fails, and so does any provider whose authority is not in the release allowlist
+(the CSV share sheet's own provider, ADR-030, and androidx.startup's).
 Standard library only; exit code 1 on any violation.
 """
 
@@ -30,6 +31,10 @@ SERVICE = "com.scrollmeter.app.accessibility.ScrollAccessibilityService"
 # goal / record / summary notifications (PLAN Phase 6).
 ALLOWED_PERMISSIONS = ("android.permission.PACKAGE_USAGE_STATS", "android.permission.POST_NOTIFICATIONS")
 DEBUG_PROVIDER_AUTHORITY_SUFFIX = ".devtools.files"
+# Every provider a release may ship, exactly: the CSV share sheet's (ADR-030) and androidx.startup's
+# InitializationProvider (not exported; pulled in by lifecycle / profileinstaller / emoji2). A new
+# one — ours or a library's — has to be named here.
+RELEASE_PROVIDER_AUTHORITIES = ("{package}.exports", "{package}.androidx-startup")
 # androidx.core declares and requests this signature permission for its own receivers, named after
 # the application id (com.scrollmeter.app or com.scrollmeter.app.debug) — matched exactly.
 OWN_SIGNATURE_PERMISSION = "{package}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
@@ -86,9 +91,13 @@ def violations(manifest: str, release: bool) -> list[str]:
         if s.get(A + "foregroundServiceType"):
             found.append("accessibility service declares a foregroundServiceType")
     if release:
+        allowed_authorities = {a.format(package=package) for a in RELEASE_PROVIDER_AUTHORITIES}
         for p in app.iter("provider"):
-            if p.get(A + "authorities", "").endswith(DEBUG_PROVIDER_AUTHORITY_SUFFIX):
-                found.append(f"release ships the debug FileProvider ({p.get(A + 'authorities')})")
+            authorities = p.get(A + "authorities", "")
+            if authorities.endswith(DEBUG_PROVIDER_AUTHORITY_SUFFIX):
+                found.append(f"release ships the debug FileProvider ({authorities})")
+            elif any(a not in allowed_authorities for a in authorities.split(";")):
+                found.append(f"provider not in the release allowlist ({authorities})")
     return found
 
 

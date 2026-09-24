@@ -63,4 +63,54 @@ class NotificationRulesTest {
         watcher.check()
         assertThat(posted).containsExactly(NotificationKind.GOAL, NotificationKind.GOAL)
     }
+
+    /** A delete between reading the facts and posting: the notice would describe deleted data (ADR-031). */
+    @Test
+    fun theWatcherPostsNothingWhenTheDataWasErasedWhileItReadTheFacts() = runTest {
+        val posted = mutableListOf<NotificationKind>()
+        val state = object : NotificationState {
+            val last = HashMap<NotificationKind, LocalDate>()
+            override suspend fun lastPosted(kind: NotificationKind) = last[kind]
+            override suspend fun setLastPosted(kind: NotificationKind, date: LocalDate) { last[kind] = date }
+        }
+        var epoch = 0L
+        val watcher = NotificationWatcher(
+            settings = { Settings(notifyGoal = true) },
+            facts = { d, _ -> epoch++; NotificationFacts(d, 600_000.0, 500_000.0, 0.0, 0, 0.0) },
+            state = state,
+            poster = object : NotificationPoster {
+                override fun canPost() = true
+                override fun post(notice: Notice, settings: Settings) { posted += notice.kind }
+            },
+            today = { today },
+            epoch = { epoch },
+        )
+        watcher.check()
+        assertThat(posted).isEmpty()
+        assertThat(state.last).isEmpty()
+    }
+
+    /** Posting waits for an erase that holds the write lock, and then sees its epoch. */
+    @Test
+    fun theWatcherPostsUnderTheWriteLock() = runTest {
+        val lock = kotlinx.coroutines.sync.Mutex()
+        var lockedWhilePosting: Boolean? = null
+        val watcher = NotificationWatcher(
+            settings = { Settings(notifyGoal = true) },
+            facts = { d, _ -> NotificationFacts(d, 600_000.0, 500_000.0, 0.0, 0, 0.0) },
+            state = object : NotificationState {
+                override suspend fun lastPosted(kind: NotificationKind): LocalDate? = null
+                override suspend fun setLastPosted(kind: NotificationKind, date: LocalDate) = Unit
+            },
+            poster = object : NotificationPoster {
+                override fun canPost() = true
+                override fun post(notice: Notice, settings: Settings) { lockedWhilePosting = lock.isLocked }
+            },
+            today = { today },
+            postLock = lock,
+        )
+        watcher.check()
+        assertThat(lockedWhilePosting).isTrue()
+        assertThat(lock.isLocked).isFalse()
+    }
 }

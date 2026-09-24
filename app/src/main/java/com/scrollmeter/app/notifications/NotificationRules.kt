@@ -1,5 +1,6 @@
 package com.scrollmeter.app.notifications
 
+import com.scrollmeter.app.measurement.MeasurementConfig
 import com.scrollmeter.app.settings.Settings
 import java.time.LocalDate
 
@@ -32,15 +33,12 @@ data class NotificationFacts(
  * Pure Kotlin (ADR-031). Never per event: the watcher asks after a flush, and each kind is posted
  * at most once a day.
  * - GOAL: today reached the daily goal.
- * - RECORD: today passed the best earlier day — only after [RECORD_MIN_PRIOR_DAYS] measured days
- *   (the second day of use is not a record worth a notification) and above [RECORD_MIN_MM].
+ * - RECORD: today passed the best earlier day — only after [MeasurementConfig.RECORD_MIN_PRIOR_DAYS] measured days
+ *   (the second day of use is not a record worth a notification) and above [MeasurementConfig.RECORD_MIN_MM].
  * - SUMMARY: yesterday's total, with the first check of a new day (i.e. the first scroll — never at
  *   midnight, no scheduled job); nothing when yesterday was empty.
  */
 object NotificationRules {
-    const val RECORD_MIN_PRIOR_DAYS = 3
-    const val RECORD_MIN_MM = 10_000.0
-
     fun enabled(settings: Settings): Set<NotificationKind> = buildSet {
         if (settings.notifyGoal) add(NotificationKind.GOAL)
         if (settings.notifyRecord) add(NotificationKind.RECORD)
@@ -52,8 +50,8 @@ object NotificationRules {
         if (NotificationKind.GOAL in due && facts.goalMm > 0 && facts.todayMm >= facts.goalMm) {
             add(Notice(NotificationKind.GOAL, facts.goalMm))
         }
-        if (NotificationKind.RECORD in due && facts.priorMeasuredDays >= RECORD_MIN_PRIOR_DAYS &&
-            facts.todayMm > facts.previousBestMm && facts.todayMm >= RECORD_MIN_MM
+        if (NotificationKind.RECORD in due && facts.priorMeasuredDays >= MeasurementConfig.RECORD_MIN_PRIOR_DAYS &&
+            facts.todayMm > facts.previousBestMm && facts.todayMm >= MeasurementConfig.RECORD_MIN_MM
         ) {
             add(Notice(NotificationKind.RECORD, facts.todayMm))
         }
