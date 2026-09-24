@@ -44,7 +44,49 @@
 | 5 Historie + Aplikace | hotovo, mergnuto (tag `v0.5`) | `phase-5-history-apps` / [#7](https://github.com/hupcus/scrollmeter/pull/7) | ADR-029; CI zablokované billingem → brána v čistém checkoutu |
 | 6 Export + Nastavení | hotovo, mergnuto (tag `v0.6`) | `phase-6-export-settings` / [#8](https://github.com/hupcus/scrollmeter/pull/8) | ADR-030/031; oznámení a export na telefonu → „Dluh ověření“ V6; CI zablokované billingem → brána v čistém checkoutu |
 | 7 Onboarding + Policy | hotovo, mergnuto (tag `v0.7`) | `phase-7-onboarding-policy` / [#9](https://github.com/hupcus/scrollmeter/pull/9) | ADR-032; onboarding se sideloadem a volba jazyka na telefonu → „Dluh ověření“ V7; CI zablokované billingem → brána v čistém checkoutu |
-| 8 Release | nezačato | — | |
+| 8 Release | **rozpracováno** — jen příprava (rozhodnutí a stažené obrazy), kód nezačatý; postup v „Phase 8 — příprava“ | `phase-8-release` (pushnutá) / PR zatím není | |
+
+## Phase 8 — příprava (2026-09-24, konec session po Phase 7)
+
+Session skončila na hranici fáze kvůli plnému kontextu. Na větvi `phase-8-release` je zatím jen tenhle zápis.
+
+**Zbývá — celá Phase 8 podle `PLAN.md`** (rozhodnutí níže už padla, neotvírat znovu):
+1. **Stage 0** `/impact` (release build, podepisování, CI).
+2. **Podepisování přes env proměnné** podle DETECT (`~/Documents/VIBE-CODE/DETECT/app/build.gradle.kts`):
+   - `SIGNING_KEYSTORE_PATH`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`;
+   - bez nich zůstane release nepodepsaný a build neselže;
+   - keystore mimo repo (návrh `~/.android-keystores/scrollmeter-upload.jks`), heslo v Klíčence macOS (`security add-generic-password`), nikdy v gitu ani v logu;
+   - na Play pak Play App Signing (upload klíč jde resetovat přes podporu).
+3. **Release hardening:**
+   - R8 s Room běží od Phase 3 (ověřeno do Phase 7);
+   - `apkanalyzer` / `dexdump`: žádné `devtools` třídy, žádné `Log.` volání s daty událostí;
+   - `versionName 0.1.0` zůstává.
+4. **Emulátory API 28 / 30 / 33 / 35 / 36:**
+   - `google_apis` arm64-v8a obrazy existují (tím je uzavřený otevřený bod o API 28);
+   - stahování začalo: `yes | sdkmanager "system-images;android-28;google_apis;arm64-v8a" … android-36 …` — při startu zkontrolovat `ls ~/Library/Android/sdk/system-images/` a doběhnout;
+   - AVD `scrollmeter28` … `scrollmeter36` přes `avdmanager create avd -n scrollmeterNN -k "system-images;android-NN;google_apis;arm64-v8a" -d pixel_6`;
+   - na každém: instalace, onboarding (cs/en), testovací seznam (`tools/device_accuracy.py --surface view,column`), export, smazání;
+   - D19 na API 28: události 1/2, bez STOPPED; zamčené zařízení → `queryEvents` null;
+   - disk má ~50 GB volných — AVD mimo `scrollmeter34` po měření smazat, obrazy nechat.
+5. **Battery protokol:**
+   - na emulátoru jen relativní čísla: `dumpsys batterystats --reset`, 10–15 min skriptovaného scrollování, CPU a wakelocky pro uid ScrollMeteru, počet flushů za minutu;
+   - skutečné 1 h / 8 h / 24 h na OnePlusu a druhý telefon → „Dluh ověření“ (nový bod V8);
+   - čísla do `docs/accuracy-testing.md` s poznámkou, co je emulátor.
+6. **Release tag `v0.1.0`** = `versionName`; fázové tagy `v0.N` jsou jiné řetězce, nekolidují. Tím je uzavřený otevřený bod o kolizi tagů; tag `v0.8` po merge fáze jako vždy.
+7. **Distribuce:**
+   - GitHub Release v **privátním** repu s podepsaným APK smí session udělat sama — není veřejný;
+   - Play internal testing jen **připravit** (`bundleRelease`, `docs/play-listing.md`), nahrát nic bez Honzy.
+8. **DoD:** SPEC §54 checklist (poctivě — Instagram, Reddit, MAPE s kartou a restart telefonu zůstávají v „Dluhu ověření“ V1–V5), battery čísla v `docs/accuracy-testing.md`.
+
+**Pomůcky ze session (ve scratchpadu, neverzují se — v nové session znovu napsat, jsou krátké):**
+- `ci_gate.sh <ref>`: `git worktree add --detach <scratch>/ci-check <ref>`, zkopírovat `local.properties`, `./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleRelease processReleaseManifest`, `tools/check_manifest_policy.py` nad merged manifesty, `python3 -m unittest discover -s tools -p 'test_*.py'`, souhrn testů / lintu, `git worktree remove --force`.
+- `ui.py` (jen emulátor, `adb -s emulator-5554`): `uiautomator dump` → najít uzel podle textu → `input tap` na střed; příkazy `texts`, `tap "<text>"`, `wait`.
+
+**Emulátor — nové poznatky z Phase 7:**
+- fyzický telefon bývá připojený → vždy `ANDROID_SERIAL=emulator-5554`;
+- `uiautomator dump` službu nejen odpojí, ale někdy ji i vyřadí z `enabled_accessibility_services` → před kontrolou stavu ji znovu zapsat;
+- rozvržení se mezi výpisy posouvá (banner „služba neběží“), souřadnice z výpisu ověřit snímkem;
+- jazyk aplikace: `adb shell cmd locale set-app-locales com.scrollmeter.app.debug --locales cs-CZ` (emulátor má systémovou angličtinu → bez toho ukazuje `values-en`).
 
 ## Phase 7 — exit report (2026-09-24)
 
@@ -378,7 +420,7 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
   - výpisy `uiautomator` smazané,
   - automatické otáčení vrácené na původní hodnotu (`accelerometer_rotation 1`, `user_rotation 0`; Phase 2 testovala landscape).
   Přepínač **Zakázat sledování oprávnění** vrací Honza ručně. Další session si telefon připraví znovu, postup je v `docs/prompts/continue-next-phase.md`.
-- [ ] Emulátory: ověřit, že pro API 28 existuje arm64 systémový obraz (`sdkmanager --list | grep android-28`).
+- [x] Emulátory: arm64 `google_apis` obrazy existují pro API 28 / 30 / 33 / 35 / 36 (ověřeno `sdkmanager --list` 2026-09-24).
 - [ ] Ikona a barva aplikace: pořád zástupná značka (pravítko se šipkou na modré `#1E4FD8`) — SPEC §42 nechává na implementaci; finální ikona před vydáním na Play (Honza / grafik).
 - [ ] Výchozí jazyk pro Play: `values/` je čeština (D17) — telefon v němčině uvidí češtinu (v Androidu 13+ si může přepnout na angličtinu). Pro zahraniční vydání zvážit angličtinu jako výchozí; rozhodnutí Honzy.
 - [ ] Zásady ochrany soukromí potřebují veřejnou URL (Play to u Accessibility API vyžaduje); text je v `docs/play-listing.md`, kde ho zveřejnit, rozhoduje Honza.
