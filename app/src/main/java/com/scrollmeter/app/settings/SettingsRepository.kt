@@ -32,9 +32,18 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 class SettingsRepository(private val dataStore: DataStore<Preferences>) : UsageSyncState {
     constructor(context: Context) : this(context.applicationContext.settingsDataStore)
 
+    /** For screens: a read error shows the defaults (spec §61). */
     val settings: Flow<Settings> = dataStore.data
         .map(::toSettings)
         .catch { emit(Settings()) }
+        .distinctUntilChanged()
+
+    /**
+     * For the service and the usage sync: a read error is an error, not "no exclusions" — otherwise
+     * an unreadable file would silently start measuring apps the user excluded.
+     */
+    val stored: Flow<Settings> = dataStore.data
+        .map(::toSettings)
         .distinctUntilChanged()
 
     suspend fun setDailyGoalMm(mm: Double) = edit { it[DAILY_GOAL_MM] = mm.coerceIn(Settings.GOAL_RANGE_MM) }

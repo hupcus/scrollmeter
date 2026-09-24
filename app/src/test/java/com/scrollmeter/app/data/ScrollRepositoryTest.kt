@@ -10,6 +10,7 @@ import com.scrollmeter.app.data.model.DateRange
 import com.scrollmeter.app.data.repository.ScrollRepository
 import com.scrollmeter.app.usage.UsageDay
 import java.time.LocalDate
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -27,7 +28,8 @@ class ScrollRepositoryTest {
         .allowMainThreadQueries()
         .build()
     private val dao: ScrollDao = db.scrollDao()
-    private val repository = ScrollRepository(dao)
+    private val unflushed = MutableStateFlow<Map<Pair<String, String>, Double>>(emptyMap())
+    private val repository = ScrollRepository(dao, unflushed)
 
     @After
     fun tearDown() = db.close()
@@ -144,6 +146,19 @@ class ScrollRepositoryTest {
         assertThat(days[0].foregroundMs).isNull()
         assertThat(days[1].distanceMm).isNull()
         assertThat(days[1].foregroundMs).isEqualTo(1_000)
+    }
+
+    @Test
+    fun unflushedDistanceIsAddedEverywhereItBelongs() = runBlocking {
+        repository.write(listOf(delta(pkg = "a", mm = 10.0), delta(date = "2026-09-20", pkg = "a", mm = 1.0)), emptyList())
+        unflushed.value = mapOf(("2026-09-21" to "a") to 2.0, ("2026-09-21" to "new") to 30.0, ("2026-09-22" to "a") to 5.0)
+        val day = DateRange.day(LocalDate.parse("2026-09-21"))
+        assertThat(repository.distance(day).first()).isEqualTo(42.0)
+        assertThat(repository.lifetimeDistance().first()).isEqualTo(48.0)
+        val apps = repository.apps(day).first()
+        assertThat(apps.map { it.packageName to it.distanceMm }).containsExactly("new" to 30.0, "a" to 12.0).inOrder()
+        val days = repository.days(DateRange(LocalDate.parse("2026-09-20"), LocalDate.parse("2026-09-22"))).first()
+        assertThat(days.map { it.date to it.distanceMm }).containsExactly("2026-09-20" to 1.0, "2026-09-21" to 42.0, "2026-09-22" to 5.0).inOrder()
     }
 
     private fun usage(date: String, pkg: String, ms: Long) = UsageDay(date, pkg, ms, 1, null)

@@ -51,8 +51,30 @@ class ScrollSessionManagerTest {
     fun closeIdleClosesOnlySessionsPastTheGap() {
         sessions.add(result(uptimeMs = 1_000, packageName = "old"))
         sessions.add(result(uptimeMs = 50_000, packageName = "recent"))
-        sessions.closeIdle(nowUptimeMs = 1_001 + gap)
+        sessions.closeIdle(nowUptimeMs = 1_001 + gap, nowWallMs = BASE_WALL_MS + 1_001 + gap)
         assertThat(sessions.drainClosed().map { it.packageName }).containsExactly("old")
+    }
+
+    @Test
+    fun deepSleepBetweenTwoScrollsEndsTheSession() {
+        // Uptime stops in deep sleep: 2 s of uptime, but an hour on the wall clock.
+        sessions.add(result(uptimeMs = 1_000))
+        sessions.add(result(uptimeMs = 3_000, wallMs = BASE_WALL_MS + 1_000 + 3_600_000))
+        assertThat(sessions.drainClosed().single().eventCount).isEqualTo(1)
+    }
+
+    @Test
+    fun aClockSetBackDoesNotMergeWhatUptimeKeepsApart() {
+        sessions.add(result(uptimeMs = 1_000))
+        sessions.add(result(uptimeMs = 2_000 + gap, wallMs = BASE_WALL_MS - 3_600_000))
+        assertThat(sessions.hasClosed).isTrue()
+    }
+
+    @Test
+    fun closeIdleSeesDeepSleepOnTheWallClock() {
+        sessions.add(result(uptimeMs = 1_000))
+        sessions.closeIdle(nowUptimeMs = 2_000, nowWallMs = BASE_WALL_MS + 1_000 + gap + 1)
+        assertThat(sessions.hasClosed).isTrue()
     }
 
     @Test

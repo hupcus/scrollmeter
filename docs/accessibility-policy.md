@@ -21,7 +21,8 @@ The `<service>` is `android:exported="false"` and protected by `android.permissi
 - Event type: `TYPE_VIEW_SCROLLED` only.
 - Fields read: `eventTime`, `packageName`, `windowId`, `className`, `scrollDeltaX`, `scrollDeltaY`, `scrollX`, `scrollY`,
   `maxScrollX`, `maxScrollY` — in `AccessibilityEventParser`, the only class that touches `AccessibilityEvent`.
-- Stored (Room, app-private, `allowBackup=false`): distance, event counters, first/last event time and active
+- Stored (Room, app-private; no cloud backup and no device-to-device transfer — `allowBackup=false` plus
+  `dataExtractionRules` excluding everything, ADR-027): distance, event counters, first/last event time and active
   scroll time per day and package, plus closed scroll sessions (package, start, end, distance, event count).
   Never an individual event. ScrollMeter's own package is never stored. Debug builds additionally keep the
   fields above in a RAM ring buffer and a debug CSV.
@@ -40,7 +41,9 @@ Two guards fail CI:
   XML; comments ignored, string literals kept), content reads or runtime `setServiceInfo` in any file touching
   accessibility types, and the XML pins of the service config.
 - `tools/check_manifest_policy.py` — the **merged** debug and release manifests, so a permission a library
-  adds is caught too; release must carry no debug `FileProvider`.
+  adds is caught too (`uses-permission` and `uses-permission-sdk-23`, against the allowlist); `allowBackup=false`
+  and `dataExtractionRules` present; no exported component without a permission except the launcher activity;
+  release must carry no debug `FileProvider`.
 
 `Do not expand requested accessibility capabilities without a documented product need and privacy/policy review.`
 (the comment lives above the service class; ADR-013 — Chrome/WebView coverage — was settled by measurement: the

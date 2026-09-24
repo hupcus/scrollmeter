@@ -46,6 +46,12 @@ class MeasurementMonitor(private val ownPackage: String) {
     private val _selfTest = MutableStateFlow(SelfTestTotals())
     val selfTest: StateFlow<SelfTestTotals> = _selfTest.asStateFlow()
 
+    /**
+     * Counted millimetres per (local date, package) that the pipeline holds but Room does not have yet
+     * (at most one flush interval). The repository adds them to the stored totals.
+     */
+    val unflushed = MutableStateFlow<Map<Pair<String, String>, Double>>(emptyMap())
+
     /** Samples lost because the channel overflowed (DROP_OLDEST) — should stay 0. */
     val droppedSamples = AtomicLong()
 

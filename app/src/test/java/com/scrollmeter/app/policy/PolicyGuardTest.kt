@@ -128,12 +128,33 @@ class PolicyGuardTest {
     fun mainManifestRequestsOnlyAllowedPermissions() {
         val root = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
             .newDocumentBuilder().parse(File(appDir, "src/main/AndroidManifest.xml")).documentElement
-        val requested = root.getElementsByTagName("uses-permission").let { nodes ->
-            (0 until nodes.length).map { (nodes.item(it) as org.w3c.dom.Element).getAttributeNS(ANDROID_NS, "name") }
+        val requested = listOf("uses-permission", "uses-permission-sdk-23").flatMap { tag ->
+            root.getElementsByTagName(tag).let { nodes ->
+                (0 until nodes.length).map { (nodes.item(it) as org.w3c.dom.Element).getAttributeNS(ANDROID_NS, "name") }
+            }
         }
         assertWithMessage("uses-permission outside the allowlist").that(requested - ALLOWED_PERMISSIONS).isEmpty()
         val otherManifests = sourceSets.filter { it.name != "main" }.map { File(it, "AndroidManifest.xml") }.filter { it.isFile }
         otherManifests.forEach { assertWithMessage("uses-permission in ${it.path}").that(it.readText()).doesNotContain("<uses-permission") }
+    }
+
+    /** ADR-027: no backup and no device-to-device transfer — every domain excluded in both sections. */
+    @Test
+    fun nothingLeavesThePhoneThroughBackupOrTransfer() {
+        val manifest = File(appDir, "src/main/AndroidManifest.xml").readText()
+        assertThat(manifest).contains("android:allowBackup=\"false\"")
+        assertThat(manifest).contains("android:dataExtractionRules=\"@xml/data_extraction_rules\"")
+        val rules = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+            .parse(File(appDir, "src/main/res/xml/data_extraction_rules.xml")).documentElement
+        for (section in listOf("cloud-backup", "device-transfer")) {
+            val element = rules.getElementsByTagName(section).item(0) as org.w3c.dom.Element
+            assertWithMessage("$section includes something").that(element.getElementsByTagName("include").length).isEqualTo(0)
+            val excluded = element.getElementsByTagName("exclude").let { nodes ->
+                (0 until nodes.length).map { nodes.item(it) as org.w3c.dom.Element }
+                    .filter { it.getAttribute("path") == "." }.map { it.getAttribute("domain") }
+            }
+            assertWithMessage("$section excluded domains").that(excluded).containsAtLeast("root", "file", "database", "sharedpref", "external")
+        }
     }
 
     /** The one class allowed to read usage events; everything else gets samples from it (ADR-021). */

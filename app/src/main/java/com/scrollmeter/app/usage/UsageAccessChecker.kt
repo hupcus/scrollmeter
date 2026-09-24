@@ -1,7 +1,6 @@
 package com.scrollmeter.app.usage
 
 import android.app.AppOpsManager
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -45,7 +44,9 @@ class UsageAccessChecker(private val context: Context) {
             try {
                 from.startActivity(intent)
                 return
-            } catch (e: ActivityNotFoundException) {
+            } catch (e: RuntimeException) {
+                // ActivityNotFoundException, or an OEM Settings refusing the package: URI
+                // (SecurityException / IllegalArgumentException) — try the next, plainer intent.
                 continue
             }
         }

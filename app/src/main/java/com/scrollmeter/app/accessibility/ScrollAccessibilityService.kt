@@ -18,7 +18,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 /**
@@ -75,9 +77,11 @@ class ScrollAccessibilityService : AccessibilityService() {
 
         pipelineJob = serviceScope.launch(pipelineDispatcher) {
             val calibrations = graph.calibrationRepository.state
-            val settings = graph.settingsRepository.settings
+            // A read error keeps the exclusions applied last (none before the first read) — it never
+            // resets them to "measure everything".
+            val settings = graph.settingsRepository.stored.catch { graph.monitor.processingFailures.incrementAndGet() }
             applyCalibration(graph, engine, calibrations.first())
-            applySettings(graph, settings.first())
+            settings.firstOrNull()?.let { applySettings(graph, it) }
             val followers = listOf(
                 launch { calibrations.collect { applyCalibration(graph, engine, it) } },
                 launch { settings.collect { applySettings(graph, it) } },

@@ -10,6 +10,9 @@ Permissions are an allowlist (PLAN Phase 3): anything the build requests beyond 
 manifest or from a library — fails, so a new permission needs an ADR and a change here. The
 FORBIDDEN list stays to name the hard-rule ones explicitly in the failure message.
 
+The application must keep `allowBackup="false"` and point `dataExtractionRules` at its rules (ADR-027),
+and every exported component other than the launcher activity must be guarded by a permission.
+
 A manifest whose path contains `/release/` must also carry no debug tooling (FileProvider).
 Standard library only; exit code 1 on any violation.
 """
@@ -24,9 +27,14 @@ A = "{http://schemas.android.com/apk/res/android}"
 SERVICE = "com.scrollmeter.app.accessibility.ScrollAccessibilityService"
 # ADR-021: time in app (Usage access, granted by the user in Settings). Phase 6 adds POST_NOTIFICATIONS.
 ALLOWED_PERMISSIONS = ("android.permission.PACKAGE_USAGE_STATS",)
-# androidx.core declares and requests this signature permission for its own receivers; it is
-# prefixed by the application id (com.scrollmeter.app or com.scrollmeter.app.debug).
-ALLOWED_PERMISSION_SUFFIXES = (".DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",)
+# androidx.core declares and requests this signature permission for its own receivers, named after
+# the application id (com.scrollmeter.app or com.scrollmeter.app.debug) — matched exactly.
+OWN_SIGNATURE_PERMISSION = "{package}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+PERMISSION_TAGS = ("uses-permission", "uses-permission-sdk-23")
+LAUNCHER_ACTIVITY = "com.scrollmeter.app.MainActivity"
+# compose-ui-tooling (debugImplementation) ships an exported PreviewActivity for Android Studio's
+# "run preview on device"; tolerated in debug manifests only.
+DEBUG_ONLY_EXPORTED = ("androidx.compose.ui.tooling.PreviewActivity",)
 FORBIDDEN_PERMISSIONS = (
     "android.permission.INTERNET",
     "android.permission.ACCESS_NETWORK_STATE",
@@ -36,26 +44,34 @@ FORBIDDEN_PERMISSIONS = (
 )
 
 
-def allowed(name: str) -> bool:
-    return name in ALLOWED_PERMISSIONS or (
-        name.startswith("com.scrollmeter.app") and name.endswith(ALLOWED_PERMISSION_SUFFIXES)
-    )
+def allowed(name: str, package: str) -> bool:
+    return name in ALLOWED_PERMISSIONS or name == OWN_SIGNATURE_PERMISSION.format(package=package)
 
 
 def violations(manifest: str, release: bool) -> list[str]:
     root = ET.fromstring(manifest)
     found = []
-    for perm in root.iter("uses-permission"):
-        name = perm.get(A + "name", "")
-        if any(name.startswith(f) for f in FORBIDDEN_PERMISSIONS):
-            found.append(f"forbidden permission {name}")
-        elif not allowed(name):
-            found.append(f"permission not in the allowlist {name}")
+    package = root.get("package", "")
+    for tag in PERMISSION_TAGS:
+        for perm in root.iter(tag):
+            name = perm.get(A + "name", "")
+            if any(name.startswith(f) for f in FORBIDDEN_PERMISSIONS):
+                found.append(f"forbidden permission {name}")
+            elif not allowed(name, package):
+                found.append(f"permission not in the allowlist {name}")
     app = root.find("application")
     if app is None:
         return found + ["no <application>"]
     if app.get(A + "allowBackup") != "false":
         found.append("allowBackup is not false")
+    if not app.get(A + "dataExtractionRules"):
+        found.append("no dataExtractionRules (device-to-device transfer on API 31+)")
+    for kind in ("activity", "activity-alias", "service", "receiver", "provider"):
+        for c in app.iter(kind):
+            name = c.get(A + "name", "")
+            tolerated = name == LAUNCHER_ACTIVITY or (not release and name in DEBUG_ONLY_EXPORTED)
+            if c.get(A + "exported") == "true" and not c.get(A + "permission") and not tolerated:
+                found.append(f"exported {kind} without a permission: {name}")
     services = [s for s in app.iter("service") if s.get(A + "name") == SERVICE]
     if len(services) != 1:
         found.append(f"expected one {SERVICE}, found {len(services)}")

@@ -89,6 +89,23 @@ class ScrollAccumulatorTest {
     }
 
     @Test
+    fun deepSleepIsNotScrolling() {
+        accumulator.add(result(uptimeMs = 10_000))
+        accumulator.add(result(uptimeMs = 12_000, wallMs = BASE_WALL_MS + 10_000 + 3_600_000))
+        assertThat(accumulator.drain().sumOf { it.activeScrollMs }).isEqualTo(0)
+    }
+
+    @Test
+    fun pendingDistanceIsPerDayAndApp() {
+        accumulator.add(result(packageName = "a", mm = 2.0))
+        accumulator.add(result(packageName = "a", mm = 3.0, uptimeMs = 2_000))
+        accumulator.add(result(packageName = "b", mm = 1.0))
+        assertThat(accumulator.pendingDistance()).containsExactly("2026-09-21" to "a", 5.0, "2026-09-21" to "b", 1.0)
+        accumulator.drain()
+        assertThat(accumulator.pendingDistance()).isEmpty()
+    }
+
+    @Test
     fun activeScrollTimeIsPerAppAndIgnoresUncountedEvents() {
         accumulator.add(result(uptimeMs = 10_000, packageName = "a"))
         accumulator.add(result(uptimeMs = 11_000, packageName = "b"))

@@ -26,6 +26,10 @@ import kotlinx.coroutines.withContext
  *
  * [ownPackage] is never stored: outside test mode the engine already excludes it (D18); inside
  * test mode (debug test list, spec §35) it is measured for the live comparison only.
+ *
+ * What is summed but not yet committed — pending in the accumulator or in a write still running —
+ * is published as [MeasurementMonitor.unflushed], so the UI shows every counted millimetre at once
+ * instead of up to 10 s late.
  */
 class ScrollPipeline(
     private val engine: ScrollMeasurementEngine,
@@ -40,6 +44,7 @@ class ScrollPipeline(
 ) {
     private val accumulator = ScrollAccumulator(zone)
     private val sessions = ScrollSessionManager()
+    private val inFlight = ArrayList<Map<Pair<String, String>, Double>>()
     private val samples = Channel<ScrollSample>(
         capacity = MeasurementConfig.SAMPLE_CHANNEL_CAPACITY,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -85,7 +90,7 @@ class ScrollPipeline(
             false
         } else {
             sessions.add(result)
-            accumulator.add(result)
+            accumulator.add(result).also { if (result.accepted) publishUnflushed() }
         }
         monitor.record(result)
         sinks.forEach { it.onResult(result) }
@@ -111,17 +116,28 @@ class ScrollPipeline(
      * failed write puts everything back for the next flush (spec §61).
      */
     suspend fun flush() {
-        sessions.closeIdle(uptimeMs())
+        sessions.closeIdle(uptimeMs(), nowMs())
         if (!accumulator.hasPending && !sessions.hasClosed) return
         val deltas = accumulator.drain()
         val closed = sessions.drainClosed()
+        val writing = deltas.associate { (it.date to it.packageName) to it.distanceMm }
+        inFlight += writing
         try {
             withContext(NonCancellable) { store.write(deltas, closed) }
         } catch (e: Exception) {
             accumulator.restore(deltas)
             sessions.restore(closed)
             monitor.processingFailures.incrementAndGet()
+        } finally {
+            inFlight.remove(writing)
+            publishUnflushed()
         }
+    }
+
+    private fun publishUnflushed() {
+        val total = HashMap(accumulator.pendingDistance())
+        inFlight.forEach { batch -> batch.forEach { (key, mm) -> total.merge(key, mm, Double::plus) } }
+        monitor.unflushed.value = total
     }
 
     private fun today(): String = Instant.ofEpochMilli(nowMs()).atZone(zone()).toLocalDate().toString()

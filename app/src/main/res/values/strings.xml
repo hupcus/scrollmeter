@@ -15,7 +15,6 @@
     <string name="home_enable_button">Zapnout měření</string>
     <string name="home_settings_button">Otevřít nastavení Usnadnění</string>
     <string name="home_today_title">Dnes</string>
-    <string name="home_live_events">Od spuštění služby %1$s · %2$s započtených událostí z %3$s</string>
     <string name="home_devtools_title">Vývojářské nástroje</string>
     <string name="home_accuracy_title">Přesnost měření</string>
     <string name="home_accuracy_manual">Kalibrováno platební kartou · 1 pixel = %1$s mm</string>

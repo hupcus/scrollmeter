@@ -40,8 +40,8 @@ import java.time.LocalDate
 enum class ServiceStatus { ON, ENABLED_NOT_RUNNING, OFF }
 
 /**
- * POC home: service status with the way to Accessibility settings, today's stored total (it lags
- * the live counter by at most one flush, 10 s), the calibration in use with the way to the accuracy
+ * POC home: service status with the way to Accessibility settings, today's distance (stored plus
+ * what the service has not written yet — live), the calibration in use with the way to the accuracy
  * screen, and (debug builds) the developer screens. Replaced by the dashboard in Phase 4.
  */
 @Composable
@@ -54,7 +54,6 @@ fun HomeScreen(
     onOpenDevTool: (Int) -> Unit,
 ) {
     val connected by graph.monitor.serviceConnected.collectAsStateWithLifecycle()
-    val totals by graph.monitor.totals.collectAsStateWithLifecycle()
     val calibration by graph.calibrationRepository.state.collectAsStateWithLifecycle(initialValue = null)
     val display = remember(LocalConfiguration.current.orientation) { graph.displayMetricsProvider.read() }
     var enabledInSettings by remember { mutableStateOf(graph.statusChecker.isEnabled()) }
@@ -85,17 +84,6 @@ fun HomeScreen(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(R.string.home_today_title), style = MaterialTheme.typography.titleMedium)
                     Text(todayMm?.let(Format::metres) ?: "—", style = MaterialTheme.typography.displaySmall)
-                    if (status == ServiceStatus.ON) {
-                        Text(
-                            stringResource(
-                                R.string.home_live_events,
-                                Format.metres(totals.countedMm),
-                                Format.integer(totals.direct + totals.fallback),
-                                Format.integer(totals.events - totals.excluded),
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
                 }
             }
             calibration?.let { AccuracyCard(PhysicalScaleProvider.resolve(it, display), onOpenAccuracy, onCalibrate) }

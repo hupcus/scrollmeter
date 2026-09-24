@@ -139,6 +139,23 @@ class ScrollPipelineTest {
     }
 
     @Test
+    fun unflushedDistanceIsPublishedUntilTheWriteSucceeds() = runTest {
+        store.failures = 1
+        val pipeline = pipeline()
+        val job = launch { pipeline.run() }
+        pipeline.offer(sample(dy = 100, uptimeMs = 1))
+        runCurrent()
+        val key = "2026-09-21" to com.scrollmeter.app.measurement.APP
+        assertThat(monitor.unflushed.value.getValue(key)).isWithin(1e-9).of(mmPer100Px)
+        advanceTimeBy(MeasurementConfig.FLUSH_INTERVAL_MS + 1) // the write fails: still unflushed
+        assertThat(monitor.unflushed.value.getValue(key)).isWithin(1e-9).of(mmPer100Px)
+        advanceTimeBy(MeasurementConfig.FLUSH_INTERVAL_MS) // the retry succeeds
+        assertThat(monitor.unflushed.value).isEmpty()
+        assertThat(store.distanceMm).isWithin(1e-9).of(mmPer100Px)
+        job.cancel()
+    }
+
+    @Test
     fun theOwnPackageInTestModeIsMeasuredLiveButNeverStored() = runTest {
         settings.enterTestMode()
         val pipeline = pipeline()
@@ -148,6 +165,7 @@ class ScrollPipelineTest {
         job.join()
         assertThat(monitor.selfTest.value.events).isEqualTo(1)
         assertThat(store.writes).isEmpty()
+        assertThat(monitor.unflushed.value).isEmpty()
     }
 
     @Test
