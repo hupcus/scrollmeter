@@ -5,7 +5,7 @@ It always picks up the first unfinished phase from `handoff.md`, so the same tex
 
 ---
 
-Pracuj v `/Users/hupcus/Documents/VIBE-CODE/SCROLLMETER` — ScrollMeter (Android, Kotlin, Compose), repo `hupcus/scrollmeter`. Phase 0 a Phase 1 (měřicí POC) jsou hotové a mergnuté (tagy `v0.0`, `v0.1`).
+Pracuj v `/Users/hupcus/Documents/VIBE-CODE/SCROLLMETER` — ScrollMeter (Android, Kotlin, Compose), repo `hupcus/scrollmeter`. Stav fází, tagy a rozpracovanou práci najdeš v `handoff.md`.
 
 **Nejdřív přečti:**
 - `CLAUDE.md`,
@@ -13,7 +13,7 @@ Pracuj v `/Users/hupcus/Documents/VIBE-CODE/SCROLLMETER` — ScrollMeter (Androi
 - z `PLAN.md` oddíly 1 (hotová rozhodnutí včetně D19), 5 (testování), 6 (rizika), 7 (git a proces) a **fázi, na kterou je řada** = první nedokončená v tabulce „Stav fází“ v `handoff.md`,
 - ADR v `docs/measurement-decisions.md`.
 
-Ze `docs/SPEC.md` otevírej jen oddíly, které ta fáze cituje. Než začneš, ověř, že na `main` je mergnutý plán „čas v aplikaci“ (D19 v `PLAN.md`, ADR-021/022). Pokud je PR #3 ještě otevřený a CI je zelené, mergni ho jako první krok — tímto ti to schvaluju.
+Ze `docs/SPEC.md` otevírej jen oddíly, které ta fáze cituje. **Rozpracovaná fáze:** když `handoff.md` u fáze uvádí větev a PR a oddíl „Zbývá“, pokračuj na té větvi přesně od „Zbývá“ — nezakládej novou větev a neopakuj hotové kroky (Stage 0, `/topshit`, bezpečnostní review), pokud se od nich nezměnil kód.
 
 **Telefon je vrácený do původního stavu** (2026-09-24): ScrollMeter odinstalovaný, služba Usnadnění vypnutá, displej při nabíjení normálně zhasíná. Připrav si ho znovu:
 1. `installDebug`.
@@ -27,7 +27,7 @@ Pokud telefon `settings put` odmítne, řekni mi, ať zapnu **Volby vývojáře 
 4. Smaž výpisy `uiautomator` ze `/sdcard`.
 5. Nakonec mi řekni, ať přepínač sledování oprávnění vypnu sám. Telefon mezitím zhasne a zamkne se, dlouhé hledání přes uiautomator nefunguje.
 
-**Úkol:** udělej tu jednu fázi přesně v rozsahu `PLAN.md`, nic z pozdějších fází. Pracuj na větvi `phase-N-…` z aktuálního `main`.
+**Úkol:** udělej tu jednu fázi přesně v rozsahu `PLAN.md`, nic z pozdějších fází. Nová fáze = větev `phase-N-…` z aktuálního `main`; rozpracovaná fáze = její existující větev.
 - **Stage 0:** impact analýza, protože fáze sahá na existující moduly.
 - **Testy:** unit testy podle PLAN.
 - **Ověření na telefonu:** OnePlus, serial v `CLAUDE.md`. Co musím udělat ručně (kalibrace kartou, restart telefonu, Přístup k údajům o využití), mi napiš jako přesný postup krok za krokem a počkej.
@@ -59,5 +59,5 @@ Pokud telefon `settings put` odmítne, řekni mi, ať zapnu **Volby vývojáře 
 - **Konstanty a přístup k Androidu:** každá změna = ADR.
 - **Velké výstupy:** gradle výstupy směřuj do scratchpadu a grepuj, nečti je celé.
 - **Screenshoty** ověřuj subagentem, obrázek nedávej do hlavního kontextu.
-- **Telefon:** `uiautomator dump` odpojí služby Usnadnění. ColorOS při nedostatku paměti zabíjí proces služby. Záznam z debug buildu se čte přes `run-as` (viz `CLAUDE.md`).
+- **Telefon:** `uiautomator dump` odpojí služby Usnadnění — domovská obrazovka se pak přeskládá a klepnutí podle souřadnic z výpisu mine; po obrazovkách proto naviguj s vypnutou službou a zapni ji až potom. ColorOS při nedostatku paměti zabíjí proces služby. Záznam z debug buildu se čte přes `run-as` (viz `CLAUDE.md`). USB kabel občas na chvíli vypadne — `adb get-state` a opakovat.
 - **Poctivost:** když něco nejde ověřit, napiš to, nepředstírej.

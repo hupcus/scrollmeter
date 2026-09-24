@@ -19,7 +19,7 @@
 | AGP | **8.13.2** | 8.13.2 | AGP 9 ne (built-in Kotlin, KSP/Room ekosystém) |
 | Kotlin / KSP | 2.3.21 / 2.3.11 | 2.3.21 / 2.3.11 (stdlib 2.3.21) | Compose compiler v Kotlinu |
 | Compose BOM | **2026.06.01** | → compose-ui/foundation/runtime **1.11.4**, material3 **1.4.0** | 2026.08 chce compileSdk 37 + AGP 9.1 |
-| Room / DataStore | 2.8.4 / 1.1.7 | Room 2.8.4 (runtime + KSP compiler zapojené, zatím bez `@Database`); DataStore až Phase 2/3 | |
+| Room / DataStore | 2.8.4 / 1.1.7 | Room 2.8.4 (runtime + KSP compiler zapojené, zatím bez `@Database`); DataStore Preferences 1.1.7 zapojený v Phase 2 (kalibrace) — pin beze změny, tranzitivně přibylo `com.squareup.okio:okio 3.4.0`, coroutines zůstávají 1.10.2 | |
 | Navigation / Lifecycle / Activity / core-ktx | 2.9.8 / 2.9.4 / 1.13.0 / 1.18.0 | Lifecycle 2.9.4, Activity Compose 1.13.0, core-ktx 1.18.0; Navigation až Phase 4 | |
 | coroutines | 1.10.2 | 1.10.2 | |
 | Testy | JUnit 4.13.2 · Truth 1.4.5 · Robolectric 4.16 | JUnit 4.13.2 + Truth 1.4.5; Robolectric až s Room (Phase 3) | |
@@ -38,13 +38,32 @@
 |---|---|---|---|
 | 0 Bootstrap | hotovo, mergnuto (tag `v0.0`) | `phase-0-bootstrap` / [#1](https://github.com/hupcus/scrollmeter/pull/1) | build/test/lint zelené lokálně i v CI; `installDebug` + spuštění na OnePlus OK |
 | 1 Measurement POC | **GO (Honza, 2026-09-23)** | `phase-1-measurement-poc` / [#2](https://github.com/hupcus/scrollmeter/pull/2) | bez doměření Instagramu / TikToku — přijaté riziko |
-| 2 Kalibrace | nezačato — **další na řadě** | — | prompt: `docs/prompts/continue-next-phase.md` |
+| 2 Kalibrace | **rozpracováno** — kód hotový, CI zelené; chybí kalibrace kartou + MAPE s ní (viz „Phase 2 — stav“) | `phase-2-calibration` / [#4](https://github.com/hupcus/scrollmeter/pull/4) | pokračovat promptem `docs/prompts/continue-next-phase.md` na téže větvi |
 | 3 Persistence | nezačato | — | + čas v aplikaci (D19) |
 | 4 Dashboard | nezačato | — | |
 | 5 Historie + Aplikace | nezačato | — | |
 | 6 Export + Nastavení | nezačato | — | |
 | 7 Onboarding + Policy | nezačato | — | |
 | 8 Release | nezačato | — | |
+
+## Phase 2 — stav (2026-09-24, přerušeno na Honzovo přání)
+
+**Hotovo a ověřené** (větev `phase-2-calibration`, PR #4, CI zelené, 4 commity):
+- Kalibrace kartou: `CalibrationRepository` (DataStore), `calibrationVersion`, `PhysicalScaleProvider.resolve` (karta přes xdpi/ydpi jen na stejném telefonu a rozlišení — ADR-024), obrazovky **Kalibrace displeje** (svislá čára — ADR-023) a **Přesnost měření** (SPEC §33), karta na domovské obrazovce.
+- Služba čeká na uloženou kalibraci před první událostí a změny přebírá živě; každý výsledek nese svou verzi kalibrace (SPEC §65).
+- Testovací seznam: MAE / MAPE přes sérii běhů; `TESTLIST` a hlavička debug CSV nesou kalibraci; logcat řádek `cv=`.
+- `tools/accuracy.py` + `device_accuracy.py --csv-out`.
+- Brány: 91 JVM testů, lint 0 chyb (6 warningů jsou staré `SetTextI18n` v debug View ploše z Phase 1), debug + release build, 19 Python testů, manifest policy. Release APK bez debug tříd, jediné oprávnění `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`.
+- Na telefonu: nakreslená čára má na screenshotu přesně tolik px, kolik ukazuje (1356, 1359); engine s kartou `544 px → 34,265 mm` = 85,60 / 1359, `cv=1`; „Přeskočit – použít automatický odhad“ přepnul běžící službu bez reconnectu (`cv=2`, 25,4 / ydpi); na šířku nejde uložit; Zpět vede tam, odkud se přišlo; dvojí tap uloží jednou.
+- `/topshit` (7/10) nad kumulativním diffem — tři nálezy opravené a ověřené na telefonu (čára se na OnePlusu nevešla: 1219 px místo ~1356; na šířku šla uložit nesmyslná kalibrace; Zpět a dvojí tap). Bezpečnostní čtení (Stage 2): manifest ani accessibility config se nezměnily, nové soubory jen app-private DataStore (`rw-------`), žádné logy / intenty / síť v novém kódu, uložené hodnoty se validují — bez nálezu.
+
+**Zbývá (v tomhle pořadí):**
+1. Připravit telefon z větve `phase-2-calibration`: `installDebug`, `stay_on_while_plugged_in 7`. Debug build byl odinstalovaný, takže kalibrace je pryč (verze 0).
+2. Otevřít **Kalibrace displeje** (Domů → *Zkalibrovat displej*) — naviguj s **vypnutou** službou (uiautomator výpis ji odpojí a domovská obrazovka se přeskládá), službu zapni až na obrazovce kalibrace.
+3. **Honza — kalibrace kartou** (přesný postup mu napsat znovu): telefon na výšku na stole; karta velikosti platební karty (i občanka, řidičák) na výšku hned vpravo od svislé modré čáry, horní hranou na horní vodorovnou linku; posuvníkem spodní linku ke spodní hraně karty, doladit − / +; kartu sundat → *Uložit kalibraci*; pak ~3 min na telefon nesahat.
+4. Zkontrolovat mm/px proti 0,0630 (xdpi) — odchylka > 5 % = chyba v raw px. Zapsat do `docs/accuracy-testing.md` (tabulka Devices, sloupec „Manual card mm/px“).
+5. `python3 tools/device_accuracy.py --surface view,column --markdown --csv-out <scratch>` + `tools/accuracy.py` → MAPE < 5 % (cíl < 2 %) s `MANUAL_CARD` zapsat do „Accuracy runs“.
+6. Odškrtnout DoD v popisu PR #4, dopsat tenhle oddíl a log, stav fáze → „hotovo, čeká na merge“, push, CI zelené, napsat „mergni?“ a čekat. `/topshit` a bezpečnostní review neopakovat, pokud se nezměnil kód.
 
 ## Phase 1 — exit report (2026-09-23)
 
@@ -116,19 +135,32 @@ Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
   **Otevřené pro Honzu:**
   - tagline SPEC §55 „Metry místo minut" → nechat, nebo „metry i minuty"? Rozhodne se ve Phase 7.
   - denní pojistný sync přes WorkManager pro někoho, kdo 10+ dní neotevře aplikaci? Návrh: ne.
+- [ ] **`calibrationVersion` po ztrátě dat začne znovu od 0** (poškozený soubor DataStore → prázdný, v Phase 6 „Smazat všechna data“). Phase 3 musí rozhodnout, jestli má být verze unikátní napříč historií agregací (např. držet maximum i v Room).
+- [ ] Repo nemá Gradle dependency verification (`gradle/verification-metadata.xml`) — supply-chain pojistka nad piny; samostatné rozhodnutí.
+- [ ] Testovací telefon: USB spojení dnes 2× na chvíli vypadlo — zkontrolovat kabel / port.
 - [ ] Tagy: fáze se tagují `v0.N` (v0.0, v0.1 …), ale Phase 8 plánuje release tag `v0.1.0` — kolize názvů, přejmenovat release tag (např. `v1.0.0-rc1`) nejpozději ve Phase 8.
-- [x] Testovací telefon vrácen do původního stavu (2026-09-24, na Honzovo přání):
+- [x] Testovací telefon vrácen do původního stavu (2026-09-24 ráno a znovu 2026-09-24 po přerušení Phase 2, na Honzovo přání):
   - služba Usnadnění vypnutá,
   - `accessibility_enabled 0`,
   - `stay_on_while_plugged_in 0`,
-  - debug build odinstalovaný (i se záznamem),
-  - výpisy `uiautomator` smazané.
-  Přepínač **Zakázat sledování oprávnění** vrací Honza ručně, telefon byl zamčený. Další session si telefon připraví znovu, postup je v `docs/prompts/continue-next-phase.md`.
+  - debug build odinstalovaný (i s kalibrací a záznamem),
+  - výpisy `uiautomator` smazané,
+  - automatické otáčení vrácené na původní hodnotu (`accelerometer_rotation 1`, `user_rotation 0`; Phase 2 testovala landscape).
+  Přepínač **Zakázat sledování oprávnění** vrací Honza ručně. Další session si telefon připraví znovu, postup je v `docs/prompts/continue-next-phase.md`.
 - [ ] Emulátory: ověřit, že pro API 28 existuje arm64 systémový obraz (`sdkmanager --list | grep android-28`).
 - [ ] Ikona a barva aplikace — až Phase 4 (SPEC §42 nechává na implementaci).
 - [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-24 — Phase 2 kalibrace, rozpracováno (Opus 5.5)
+- PR #3 (plán „čas v aplikaci“) mergnutý jako první krok (`e7f761f`), po schválení v promptu.
+- Stage 0 (`/impact`): riziko HIGH — měřítko násobí každou vzdálenost a mění se start pipeline ve službě.
+- ADR-023: kalibrační čára je **svislá** (odchylka od SPEC §8 „vodorovný pruh“) — 85,60 mm se na šířku telefonu nevejde (1080 px ≈ 68 mm). Start délky = průměr os z xdpi/ydpi.
+- ADR-024: kalibrace v DataStore; `calibrationVersion` počítá změny uživatele; karta platí jen pro stejného výrobce + model + rozlišení panelu (jinak xdpi/ydpi a Přesnost to řekne); `DisplayMetricsProvider` zůstává na `getRealMetrics` (PLAN zmiňoval `WindowMetrics`).
+- Bez nových konstant v `MeasurementConfig`; rozsah čáry vychází z existujícího 100–1000 dpi (ADR-016). Piny beze změny, DataStore zapojen (okio 3.4.0 tranzitivně).
+- Nálezy z telefonu (opraveno): čára se nevešla (max 1219 px, karta ~1356 px) → nadpis a text vedle čáry; na šířku šla uložit +222 % → čára na okraji displeje zakáže Uložit.
+- Přerušeno na Honzovo přání před kalibrací kartou; telefon vrácen. Co zbývá: oddíl „Phase 2 — stav“.
 
 ### 2026-09-23 — plán: čas v aplikaci (Opus 5.5, návrh Fable 5.1)
 - Honza chce kompletní dashboard: kolik času a kolik metrů v které aplikaci. Prověřeno z primárních zdrojů (AOSP, Google Play policy):
@@ -175,4 +207,4 @@ Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
 
 ## Jak navázat
 
-Nová session: vlož prompt z `docs/prompts/continue-next-phase.md` — přečte `CLAUDE.md`, tenhle soubor a první nedokončenou fázi z `PLAN.md` a jede fázi po fázi s „mergni?“ na konci každé. Historický kickoff Phase 0+1: `docs/prompts/kickoff-phase-0-1.md`.
+Nová session: vlož prompt z `docs/prompts/continue-next-phase.md` — přečte `CLAUDE.md`, tenhle soubor a první nedokončenou fázi z `PLAN.md` a jede fázi po fázi s „mergni?“ na konci každé. Rozpracovanou fázi (teď Phase 2) dokončí na její větvi od oddílu „Zbývá“. Historický kickoff Phase 0+1: `docs/prompts/kickoff-phase-0-1.md`.
