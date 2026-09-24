@@ -6,7 +6,11 @@ import check_manifest_policy as tool
 
 GOOD = """<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.scrollmeter.app">
   <uses-permission android:name="com.scrollmeter.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"/>
-  <application android:allowBackup="false">
+  <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"/>
+  <application android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules">
+    <activity android:name="com.scrollmeter.app.MainActivity" android:exported="true"/>
+    <receiver android:name="androidx.profileinstaller.ProfileInstallReceiver" android:exported="true"
+        android:permission="android.permission.DUMP"/>
     <service android:name="com.scrollmeter.app.accessibility.ScrollAccessibilityService"
         android:exported="false" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"/>
     %s
@@ -26,6 +30,38 @@ class CheckManifestPolicyTest(unittest.TestCase):
     def test_foreground_service_types_are_caught_by_prefix(self):
         bad = GOOD.replace("<application", '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/><application')
         self.assertEqual(len(tool.violations(bad % "", release=False)), 1)
+
+    def test_permission_outside_the_allowlist_is_caught(self):
+        for name in ("android.permission.POST_NOTIFICATIONS", "android.permission.READ_CONTACTS",
+                              "com.other.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+                     "com.scrollmeter.app.other.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"):
+            bad = GOOD.replace("<application", f'<uses-permission android:name="{name}"/><application')
+            self.assertEqual(tool.violations(bad % "", release=True), [f"permission not in the allowlist {name}"])
+
+    def test_debug_application_id_permission_is_allowed(self):
+        debug = GOOD.replace("com.scrollmeter.app.DYNAMIC", "com.scrollmeter.app.debug.DYNAMIC").replace(
+            'package="com.scrollmeter.app"', 'package="com.scrollmeter.app.debug"')
+        self.assertEqual(tool.violations(debug % "", release=False), [])
+        # the release package's permission in the debug manifest is someone else's
+        mixed = GOOD.replace('package="com.scrollmeter.app"', 'package="com.scrollmeter.app.debug"')
+        self.assertEqual(len(tool.violations(mixed % "", release=False)), 1)
+
+    def test_sdk23_permission_tag_is_checked_too(self):
+        bad = GOOD.replace("<application", '<uses-permission-sdk-23 android:name="android.permission.READ_CONTACTS"/><application')
+        self.assertEqual(tool.violations(bad % "", release=True), ["permission not in the allowlist android.permission.READ_CONTACTS"])
+
+    def test_missing_data_extraction_rules_is_caught(self):
+        bad = GOOD.replace(' android:dataExtractionRules="@xml/data_extraction_rules"', "")
+        self.assertEqual(tool.violations(bad % "", release=True), ["no dataExtractionRules (device-to-device transfer on API 31+)"])
+
+    def test_compose_preview_activity_is_tolerated_in_debug_only(self):
+        preview = '<activity android:name="androidx.compose.ui.tooling.PreviewActivity" android:exported="true"/>'
+        self.assertEqual(tool.violations(GOOD % preview, release=False), [])
+        self.assertEqual(len(tool.violations(GOOD % preview, release=True)), 1)
+
+    def test_exported_component_without_permission_is_caught(self):
+        receiver = '<receiver android:name="com.lib.Spy" android:exported="true"/>'
+        self.assertEqual(tool.violations(GOOD % receiver, release=True), ["exported receiver without a permission: com.lib.Spy"])
 
     def test_exported_service_is_caught(self):
         bad = GOOD.replace('android:exported="false"', 'android:exported="true"')

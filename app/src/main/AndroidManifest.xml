@@ -1,19 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Permissions: none. ScrollMeter is local-only — no INTERNET, no QUERY_ALL_PACKAGES,
-  no foreground service (CLAUDE.md hard rules; PolicyGuardTest enforces them).
+  Permissions: an allowlist (PolicyGuardTest, tools/check_manifest_policy.py). ScrollMeter is
+  local-only — no INTERNET, no QUERY_ALL_PACKAGES, no foreground service (CLAUDE.md hard rules).
   The accessibility service is protected by BIND_ACCESSIBILITY_SERVICE: only the system binds it.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Time in app (ADR-021, optional): the user grants Usage access in Settings; the app works
+      without it. Only foreground intervals are read and only daily sums per app are stored.
+    -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:name=".ScrollMeterApplication"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ScrollMeter">
+        android:theme="@style/Theme.ScrollMeter"
+        tools:targetApi="31">
 
         <activity
             android:name=".MainActivity"

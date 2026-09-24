@@ -14,11 +14,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
 import com.scrollmeter.app.devtools.DevTools
 import com.scrollmeter.app.ui.calibration.AccuracyScreen
 import com.scrollmeter.app.ui.calibration.CalibrationScreen
 import com.scrollmeter.app.ui.home.HomeScreen
 import com.scrollmeter.app.ui.theme.ScrollMeterTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,6 +35,19 @@ class MainActivity : ComponentActivity() {
                     initialTool = DevTools.toolFromLaunch(intent),
                     onOpenAccessibilitySettings = ::openAccessibilitySettings,
                 )
+            }
+        }
+    }
+
+    /** Time in app is snapshotted whenever the app comes up (ADR-021); without Usage access a no-op. */
+    override fun onResume() {
+        super.onResume()
+        val graph = (application as ScrollMeterApplication).graph
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                graph.usageSyncer.sync()
+            } catch (e: Exception) {
+                // Spec §61: keep what was synced last; the next resume retries.
             }
         }
     }

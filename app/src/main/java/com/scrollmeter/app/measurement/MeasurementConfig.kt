@@ -46,12 +46,39 @@ object MeasurementConfig {
     const val DEDUP_ENABLED = false
     const val DEDUP_WINDOW_MS = 5L
 
-    /** Accumulator flush triggers — used from Phase 3 (spec §16). */
+    /** Accumulator flush triggers (spec §16): every 10 s with data pending, or after 50 events. */
     const val FLUSH_INTERVAL_MS = 10_000L
     const val FLUSH_EVENT_COUNT = 50
 
-    /** A gap longer than this starts a new scroll session — used from Phase 3 (spec §18). */
+    /** A gap longer than this starts a new scroll session (spec §18). */
     const val SCROLL_SESSION_GAP_MS = 60_000L
+
+    /**
+     * Active scroll time (ADR-022, SPEC §50): the gap between two counted events of one package
+     * counts as scrolling when it is at most this long; a longer pause is not scrolling.
+     */
+    const val ACTIVE_SCROLL_GAP_MS = 5_000L
+
+    /**
+     * Time in app (ADR-021): the sync recomputes whole local days from one day before the last
+     * sync, but never further back than this — Android keeps usage events for about ten days.
+     */
+    const val USAGE_SYNC_MAX_DAYS = 9L
+
+    /**
+     * Events are read this far before the first recomputed day, so an app already in the
+     * foreground at midnight is paired with its RESUMED event (ADR-025).
+     */
+    const val USAGE_SYNC_LOOKBACK_MS = 12 * 60 * 60_000L
+
+    /** The service re-syncs time in app on connect when the last sync is older than this (PLAN Phase 3). */
+    const val USAGE_SYNC_STALE_MS = 6 * 60 * 60_000L
+
+    /**
+     * An app whose last activity paused and that resumes again within this window never left the
+     * foreground — switching between its own activities pauses one before resuming the next (ADR-025).
+     */
+    const val USAGE_SAME_APP_GRACE_MS = 2_000L
 
     /** ISO/IEC 7810 ID-1 card width for manual calibration — used from Phase 2 (spec §8). */
     const val CARD_WIDTH_MM = 85.60

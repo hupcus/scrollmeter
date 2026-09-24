@@ -101,3 +101,15 @@ Measured on the test phone (OnePlus CPH2399, Android 14) with the debug test lis
   from a `FrameLayout` and positions from the `WebView` node for the same scroll (ADR-020). What is counted is
   the page's scroll offset: the 168 px the toolbar needs to hide and the 24 px touch slop are not part of it.
 - ⏳ Android 14+ `accessibilityDataSensitive` views and in-app browsers — checked in the manual app run.
+
+## Storing and time — Phase 3
+
+- Results are summed in memory per (local date, package) and **added** to the stored row at each flush (every
+  10 s while data is pending, the 50th event, a new day, interrupt, service end) — ADR-026. A killed process
+  loses at most the unflushed 10 s; an event's day is the local date of its wall-clock time.
+- **Active scroll time** (ADR-022): the gap between two counted events of one app counts when it is ≤ 5 s;
+  gaps use `eventTime` (uptime), so changing the clock cannot create time.
+- **Time in app** (ADR-021, ADR-025) is separate from scrolling: foreground intervals from Android's usage
+  events, split at local midnight. On the API 34 emulator it matched the system's own `totalTimeUsed` to the
+  second. Pace (m/min, Phase 4) divides distance by time in app when Usage access is granted, by active scroll
+  time otherwise.

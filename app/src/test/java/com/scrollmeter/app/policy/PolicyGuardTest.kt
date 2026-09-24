@@ -89,14 +89,21 @@ class PolicyGuardTest {
         assertWithMessage("accessibility code reads or acts on screen content").that(hits).isEmpty()
     }
 
-    /** The measurement engine stays pure Kotlin so it runs on the JVM (D7). */
+    /**
+     * The measurement engine, the aggregation pipeline and the time-in-app logic stay pure Kotlin so
+     * they run on the JVM (D7). In usage/ only the two platform adapters may touch Android.
+     */
     @Test
-    fun measurementPackageHasNoAndroidImports() {
-        val measurement = File(appDir, "src/main/java/com/scrollmeter/app/measurement")
-        val hits = measurement.walkTopDown().filter { it.extension == "kt" }
-            .filter { file -> file.readLines().any { it.startsWith("import android.") || it.startsWith("import androidx.") } }
-            .map { it.name }.toList()
-        assertWithMessage("measurement/ must not import Android").that(hits).isEmpty()
+    fun pureKotlinPackagesHaveNoAndroidImports() {
+        val main = File(appDir, "src/main/java/com/scrollmeter/app")
+        val pure = listOf("measurement", "aggregation", "data/model", "usage").flatMap { dir ->
+            File(main, dir).walkTopDown().filter { it.extension == "kt" }.toList()
+        }.filterNot { it.name in USAGE_PLATFORM_ADAPTERS }
+        assertWithMessage("expected the pure packages to be scanned").that(pure.map { it.name })
+            .containsAtLeast("ScrollMeasurementEngine.kt", "ScrollPipeline.kt", "ForegroundTimeAggregator.kt", "UsageSyncer.kt")
+        val hits = pure.filter { file -> file.readLines().any { it.startsWith("import android.") || it.startsWith("import androidx.") } }
+            .map { it.name }
+        assertWithMessage("pure packages must not import Android").that(hits).isEmpty()
     }
 
     @Test
@@ -113,10 +120,48 @@ class PolicyGuardTest {
         assertWithMessage("packageNames must not be set to specific apps").that(attr("packageNames")).isEmpty()
     }
 
+    /**
+     * Permissions are an allowlist: PACKAGE_USAGE_STATS for time in app (ADR-021). Phase 6 adds
+     * POST_NOTIFICATIONS; anything else needs an ADR and Honza's OK.
+     */
     @Test
-    fun mainManifestRequestsNoPermissions() {
+    fun mainManifestRequestsOnlyAllowedPermissions() {
+        val root = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+            .newDocumentBuilder().parse(File(appDir, "src/main/AndroidManifest.xml")).documentElement
+        val requested = listOf("uses-permission", "uses-permission-sdk-23").flatMap { tag ->
+            root.getElementsByTagName(tag).let { nodes ->
+                (0 until nodes.length).map { (nodes.item(it) as org.w3c.dom.Element).getAttributeNS(ANDROID_NS, "name") }
+            }
+        }
+        assertWithMessage("uses-permission outside the allowlist").that(requested - ALLOWED_PERMISSIONS).isEmpty()
+        val otherManifests = sourceSets.filter { it.name != "main" }.map { File(it, "AndroidManifest.xml") }.filter { it.isFile }
+        otherManifests.forEach { assertWithMessage("uses-permission in ${it.path}").that(it.readText()).doesNotContain("<uses-permission") }
+    }
+
+    /** ADR-027: no backup and no device-to-device transfer — every domain excluded in both sections. */
+    @Test
+    fun nothingLeavesThePhoneThroughBackupOrTransfer() {
         val manifest = File(appDir, "src/main/AndroidManifest.xml").readText()
-        assertWithMessage("uses-permission in the main manifest").that(manifest).doesNotContain("<uses-permission")
+        assertThat(manifest).contains("android:allowBackup=\"false\"")
+        assertThat(manifest).contains("android:dataExtractionRules=\"@xml/data_extraction_rules\"")
+        val rules = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+            .parse(File(appDir, "src/main/res/xml/data_extraction_rules.xml")).documentElement
+        for (section in listOf("cloud-backup", "device-transfer")) {
+            val element = rules.getElementsByTagName(section).item(0) as org.w3c.dom.Element
+            assertWithMessage("$section includes something").that(element.getElementsByTagName("include").length).isEqualTo(0)
+            val excluded = element.getElementsByTagName("exclude").let { nodes ->
+                (0 until nodes.length).map { nodes.item(it) as org.w3c.dom.Element }
+                    .filter { it.getAttribute("path") == "." }.map { it.getAttribute("domain") }
+            }
+            assertWithMessage("$section excluded domains").that(excluded).containsAtLeast("root", "file", "database", "sharedpref", "external")
+        }
+    }
+
+    /** The one class allowed to read usage events; everything else gets samples from it (ADR-021). */
+    @Test
+    fun onlyUsageEventsSourceReadsUsageEvents() {
+        val readers = sources.filter { it.extension == "kt" && "android.app.usage" in stripComments(it.readText(), "kt") }.map { it.name }
+        assertThat(readers).containsExactly("UsageEventsSource.kt")
     }
 
     @Test
@@ -130,6 +175,8 @@ class PolicyGuardTest {
 
     private companion object {
         const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
+        val ALLOWED_PERMISSIONS = setOf("android.permission.PACKAGE_USAGE_STATS")
+        val USAGE_PLATFORM_ADAPTERS = setOf("UsageEventsSource.kt", "UsageAccessChecker.kt")
 
         /**
          * Comments may name forbidden things to explain why they are absent; only code counts —

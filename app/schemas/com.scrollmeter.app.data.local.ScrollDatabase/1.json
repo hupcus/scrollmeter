@@ -1,0 +1,221 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "009e5ab1ff272dc7740a922ac08aea46",
+    "entities": [
+      {
+        "tableName": "daily_app_aggregate",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `packageName` TEXT NOT NULL, `distanceMm` REAL NOT NULL, `horizontalDistanceMm` REAL NOT NULL, `verticalDistanceMm` REAL NOT NULL, `rawDeltaXPx` INTEGER NOT NULL, `rawDeltaYPx` INTEGER NOT NULL, `measuredEventCount` INTEGER NOT NULL, `fallbackEventCount` INTEGER NOT NULL, `unmeasurableEventCount` INTEGER NOT NULL, `rejectedOutlierCount` INTEGER NOT NULL, `firstEventTimestamp` INTEGER, `lastEventTimestamp` INTEGER, `calibrationVersion` INTEGER NOT NULL, `activeScrollMs` INTEGER NOT NULL, PRIMARY KEY(`date`, `packageName`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "packageName",
+            "columnName": "packageName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distanceMm",
+            "columnName": "distanceMm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "horizontalDistanceMm",
+            "columnName": "horizontalDistanceMm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "verticalDistanceMm",
+            "columnName": "verticalDistanceMm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawDeltaXPx",
+            "columnName": "rawDeltaXPx",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawDeltaYPx",
+            "columnName": "rawDeltaYPx",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measuredEventCount",
+            "columnName": "measuredEventCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fallbackEventCount",
+            "columnName": "fallbackEventCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unmeasurableEventCount",
+            "columnName": "unmeasurableEventCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rejectedOutlierCount",
+            "columnName": "rejectedOutlierCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstEventTimestamp",
+            "columnName": "firstEventTimestamp",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastEventTimestamp",
+            "columnName": "lastEventTimestamp",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "calibrationVersion",
+            "columnName": "calibrationVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeScrollMs",
+            "columnName": "activeScrollMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date",
+            "packageName"
+          ]
+        }
+      },
+      {
+        "tableName": "scroll_session",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `startTimestamp` INTEGER NOT NULL, `endTimestamp` INTEGER NOT NULL, `distanceMm` REAL NOT NULL, `eventCount` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "packageName",
+            "columnName": "packageName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startTimestamp",
+            "columnName": "startTimestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endTimestamp",
+            "columnName": "endTimestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distanceMm",
+            "columnName": "distanceMm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventCount",
+            "columnName": "eventCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_scroll_session_startTimestamp",
+            "unique": false,
+            "columnNames": [
+              "startTimestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_scroll_session_startTimestamp` ON `${TABLE_NAME}` (`startTimestamp`)"
+          }
+        ]
+      },
+      {
+        "tableName": "daily_app_usage",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `packageName` TEXT NOT NULL, `foregroundMs` INTEGER NOT NULL, `launchCount` INTEGER NOT NULL, `lastEventTimestamp` INTEGER, `syncedAt` INTEGER NOT NULL, PRIMARY KEY(`date`, `packageName`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "packageName",
+            "columnName": "packageName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "foregroundMs",
+            "columnName": "foregroundMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "launchCount",
+            "columnName": "launchCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastEventTimestamp",
+            "columnName": "lastEventTimestamp",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "syncedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date",
+            "packageName"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '009e5ab1ff272dc7740a922ac08aea46')"
+    ]
+  }
+}

@@ -21,7 +21,11 @@ The `<service>` is `android:exported="false"` and protected by `android.permissi
 - Event type: `TYPE_VIEW_SCROLLED` only.
 - Fields read: `eventTime`, `packageName`, `windowId`, `className`, `scrollDeltaX`, `scrollDeltaY`, `scrollX`, `scrollY`,
   `maxScrollX`, `maxScrollY` — in `AccessibilityEventParser`, the only class that touches `AccessibilityEvent`.
-- Stored: aggregated distance and counters per day and package; in debug builds a RAM ring buffer of the fields above.
+- Stored (Room, app-private; no cloud backup and no device-to-device transfer — `allowBackup=false` plus
+  `dataExtractionRules` excluding everything, ADR-027): distance, event counters, first/last event time and active
+  scroll time per day and package, plus closed scroll sessions (package, start, end, distance, event count).
+  Never an individual event. ScrollMeter's own package is never stored. Debug builds additionally keep the
+  fields above in a RAM ring buffer and a debug CSV.
 
 ## What we never do
 
@@ -37,7 +41,9 @@ Two guards fail CI:
   XML; comments ignored, string literals kept), content reads or runtime `setServiceInfo` in any file touching
   accessibility types, and the XML pins of the service config.
 - `tools/check_manifest_policy.py` — the **merged** debug and release manifests, so a permission a library
-  adds is caught too; release must carry no debug `FileProvider`.
+  adds is caught too (`uses-permission` and `uses-permission-sdk-23`, against the allowlist); `allowBackup=false`
+  and `dataExtractionRules` present; no exported component without a permission except the launcher activity;
+  release must carry no debug `FileProvider`.
 
 `Do not expand requested accessibility capabilities without a documented product need and privacy/policy review.`
 (the comment lives above the service class; ADR-013 — Chrome/WebView coverage — was settled by measurement: the
@@ -47,8 +53,14 @@ flag stays `false`).
 
 Time spent in each app comes from Android's usage statistics (`PACKAGE_USAGE_STATS`, granted by the user in
 *Přístup k údajům o využití*), **not** from the accessibility service. It adds no accessibility event type, no
-content access and no network; ScrollMeter stores only the minutes per app and day. The app works fully without
-it (time then shows as "—"). Disclosure and onboarding step: Phase 7.
+content access and no network; ScrollMeter stores only the foreground milliseconds, the number of launches and the
+time of the last event per app and day (`daily_app_usage`). Activity class names are read only to pair an
+activity's start with its end and are never stored (ADR-025). `UsageEventsSource` is the only class that touches
+`android.app.usage` (`PolicyGuardTest` pins it). The app works fully without it (time then shows as "—").
+Disclosure and onboarding step: Phase 7.
+
+Permissions are an **allowlist** in both guards: `PACKAGE_USAGE_STATS` now, `POST_NOTIFICATIONS` from Phase 6.
+Anything else fails CI and needs an ADR plus Honza's OK.
 
 ## Why minimal
 
