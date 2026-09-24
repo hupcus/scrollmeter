@@ -1,7 +1,14 @@
 package com.scrollmeter.app.ui.onboarding
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -14,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -23,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,9 +41,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
@@ -104,10 +117,12 @@ fun OnboardingScreen(graph: AppGraph, onOpenAccessibilitySettings: () -> Unit) {
         OnboardingStep.WELCOME -> StepPage(step, stringResource(R.string.onboarding_welcome_title), actions = {
             Button(onClick = ::forward, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.onboarding_start)) }
         }) {
+            // The launcher icon as the home screen shows it: its white mark on its own blue.
             Image(
                 painterResource(R.drawable.ic_launcher_foreground),
                 contentDescription = null,
-                modifier = Modifier.size(120.dp).align(Alignment.CenterHorizontally),
+                modifier = Modifier.size(120.dp).clip(CircleShape).background(colorResource(R.color.ic_launcher_background))
+                    .align(Alignment.CenterHorizontally),
             )
             Body(R.string.onboarding_welcome_body)
             Text(stringResource(R.string.onboarding_welcome_claim), style = MaterialTheme.typography.titleMedium)
@@ -155,7 +170,12 @@ fun OnboardingScreen(graph: AppGraph, onOpenAccessibilitySettings: () -> Unit) {
             ServiceState(state.serviceEnabled)
             if (!state.serviceEnabled) {
                 Body(R.string.onboarding_enable_steps)
-                Hint(R.string.onboarding_enable_restricted)
+                // Android 13+ blocks the switch for apps installed outside a store until "Allow restricted
+                // settings" in App info — one tap there instead of a path to find.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    Hint(R.string.onboarding_enable_restricted)
+                    TextButton(onClick = { openAppInfo(context) }) { Text(stringResource(R.string.onboarding_open_app_info)) }
+                }
             }
             Hint(R.string.onboarding_enable_force_stop)
         }
@@ -203,7 +223,7 @@ private fun StepPage(step: OnboardingStep, title: String, actions: @Composable C
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             StepIndicator(step)
-            Text(title, style = MaterialTheme.typography.headlineMedium)
+            Text(title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
             body()
         }
     }
@@ -249,5 +269,14 @@ private fun ServiceState(enabled: Boolean) {
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(16.dp),
         )
+    }
+}
+
+/** App info of ScrollMeter, where Android 13+ offers "Allow restricted settings". Needs no permission. */
+private fun openAppInfo(context: Context) {
+    try {
+        context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+    } catch (e: ActivityNotFoundException) {
+        // No App info screen on this device: the text above still says where to go.
     }
 }

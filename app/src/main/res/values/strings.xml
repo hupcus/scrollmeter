@@ -106,6 +106,7 @@
     <string name="onboarding_enable_title">Zapni měření</string>
     <string name="onboarding_enable_steps">V nastavení, které se otevře, najdi ScrollMeter (bývá v části „Stažené aplikace“ nebo „Nainstalované aplikace“) a zapni ho. Android ukáže obecné varování, co služby Usnadnění smějí — ScrollMeter z toho používá jen události scrollování.</string>
     <string name="onboarding_enable_restricted">Když Android napíše „Omezené nastavení“: otevři Nastavení › Aplikace › ScrollMeter, vpravo nahoře v nabídce ⋮ zvol „Povolit omezená nastavení“ a zkus to znovu. Týká se to aplikací nainstalovaných mimo Obchod Play.</string>
+    <string name="onboarding_open_app_info">Otevřít informace o aplikaci</string>
     <string name="onboarding_enable_force_stop">Když ScrollMeter v nastavení aplikací vynuceně zastavíš, Android měření vypne. Pak ho tady nebo na přehledu zapni znovu.</string>
     <string name="onboarding_enable_waiting">Měření zatím není zapnuté.</string>
     <string name="onboarding_enable_done">Měření je zapnuté.</string>

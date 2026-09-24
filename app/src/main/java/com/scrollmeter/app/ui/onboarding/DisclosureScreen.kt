@@ -13,7 +13,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -39,6 +43,8 @@ fun ColumnScope.DisclosureTexts() {
 fun DisclosureScreen(graph: AppGraph, onAccepted: () -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // A double tap must not open the settings twice.
+    var accepting by remember { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -47,11 +53,13 @@ fun DisclosureScreen(graph: AppGraph, onAccepted: () -> Unit, onBack: () -> Unit
         DisclosureTexts()
         Button(
             onClick = {
-                scope.launchWrite(context) {
+                accepting = true
+                scope.launchWrite(context, onFailure = { accepting = false }) {
                     graph.settingsRepository.setPrivacyDisclosureAccepted(true)
                     onAccepted()
                 }
             },
+            enabled = !accepting,
             modifier = Modifier.fillMaxWidth(),
         ) { Text(stringResource(R.string.disclosure_accept)) }
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.back)) }

@@ -87,6 +87,7 @@
     <string name="onboarding_enable_title">Turn on measuring</string>
     <string name="onboarding_enable_steps">In the settings that open, find ScrollMeter (usually under “Downloaded apps” or “Installed apps”) and turn it on. Android shows a general warning about what accessibility services may do — ScrollMeter uses only scroll events.</string>
     <string name="onboarding_enable_restricted">If Android says “Restricted setting”: open Settings › Apps › ScrollMeter, choose “Allow restricted settings” in the ⋮ menu at the top right and try again. This applies to apps installed outside the Play Store.</string>
+    <string name="onboarding_open_app_info">Open app info</string>
     <string name="onboarding_enable_force_stop">If you force stop ScrollMeter in the app settings, Android turns measuring off. Turn it on again here or on the overview.</string>
     <string name="onboarding_enable_waiting">Measuring is not on yet.</string>
     <string name="onboarding_enable_done">Measuring is on.</string>
@@ -261,7 +262,7 @@
     <string name="calibration_instruction">Put a payment card against the display and use the slider to make the blue line as long as the card’s longer side.</string>
     <string name="calibration_hint">Place the card upright right next to the blue line, its top edge on the top mark. Fine-tune the bottom mark with − and +.</string>
     <string name="calibration_value">Line %1$s px · 1 pixel = %2$s mm</string>
-    <string name="calibration_vs_auto">%1$s %% against the estimate</string>
+    <string name="calibration_vs_auto">compared with the automatic estimate: %1$s %%</string>
     <string name="calibration_too_small">A longer line does not fit here. Hold the phone upright.</string>
     <string name="calibration_shorter">Shorten the line by 1 pixel</string>
     <string name="calibration_longer">Lengthen the line by 1 pixel</string>
