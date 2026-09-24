@@ -2,6 +2,7 @@ package com.scrollmeter.app
 
 import android.content.Context
 import com.scrollmeter.app.accessibility.AccessibilityStatusChecker
+import com.scrollmeter.app.apps.AppInfoProvider
 import com.scrollmeter.app.calibration.CalibrationRepository
 import com.scrollmeter.app.calibration.CalibrationState
 import com.scrollmeter.app.calibration.DisplayMetricsProvider
@@ -41,6 +42,9 @@ class AppGraph(context: Context) {
     val scrollRepository by lazy { ScrollRepository(database.scrollDao(), monitor.unflushed) }
 
     val usageAccessChecker by lazy { UsageAccessChecker(appContext) }
+
+    /** Labels and icons for the UI (ADR-008) — never used by the measurement pipeline. */
+    val appInfoProvider by lazy { AppInfoProvider(appContext) }
     val usageSyncer by lazy {
         UsageSyncer(
             reader = UsageEventsSource(appContext),

@@ -15,6 +15,17 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!--
+      ADR-008: app names and icons on the dashboard. Makes apps with a launcher entry visible to
+      PackageManager (API 30+) — no QUERY_ALL_PACKAGES. PolicyGuardTest allows exactly this query.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:name=".ScrollMeterApplication"
         android:allowBackup="false"

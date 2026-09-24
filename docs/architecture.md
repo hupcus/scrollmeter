@@ -65,6 +65,9 @@ com.scrollmeter.app
 ├── usage           ForegroundTimeAggregator, UsageSyncer, UsageEvents (pure Kotlin);
 │                   UsageEventsSource, UsageAccessChecker (the only Android parts)
 ├── settings        Settings, SettingsRepository (DataStore)
+├── format          DistanceFormatter, TimeFormatter (pure Kotlin — ADR-028)
+├── insights        DistanceComparisonProvider, TopApps (pure Kotlin)
+├── apps            AppInfoProvider (labels + icons via PackageManager, cached; UI only — ADR-008)
 ├── ui              onboarding, dashboard, history, apps, calibration, settings, about, components, theme
 ├── export          CsvExporter
 ├── AppGraph.kt, ScrollMeterApplication.kt, MainActivity.kt
@@ -103,6 +106,7 @@ com.scrollmeter.app
 Bottom bar: Přehled · Historie · Aplikace · Nastavení (Navigation Compose 2.9, type-safe routes).
 Onboarding is a separate graph shown until `onboardingCompleted`.
 
-Until Phase 4 `MainActivity` switches between Home → Přesnost měření (`ui/calibration/AccuracyScreen`) →
-Kalibrace displeje (`ui/calibration/CalibrationScreen`) with a saveable enum; saving or skipping a calibration
-lands on Přesnost.
+Until the bottom bar of Phase 5, `MainActivity` switches on a saveable enum: Přehled (`ui/dashboard/DashboardScreen`)
+→ Přesnost měření (`ui/calibration/AccuracyScreen`) → Kalibrace displeje (`ui/calibration/CalibrationScreen`), and
+Přehled → Čas v aplikacích (`ui/usage/UsageAccessScreen`, the Usage-access disclosure). Saving or skipping a
+calibration lands on Přesnost.

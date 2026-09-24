@@ -39,12 +39,44 @@
 | 0 Bootstrap | hotovo, mergnuto (tag `v0.0`) | `phase-0-bootstrap` / [#1](https://github.com/hupcus/scrollmeter/pull/1) | build/test/lint zelené lokálně i v CI; `installDebug` + spuštění na OnePlus OK |
 | 1 Measurement POC | **GO (Honza, 2026-09-23)** | `phase-1-measurement-poc` / [#2](https://github.com/hupcus/scrollmeter/pull/2) | bez doměření Instagramu / TikToku — přijaté riziko |
 | 2 Kalibrace | hotovo, mergnuto (tag `v0.2`) | `phase-2-calibration` / [#4](https://github.com/hupcus/scrollmeter/pull/4) | kalibrace kartou + MAPE s ní → „Dluh ověření“ |
-| 3 Persistence | hotovo, PR otevřený (merge + tag `v0.3` po CI) | `phase-3-persistence` | + čas v aplikaci (D19); restart telefonu a Digital Wellbeing → „Dluh ověření“ V4, V5 |
-| 4 Dashboard | nezačato | — | |
+| 3 Persistence | hotovo, mergnuto (tag `v0.3`) | `phase-3-persistence` / [#5](https://github.com/hupcus/scrollmeter/pull/5) | + čas v aplikaci (D19); restart telefonu a Digital Wellbeing → „Dluh ověření“ V4, V5 |
+| 4 Dashboard | hotovo, mergnuto (tag `v0.4`) | `phase-4-dashboard` / [#6](https://github.com/hupcus/scrollmeter/pull/6) | ADR-028; CI zablokované billingem → brána v čistém checkoutu |
 | 5 Historie + Aplikace | nezačato | — | |
 | 6 Export + Nastavení | nezačato | — | |
 | 7 Onboarding + Policy | nezačato | — | |
 | 8 Release | nezačato | — | |
+
+## Phase 4 — exit report (2026-09-24)
+
+**Hotovo a ověřené** (větev `phase-4-dashboard`):
+- **Přehled** (SPEC §21) nahradil domovskou obrazovku z POC. Obsahuje:
+  - „Dnes“ velkým číslem v prstenci k dennímu cíli („z cíle 500 m“ / „Cíl … splněn“),
+  - tento týden, měsíc a celkem,
+  - top aplikace dnes s názvem a ikonou (4 řádky + „Ostatní“),
+  - jedno srovnání („To je přibližně délka jednoho běžeckého okruhu.“),
+  - řádek „Přesnost měření“,
+  - v debug buildu vývojářské nástroje.
+
+  Všechna čísla jsou živá.
+- **Služba vypnutá (§32):** červený banner „Měření je vypnuté“ + „Zapnout měření“ je první na obrazovce; štítek „Měří se“ se ukazuje jen, když služba opravdu běží.
+- **Čas v aplikacích (D19):**
+  - s oprávněním má řádek aplikace „V aplikaci 12 min · 9,5 m/min“,
+  - bez něj „Scrollování 3 min“ a jedna zavíratelná karta → vlastní obrazovka s vysvětlením (co se čte, co se ukládá, co ne) → teprve pak nastavení Androidu,
+  - po návratu s oprávněním se obrazovka sama zavře.
+- **Formátování (ADR-028):**
+  - `DistanceFormatter`: m/km, desetinné čárky podle jazyka textů, ne telefonu,
+  - `TimeFormatter`: „< 1 min“, neznámé „—“, nikdy „0 min“,
+  - `DistanceComparisonProvider`: reference ze SPEC §22, prahy téměř / přibližně / víc než,
+  - `TopApps`,
+  - české plurály jsou v resources.
+- **Názvy a ikony aplikací** přes `PackageManager` s jediným `<queries>` pro launcher (ADR-008). `PolicyGuardTest` povoluje přesně tenhle dotaz a čistě kotlinovské balíčky `format/` a `insights/` hlídá proti importům Androidu.
+- **Motiv** se řídí `Settings.theme`, výběr přijde ve Phase 6.
+- **Emulátor:**
+  - snímky ověřené subagentem: světlý a tmavý motiv, horní i spodní část, bez Usage access (karta, „Scrollování …“), vypnutá služba (banner) a obrazovka s vysvětlením,
+  - kruh k cíli, km s čárkou a srovnání ověřené na syntetických řádcích vložených jen pro snímek a hned smazaných,
+  - Chrome se měří (5 započtených, zbytek je jeho duplicitní proud podle ADR-020).
+
+**Zjištění:** `uiautomator dump` na emulátoru odpojí službu, objeví se banner a rozhození layoutu posune tapy. Navigovat se proto musí s vypnutou službou (stejná past jako na telefonu).
 
 ## Phase 3 — exit report (2026-09-24)
 
@@ -171,6 +203,10 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 ## Otevřené body
 
 - [x] **OnePlus blokoval `settings put` přes adb** (`WRITE_SECURE_SETTINGS` denied — ColorOS „sledování oprávnění“). Vyřešeno 2026-09-23: Možnosti pro vývojáře → úplně dole **„Zakázat sledování oprávnění“** zapnuto (bez restartu), `settings put` funguje. Zároveň zapnuto „Při dobíjení nevypínat obrazovku“ (`stay_on_while_plugged_in=7`). Po resetu telefonu / aktualizaci OS zkontrolovat znovu.
+- [ ] **GitHub Actions nestartují (od 2026-09-24 07:04 UTC):** „The job was not started because recent account payments have failed or your spending limit needs to be increased.“ Jde o billing účtu, ne o kód.
+  - Do vyřešení se fáze mergují na **CI-ekvivalentní bráně v čistém checkoutu**: stejné příkazy jako `.github/workflows/ci.yml` + `assembleRelease`, stejné JDK 21; wrapper validace odpadá jen tam, kde se wrapper nemění. Každý PR to uvádí.
+  - Honza: zvýšit spending limit, nebo přesunout job na self-hosted runner (v hh-main běží privátní joby od 24. 9. v LXC 106 — potřeboval by Android SDK).
+  - Po opravě pustit CI znovu na `main` (`gh workflow run CI` nebo re-run posledního běhu).
 - [x] Přenos dat na nový telefon (device-to-device): rozhodnuto ADR-027 — nic se nepřenáší (`dataExtractionRules`), data si uživatel odnese CSV exportem (Phase 6).
 - [ ] **Phase 6 „Smazat všechna data“** musí smazat i Room (`clearAllTables()`), ne jen DataStore; `scroll_session` roste bez limitu (~desítky řádků denně) — rozhodnout retenci (bezpečnostní review, INFO).
 - [ ] Vyloučení aplikace platí od chvíle vyloučení (engine: EXCLUDED, sync času: vynechá ji v přepočítaných dnech). Starší řádky zůstávají — Phase 6 rozhodne, jestli je čtení skryje i v historii.
@@ -209,6 +245,13 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 - [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-24 — Phase 4 dashboard (Opus 5.5)
+- Toolchain beze změny.
+- ADR-028 (pravidla přehledu).
+- Kalibrace se z přehledu otevírá přes „Přesnost měření“, zmizela přímá cesta z domovské obrazovky, a tím i logika „odkud byla otevřena“.
+- Bottom navigation (SPEC §43) přijde ve Phase 5 spolu s obrazovkami, na které vede.
+- Denní cíl 500 m je výchozí z `Settings`; volbu přidá Phase 6.
 
 ### 2026-09-24 — Phase 3 persistence + čas v aplikaci (Opus 5.5)
 - Toolchain beze změny pinů. Nově zapojené:

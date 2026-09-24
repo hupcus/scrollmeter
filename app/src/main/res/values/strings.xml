@@ -5,22 +5,89 @@
     <string name="accessibility_service_label">ScrollMeter — měření scrollování</string>
     <string name="accessibility_service_description">ScrollMeter měří, o kolik se při scrollování posune obsah na displeji, a převádí to na metry. Služba přijímá jen události scrollování: čísla o posunu a název aplikace. Nečte text, zprávy ani obsah obrazovky, nic neovládá a data nikam neposílá — aplikace nemá přístup k internetu.</string>
 
-    <string name="home_subtitle">Prototyp měření, kalibrace a ukládání (fáze 3)</string>
-    <string name="home_status_on">Měření je zapnuté</string>
-    <string name="home_status_on_body">Služba přijímá jen události scrollování.</string>
+    <!-- Locale for numbers: the language the strings are in, not the device's (Czech UI → decimal comma). -->
+    <string name="number_locale" translatable="false">cs</string>
+
+    <!-- Spec §21 Dashboard, §32 status. -->
+    <string name="dashboard_measuring">Měří se</string>
     <string name="home_status_not_running">Měření je povolené, ale služba neběží</string>
     <string name="home_status_not_running_body">Vypni službu ScrollMeter v nastavení Usnadnění a znovu ji zapni.</string>
     <string name="home_status_off">Měření je vypnuté</string>
-    <string name="home_status_off_body">Zapni službu ScrollMeter v nastavení Usnadnění.</string>
+    <string name="home_status_off_body">Nic se teď nepočítá. Zapni službu ScrollMeter v nastavení Usnadnění.</string>
     <string name="home_enable_button">Zapnout měření</string>
     <string name="home_settings_button">Otevřít nastavení Usnadnění</string>
     <string name="home_today_title">Dnes</string>
+    <string name="dashboard_goal">z cíle %1$s</string>
+    <string name="dashboard_goal_reached">Cíl %1$s splněn</string>
+    <string name="dashboard_week">Tento týden</string>
+    <string name="dashboard_month">Tento měsíc</string>
+    <string name="dashboard_lifetime">Celkem</string>
+    <string name="dashboard_top_apps">Top aplikace dnes</string>
+    <string name="dashboard_other_apps">Ostatní</string>
+    <string name="dashboard_no_scroll_yet">Dnes zatím žádné scrollování. Jakmile budeš scrollovat v jiné aplikaci, objeví se tady.</string>
+    <string name="dashboard_time_in_app">V aplikaci %1$s</string>
+    <string name="dashboard_time_in_app_pace">V aplikaci %1$s · %2$s</string>
+    <string name="dashboard_scroll_time">Scrollování %1$s</string>
+    <string name="dashboard_comparison_title">Pro představu</string>
+    <string name="dashboard_usage_card_title">Chceš vidět i čas v aplikacích?</string>
+    <string name="dashboard_usage_card_body">U každé aplikace pak uvidíš, kolik v ní trávíš minut a kolik metrů za minutu nascrolluješ.</string>
+    <string name="dashboard_usage_card_show">Ukázat jak</string>
+    <string name="not_now">Teď ne</string>
     <string name="home_devtools_title">Vývojářské nástroje</string>
     <string name="home_accuracy_title">Přesnost měření</string>
-    <string name="home_accuracy_manual">Kalibrováno platební kartou · 1 pixel = %1$s mm</string>
-    <string name="home_accuracy_auto">Měří se podle automatického odhadu z údajů displeje. Zkalibruj displej pro přesnější měření.</string>
-    <string name="home_accuracy_open">Přesnost měření</string>
-    <string name="home_calibrate">Zkalibrovat displej</string>
+    <string name="home_accuracy_manual_short">Kalibrováno platební kartou</string>
+    <string name="home_accuracy_auto_short">Automatický odhad · zkalibruj displej pro větší přesnost</string>
+
+    <!-- Spec §22: one illustrative comparison; "To je přibližně délka 4 fotbalových hřišť." -->
+    <string name="comparison_sentence">To je %1$s %2$s.</string>
+    <string name="comparison_almost">téměř</string>
+    <string name="comparison_about">přibližně</string>
+    <string name="comparison_more_than">víc než</string>
+    <plurals name="comparison_football_field">
+        <item quantity="one">délka jednoho fotbalového hřiště</item>
+        <item quantity="few">délka %d fotbalových hřišť</item>
+        <item quantity="many">délka %d fotbalových hřišť</item>
+        <item quantity="other">délka %d fotbalových hřišť</item>
+    </plurals>
+    <plurals name="comparison_eiffel_tower">
+        <item quantity="one">výška Eiffelovy věže</item>
+        <item quantity="few">%d× výška Eiffelovy věže</item>
+        <item quantity="many">%d× výška Eiffelovy věže</item>
+        <item quantity="other">%d× výška Eiffelovy věže</item>
+    </plurals>
+    <plurals name="comparison_running_track_lap">
+        <item quantity="one">délka jednoho běžeckého okruhu</item>
+        <item quantity="few">délka %d běžeckých okruhů</item>
+        <item quantity="many">délka %d běžeckých okruhů</item>
+        <item quantity="other">délka %d běžeckých okruhů</item>
+    </plurals>
+    <plurals name="comparison_run_5k">
+        <item quantity="one">běh na 5 km</item>
+        <item quantity="few">%d× běh na 5 km</item>
+        <item quantity="many">%d× běh na 5 km</item>
+        <item quantity="other">%d× běh na 5 km</item>
+    </plurals>
+    <plurals name="comparison_half_marathon">
+        <item quantity="one">půlmaraton</item>
+        <item quantity="few">%d× půlmaraton</item>
+        <item quantity="many">%d× půlmaraton</item>
+        <item quantity="other">%d× půlmaraton</item>
+    </plurals>
+    <plurals name="comparison_marathon">
+        <item quantity="one">maraton</item>
+        <item quantity="few">%d× maraton</item>
+        <item quantity="many">%d× maraton</item>
+        <item quantity="other">%d× maraton</item>
+    </plurals>
+
+    <!-- ADR-021: disclosure before Usage-access settings (text of PLAN Phase 6 / Phase 7 step 6). -->
+    <string name="usage_access_title">Čas v aplikacích</string>
+    <string name="usage_access_intro">ScrollMeter umí ke vzdálenosti přidat, kolik času v každé aplikaci trávíš.</string>
+    <string name="usage_access_what">K tomu potřebuje „Přístup k údajům o využití“. ScrollMeter čte ze systému, kdy byla která aplikace v popředí, a ukládá jen součet minut na aplikaci a den. Nic z toho neopouští telefon.</string>
+    <string name="usage_access_not">Nečte obsah aplikací, zprávy ani historii prohlížeče. Oprávnění můžeš kdykoli odebrat v nastavení Androidu.</string>
+    <string name="usage_access_optional">Bez něj ScrollMeter měří dál — u času v aplikacích se jen ukáže „—“.</string>
+    <string name="usage_access_steps">V nastavení, které se otevře, najdi ScrollMeter a zapni „Povolit přístup k údajům o využití“.</string>
+    <string name="usage_access_allow">Povolit</string>
 
     <string name="back">Zpět</string>
 
