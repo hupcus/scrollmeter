@@ -14,7 +14,8 @@ finger across the touchscreen.
 Project founded 2026-09-23. Merged: Phase 0 (bootstrap, `v0.0`), Phase 1 (measurement proof of concept,
 GO/NO-GO gate, `v0.1`), Phase 2 (calibration: card calibration, accuracy screen, accuracy tooling, `v0.2`),
 Phase 3 (persistence: Room, flushes, sessions, settings, optional time in app, `v0.3`), Phase 4 (dashboard, `v0.4`),
-Phase 5 (history, apps, app detail, bottom navigation, `v0.5`).
+Phase 5 (history, apps, app detail, bottom navigation, `v0.5`), Phase 6 (export, settings, goal, notifications,
+`v0.6`). Phase 7 (onboarding, Play disclosure, English) is in progress.
 Manual on-phone checks still owed are listed under "Dluh ověření" in `handoff.md`. See `PLAN.md` (phases,
 gates) and `handoff.md` (live state).
 
@@ -27,6 +28,7 @@ gates) and `handoff.md` (live state).
 | `handoff.md` | Live state: toolchain pins, phase status, decisions log (Czech) |
 | `docs/measurement-model.md` | What scroll distance is, formulas, calibration, fallback, fling |
 | `docs/accessibility-policy.md` | Which Accessibility API we use, what we never read, Play disclosure |
+| `docs/play-listing.md` | Draft Play listing, Accessibility declaration answers, Data safety, privacy policy text, video scenario |
 | `docs/accuracy-testing.md` | Test protocol and the device / app compatibility tables |
 | `docs/architecture.md` | Event pipeline, package layout, threading, data model |
 | `docs/measurement-decisions.md` | ADR log for non-obvious decisions |

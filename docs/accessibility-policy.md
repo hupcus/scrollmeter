@@ -44,8 +44,8 @@ Two guards fail CI:
 - `tools/check_manifest_policy.py` — the **merged** debug and release manifests, so a permission a library
   adds is caught too (`uses-permission` and `uses-permission-sdk-23`, against the allowlist); `allowBackup=false`
   and `dataExtractionRules` present; no exported component without a permission except the launcher activity;
-  release must carry no debug `FileProvider` (authority `….devtools.files`). The CSV share provider
-  (`….exports`, `cache/exports/` only, not exported — ADR-030) ships in release.
+  release providers are an exact allowlist — the CSV share provider (`….exports`, `cache/exports/` only, not
+  exported — ADR-030) and androidx.startup's; the debug `FileProvider` (`….devtools.files`) never ships.
 
 `Do not expand requested accessibility capabilities without a documented product need and privacy/policy review.`
 (the comment lives above the service class; ADR-013 — Chrome/WebView coverage — was settled by measurement: the
@@ -59,7 +59,8 @@ content access and no network; ScrollMeter stores only the foreground millisecon
 time of the last event per app and day (`daily_app_usage`). Activity class names are read only to pair an
 activity's start with its end and are never stored (ADR-025). `UsageEventsSource` is the only class that touches
 `android.app.usage` (`PolicyGuardTest` pins it). The app works fully without it (time then shows as "—").
-Disclosure and onboarding step: Phase 7.
+It is offered as the optional last onboarding step (*Povolit* / *Teď ne*, ADR-032) and later from the dashboard
+card and Nastavení; revoking it in Android's settings is picked up on the next resume and time turns back to "—".
 
 App names and icons on the dashboard come from `PackageManager` through a `<queries>` entry for launcher
 activities (ADR-008) plus one for the home screen (ADR-030, so the launcher can be suggested as an exclusion) — no
@@ -89,8 +90,9 @@ limited instead of working around it (spec §67).
 ## Google Play
 
 - `isAccessibilityTool="false"` — ScrollMeter is not an assistive tool for people with disabilities.
-- Prominent disclosure **before** sending the user to Android Accessibility Settings, on its own screen, with an
-  explicit affirmative button. Text (Czech, from the spec §30):
+- **Prominent disclosure** before Android's accessibility settings open, on its own screen, with an explicit
+  affirmative button (spec §30, User Data policy). The Czech text is the spec's word for word and
+  `TranslationsTest` pins it against `docs/SPEC.md`; English in `values-en/`:
 
   > **Povolit měření scrollování**
   >
@@ -104,13 +106,24 @@ limited instead of working around it (spec §67).
   >
   > [Rozumím a chci pokračovat] → then [Otevřít nastavení zpřístupnění]
 
-- Play Console: Accessibility declaration form (use case: measuring scroll distance for the user's own insight;
-  core functionality depends on the API; no alternative API provides scroll deltas across apps), a video of the
-  onboarding + usage, listing text that names the AccessibilityService use.
+- **Where it is enforced** (ADR-032):
+  - The app starts in the onboarding (spec §31) until it is finished: *Kolik toho nascrolluješ* → *Jak měření
+    funguje* → the disclosure → *Zapni měření* (Android's settings, detected on return) → calibration → optional
+    *Čas v aplikacích*. `OnboardingFlow` does not let the user past the disclosure without the button, nor past
+    the setup while the service is off. "Zpět" or leaving the screen is not consent.
+  - Every other way into the accessibility settings — the dashboard's *Zapnout měření*, Nastavení › Služba
+    Usnadnění — goes through `AccessibilityGate`: without a stored acceptance the disclosure screen comes first.
+    Only `MainActivity` builds the settings intent.
+  - *Smazat data i nastavení* clears the acceptance too; the onboarding (and the disclosure) come back.
+  - Debug builds only: a developer screen requested by the launch intent skips the onboarding (automation).
+- Play Console answers, listing texts, Data safety and the video scenario: `docs/play-listing.md`.
 - Target API 36 (required for new apps and updates from 2026-08-31).
-- Privacy screen in the app (spec §29):
+- Privacy screen in the app (spec §29), opening with the spec's sentence (pinned by `TranslationsTest`):
 
   > ScrollMeter používá službu zpřístupnění pouze k detekci scrollovacích událostí. Nečte ani neukládá text, zprávy, hesla nebo obsah obrazovky. Naměřená data zůstávají v telefonu.
+
+  followed by what is stored, what never is, time in app, no internet, no backup / device transfer, and why the
+  accessibility service.
 
 ## References
 

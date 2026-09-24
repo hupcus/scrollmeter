@@ -153,8 +153,10 @@ fun OnboardingScreen(graph: AppGraph, onOpenAccessibilitySettings: () -> Unit) {
             }
         }) {
             ServiceState(state.serviceEnabled)
-            Body(R.string.onboarding_enable_steps)
-            Hint(R.string.onboarding_enable_restricted)
+            if (!state.serviceEnabled) {
+                Body(R.string.onboarding_enable_steps)
+                Hint(R.string.onboarding_enable_restricted)
+            }
             Hint(R.string.onboarding_enable_force_stop)
         }
 

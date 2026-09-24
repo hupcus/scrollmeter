@@ -219,6 +219,18 @@ class PolicyGuardTest {
     }
 
     /**
+     * Spec §30, ADR-032: the accessibility settings open only after the prominent disclosure. One place
+     * builds that intent — MainActivity — and hands it only to the onboarding and the gated NavHost.
+     */
+    @Test
+    fun onlyMainActivityOpensTheAccessibilitySettings() {
+        val openers = sources.filter { it.extension == "kt" && "ACTION_ACCESSIBILITY_SETTINGS" in stripComments(it.readText(), "kt") }
+        assertThat(openers.map { it.name }).containsExactly("MainActivity.kt")
+        val navHost = sources.single { it.name == "ScrollMeterNavHost.kt" }.readText()
+        assertThat(navHost).contains("AccessibilityGate.route(")
+    }
+
+    /**
      * CLAUDE.md: every tunable constant lives in MeasurementConfig. A `const val` whose name the ADR
      * log mentions is a tunable by definition — declaring it anywhere else fails.
      */
