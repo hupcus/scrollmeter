@@ -31,8 +31,8 @@
     <string name="calibration_instruction">Přilož platební kartu k displeji a posuvníkem uprav modrou čáru tak, aby měla stejnou délku jako delší strana karty.</string>
     <string name="calibration_hint">Kartu polož na výšku hned vedle modré čáry, horní hranou na horní linku. Spodní linku dolaď tlačítky − a +.</string>
     <string name="calibration_value">Čára %1$s px · 1 pixel = %2$s mm</string>
-    <string name="calibration_vs_auto">Oproti automatickému odhadu %1$s %%</string>
-    <string name="calibration_too_small">Pokud se karta nevejde, otoč telefon na výšku.</string>
+    <string name="calibration_vs_auto">oproti odhadu %1$s %%</string>
+    <string name="calibration_too_small">Delší čára se sem nevejde. Drž telefon na výšku.</string>
     <string name="calibration_shorter">Zkrátit čáru o 1 pixel</string>
     <string name="calibration_longer">Prodloužit čáru o 1 pixel</string>
     <string name="calibration_save">Uložit kalibraci</string>

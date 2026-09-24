@@ -55,6 +55,9 @@ import kotlinx.coroutines.launch
  * test phone), but fits along its height. It is drawn on a Canvas in layout pixels, which are the
  * display's raw pixels, so the saved length is exactly what the user saw. Square pixels are
  * assumed (spec §8), so the orientation of the bar does not change the result.
+ *
+ * Height is the scarce resource (the card needs ~1360 of the test phone's 2400 px): the title
+ * and the instructions sit beside the bar, where the card covers them once it is in place.
  */
 @Composable
 fun CalibrationScreen(graph: AppGraph, onDone: () -> Unit) {
@@ -74,18 +77,17 @@ fun CalibrationScreen(graph: AppGraph, onDone: () -> Unit) {
     var areaHeightPx by remember { mutableIntStateOf(0) }
 
     val density = LocalDensity.current
-    val barTopPx = with(density) { 16.dp.roundToPx() }
-    val maxPx = minOf(CardCalibration.plausibleReferencePx.last, areaHeightPx - 2 * barTopPx)
+    val barTopPx = with(density) { 8.dp.roundToPx() }
+    val maxPx = minOf(CardCalibration.plausibleReferencePx.last, areaHeightPx - barTopPx)
     val minPx = CardCalibration.plausibleReferencePx.first
     val usable = lengthPx > 0 && maxPx >= minPx
     val shownPx = if (usable) lengthPx.coerceIn(minPx, maxPx) else 0
+    // A bar pinned at the screen's limit cannot have matched a card that is longer still
+    // (landscape, a tiny screen): nothing to save until the phone is held upright.
+    val atLimit = usable && shownPx >= maxPx
 
     Scaffold { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onDone) { Text(stringResource(R.string.back)) }
-                Text(stringResource(R.string.calibration_title), style = MaterialTheme.typography.titleLarge)
-            }
             Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { areaHeightPx = it.height }) {
                 val barX = with(density) { 24.dp.toPx() }
                 val barWidth = with(density) { 6.dp.toPx() }
@@ -100,29 +102,30 @@ fun CalibrationScreen(graph: AppGraph, onDone: () -> Unit) {
                     }
                 }
                 Column(
-                    Modifier.padding(start = 48.dp, top = 32.dp, end = 16.dp),
+                    Modifier.padding(start = 40.dp, top = 12.dp, end = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = onDone) { Text(stringResource(R.string.back)) }
+                        Text(stringResource(R.string.calibration_title), style = MaterialTheme.typography.titleLarge)
+                    }
                     Text(stringResource(R.string.calibration_instruction), style = MaterialTheme.typography.bodyLarge)
                     Text(stringResource(R.string.calibration_hint), style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Column(
-                Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 if (usable) {
                     val mmPerPx = CardCalibration.mmPerPx(shownPx)
                     Text(
-                        stringResource(R.string.calibration_value, Format.integer(shownPx.toLong()), Format.decimal(mmPerPx, 4)),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        stringResource(R.string.calibration_vs_auto, signed((mmPerPx / autoMmPerPx - 1.0) * 100.0)),
+                        stringResource(R.string.calibration_value, Format.integer(shownPx.toLong()), Format.decimal(mmPerPx, 4)) +
+                            " · " + stringResource(R.string.calibration_vs_auto, signed((mmPerPx / autoMmPerPx - 1.0) * 100.0)),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                if (areaHeightPx > 0 && maxPx < autoLengthPx) {
+                if (atLimit) {
                     Text(
                         stringResource(R.string.calibration_too_small),
                         style = MaterialTheme.typography.bodySmall,
@@ -158,7 +161,7 @@ fun CalibrationScreen(graph: AppGraph, onDone: () -> Unit) {
                             onDone()
                         }
                     },
-                    enabled = usable,
+                    enabled = usable && !atLimit,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.calibration_save)) }
                 TextButton(
