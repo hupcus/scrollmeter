@@ -43,6 +43,13 @@ Two guards fail CI:
 (the comment lives above the service class; ADR-013 — Chrome/WebView coverage — was settled by measurement: the
 flag stays `false`).
 
+## Separate, optional permission: Usage access (ADR-021, from Phase 3)
+
+Time spent in each app comes from Android's usage statistics (`PACKAGE_USAGE_STATS`, granted by the user in
+*Přístup k údajům o využití*), **not** from the accessibility service. It adds no accessibility event type, no
+content access and no network; ScrollMeter stores only the minutes per app and day. The app works fully without
+it (time then shows as "—"). Disclosure and onboarding step: Phase 7.
+
 ## Why minimal
 
 Privacy, user trust, battery, Google Play review, stability, fewer edge cases (spec §5).

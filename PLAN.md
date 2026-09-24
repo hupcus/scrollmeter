@@ -30,6 +30,7 @@ ScrollMeter měří **scroll distance** — fyzický ekvivalent posunu obsahu na
 | D16 | Foreground service, WorkManager | žádná foreground service; WorkManager jen pokud se objeví konkrétní údržbová práce (widget refresh, cleanup) | SPEC §40, §41 |
 | D17 | Jazyk UI | `values/` česky (tykání dle příkladů ve SPEC), `values-en/` v Phase 7 | produkt je česky-first |
 | D18 | Build varianty | debug `applicationIdSuffix ".debug"`; vlastní package se vylučuje za běhu přes `context.packageName` (funguje pro obě varianty); v test režimu se výluka dočasně vypne | SPEC §14, §35 |
+| D19 | Čas v aplikaci (přidáno 2026-09-23 na Honzovo přání) | dashboard ukazuje u každé aplikace **metry i čas**: volitelné oprávnění `PACKAGE_USAGE_STATS` (Přístup k údajům o využití), vlastní agregace `queryEvents` po lokálních dnech do `daily_app_usage`; bez oprávnění aplikace funguje celá a čas je „—“ (nikdy 0); navíc vždy dostupný **čas scrollování** z vlastních eventů; accessibility eventy zůstávají jen `typeViewScrolled` | ADR-021, ADR-022; systém drží eventy ~10 dní → denní snapshot nutný |
 
 ## 2. Prostředí (ověřeno 23. 9. 2026)
 
@@ -150,27 +151,29 @@ Každá fáze = větev `phase-N-<slug>` → PR → Honza merguje → tag `v0.N`.
 
 **Rozsah:** `data/local/ScrollDatabase` v1 (`exportSchema`, `app/schemas/`), `DailyAppAggregateEntity` (SPEC §17 + `calibrationVersion`), `ScrollSessionEntity`, DAO s `@Transaction` „insert-or-add" (přičítání delt a čítačů, `firstEventTimestamp` = min, `lastEventTimestamp` = max), `aggregation/ScrollAccumulator` (flush tick 10 s / 50 eventů / změna dne / `onUnbind` / `onInterrupt` / `onDestroy`; `Clock` injektovaný kvůli testům přechodu dne), `ScrollSessionManager`, `data/repository/ScrollRepository` (Flows: today, week, month, lifetime, per-app, per-day), DataStore settings (`dailyGoalMm`, `excludedPackages`, `unitPreference`, `onboardingCompleted`, `privacyDisclosureAccepted`, `showComparisons`, `theme`).
 
-**Testy:** Robolectric + in-memory Room: dva eventy stejná app, dvě app, přechod dne, přičítání při opakovaném flushi, týdenní/měsíční SUM, sessionizace (gap < 60 s stejná, > 60 s nová); accumulator s fake Clock.
+**Rozsah — čas v aplikaci (D19, ADR-021/022):** balíček `usage/`: `UsageAccessChecker` (AppOps `OPSTR_GET_USAGE_STATS` + `Settings.ACTION_USAGE_ACCESS_SETTINGS`, ošetřit chybějící Activity), `UsageEventsSource` (jediná třída s `android.app.usage`; mapuje na `UsageEventSample(timestamp, packageName, kind)`), `ForegroundTimeAggregator` (čistý Kotlin: aplikace je v popředí, dokud má ≥ 1 aktivitu RESUMED; zavírá PAUSED/STOPPED, SCREEN_NON_INTERACTIVE, DEVICE_SHUTDOWN; dělí o lokální půlnoci), `UsageSyncer` (okno `[max(lastSync − 1 den, now − 9 dní), now]`, přepočítá celé dny, upsert-**replace**); entita `DailyAppUsageEntity` (`date`, `packageName`, `foregroundMs`, `launchCount`, `lastEventTimestamp`, `syncedAt`); sloupec `activeScrollMs` v `daily_app_aggregate` (`ACTIVE_SCROLL_GAP_MS = 5_000` v `MeasurementConfig`); sync při `MainActivity.onResume` a ze služby při změně dne / connectu starším než 6 h — žádný WorkManager (D16/ADR-009); DataStore `usageSyncLastEventTs`, `usageTimeCardDismissed`; manifest `PACKAGE_USAGE_STATS` s `tools:ignore="ProtectedPermissions"` a `PolicyGuardTest` přejde z „žádné `uses-permission`“ na **allowlist** oprávnění (Phase 6 přidá `POST_NOTIFICATIONS`).
+
+**Testy:** Robolectric + in-memory Room: dva eventy stejná app, dvě app, přechod dne, přičítání při opakovaném flushi, týdenní/měsíční SUM, sessionizace (gap < 60 s stejná, > 60 s nová); accumulator s fake Clock. Čas v aplikaci: `ForegroundTimeAggregatorTest` z listů eventů (dvě RESUMED aktivity jedné app = 1×, půlnoc 23:50→00:10 = 10 + 10 min, DST den 23/25 h, SCREEN_OFF zavírá, SHUTDOWN→STARTUP zahodí otevřený interval, nespárované PAUSED se ignoruje, otevřené ořízne `now`, split-screen, vlastní package vyloučen, API 28 hodnoty 1/2); `activeScrollMs` v accumulatoru (mezera 5 s počítá, 6 s ne); DAO replace + LEFT JOIN s agregáty; syncer s fake zdrojem (okno, idempotence, bez oprávnění).
 
 **Ověření na telefonu:** scroll → `adb shell am force-stop com.scrollmeter.app.debug` do 10 s → data ≤ 10 s ztráta; vypnout/zapnout obrazovku; přepnout aplikace; Honza: restart telefonu.
 
-**DoD:** vše výše zelené, schéma JSON v gitu, po restartu aplikace i telefonu data zůstávají.
+**DoD:** vše výše zelené, schéma JSON v gitu, po restartu aplikace i telefonu data zůstávají. Bez Usage access se chování nezmění; s ním po otevření aplikace `daily_app_usage` pro dnešek a včerejšek odpovídá Digital Wellbeing ± 5 % (zapsat do `docs/accuracy-testing.md`).
 
 **Odhad:** 1 session.
 
 ### Phase 4 — Dashboard (větev `phase-4-dashboard`)
 
-**Rozsah:** `ui/dashboard` — header Dnes + velká hodnota + „z cíle X" + progress ring; sekundární statistiky (týden, měsíc, celkem); top aplikace dnes (label + ikona přes `PackageManager`, `<queries>` launcher intent, fallback package name, „Ostatní"); jedna comparison card (`DistanceComparisonProvider` — čistý Kotlin, výběr reference podle rozsahu); výrazný banner **Měření je vypnuté** + „Zapnout měření", když služba neběží (nikdy netvrdit sběr bez služby); `DistanceFormatter` (mm → „428 m" / „2,84 km", české desetinné čárky, unit preference).
+**Rozsah:** `ui/dashboard` — header Dnes + velká hodnota + „z cíle X" + progress ring; sekundární statistiky (týden, měsíc, celkem); top aplikace dnes (label + ikona přes `PackageManager`, `<queries>` launcher intent, fallback package name, „Ostatní"); jedna comparison card (`DistanceComparisonProvider` — čistý Kotlin, výběr reference podle rozsahu); výrazný banner **Měření je vypnuté** + „Zapnout měření", když služba neběží (nikdy netvrdit sběr bez služby); `DistanceFormatter` (mm → „428 m" / „2,84 km", české desetinné čárky, unit preference). **Čas v aplikaci (D19):** řádek top aplikace = vzdálenost · čas v aplikaci · m/min (`PaceFormatter`, čistý Kotlin, „—“ pod 1 min), když je Usage access; jinak vzdálenost · čas scrollování + jedna zavíratelná karta „Chceš vidět i čas v aplikacích?“ → disclosure → `ACTION_USAGE_ACCESS_SETTINGS`.
 
 **Testy:** formatter (hranice m/km, zaokrouhlení), comparison provider (428 m → běžecký okruh, 4,2 km → skoro 5k, 42,3 km → maraton), repository agregace.
 
-**DoD:** SPEC §21 kompletně; screenshot ověřený subagentem ve světlém i tmavém motivu.
+**DoD:** SPEC §21 kompletně; screenshot ověřený subagentem ve světlém i tmavém motivu; dashboard nikdy neukáže „0 min“ místo neznámé hodnoty.
 
 **Odhad:** 1 session.
 
 ### Phase 5 — Historie + Aplikace (větev `phase-5-history-apps`)
 
-**Rozsah:** `ui/components/BarChart` (Canvas, osy, popisky, prázdný stav); `ui/history` (7 dní / 30 dní / 12 měsíců; průměr, max, min, celkem); `ui/apps` (Dnes / 7 dní / 30 dní / Celkem, řazení, podíl %, `MeasurementQuality` HIGH/MEDIUM/LOW z čítačů + confidence kalibrace — čistý Kotlin), detail aplikace (období, graf); bottom navigation Přehled / Historie / Aplikace / Nastavení.
+**Rozsah:** `ui/components/BarChart` (Canvas, osy, popisky, prázdný stav); `ui/history` (7 dní / 30 dní / 12 měsíců; průměr, max, min, celkem); `ui/apps` (Dnes / 7 dní / 30 dní / Celkem, řazení, podíl %, `MeasurementQuality` HIGH/MEDIUM/LOW z čítačů + confidence kalibrace — čistý Kotlin), detail aplikace (období, graf); bottom navigation Přehled / Historie / Aplikace / Nastavení. **Čas (D19):** řazení Vzdálenost | Čas; detail aplikace graf vzdálenost + čas a „X min z Y min v aplikaci jsi scrolloval (Z %)“; aplikace s časem, ale bez scroll dat (YouTube) zobrazit s „—“ a štítkem „bez dat o scrollu“.
 
 **Testy:** `MeasurementQuality` prahy; agregace 12 měsíců; chart data mapping.
 
@@ -180,7 +183,7 @@ Každá fáze = větev `phase-N-<slug>` → PR → Honza merguje → tag `v0.N`.
 
 ### Phase 6 — Export, nastavení, cíl, notifikace (větev `phase-6-export-settings`)
 
-**Rozsah:** `export/CsvExporter` (`per_app.csv` + `daily_summary.csv` podle SPEC §28, SAF + share); `ui/settings` sekce Měření / Jednotky / Notifikace / Data / Soukromí / O aplikaci; **Vyloučené aplikace** (seznam viděných package s přepínači; navržené výluky detekované za běhu: launcher přes `resolveActivity(HOME)`, klávesnice přes `Settings.Secure.DEFAULT_INPUT_METHOD`, `com.android.systemui` — nic dalšího natvrdo); denní cíl (100 m … 5 km, vlastní); **Smazat všechna data** (dialog, volba ponechat/smazat kalibraci a nastavení); notifikace „Denní cíl dosažen" a „Nový rekord" (`POST_NOTIFICATIONS` runtime na 33+, kanál, max. 1× denně na typ, nikdy per event).
+**Rozsah:** `export/CsvExporter` (`per_app.csv` + `daily_summary.csv` podle SPEC §28, SAF + share); `ui/settings` sekce Měření / Jednotky / Notifikace / Data / Soukromí / O aplikaci; **Vyloučené aplikace** (seznam viděných package s přepínači; navržené výluky detekované za běhu: launcher přes `resolveActivity(HOME)`, klávesnice přes `Settings.Secure.DEFAULT_INPUT_METHOD`, `com.android.systemui` — nic dalšího natvrdo); denní cíl (100 m … 5 km, vlastní); **Smazat všechna data** (dialog, volba ponechat/smazat kalibraci a nastavení); notifikace „Denní cíl dosažen" a „Nový rekord" (`POST_NOTIFICATIONS` runtime na 33+, kanál, max. 1× denně na typ, nikdy per event). **Čas (D19):** Nastavení › Měření řádek „Čas v aplikacích“ se stavem a tlačítkem; `per_app.csv` + sloupce `foreground_ms`, `active_scroll_ms` (prázdné = neznámé; odchylka od SPEC §28 v ADR-021); Smazat data maže i `daily_app_usage`; výluky platí i pro čas; odstavec na obrazovce Soukromí („ScrollMeter čte ze systému, kdy byla která aplikace v popředí, a ukládá jen součet minut na aplikaci a den. Nic z toho neopouští telefon.“).
 
 **Testy:** CSV formát (hlavička, escape, čísla), výluky (vyloučený package = EXCLUDED), throttle notifikací.
 
@@ -190,15 +193,15 @@ Každá fáze = větev `phase-N-<slug>` → PR → Honza merguje → tag `v0.N`.
 
 ### Phase 7 — Onboarding a policy (větev `phase-7-onboarding-policy`)
 
-**Rozsah:** 5 kroků onboardingu (SPEC §31): úvod → jak měření funguje → **prominent disclosure** (text SPEC §30, tlačítko „Rozumím a chci pokračovat", až pak „Otevřít nastavení zpřístupnění") → detekce služby po návratu (`onResume`) → kalibrace (karta / automatický odhad); obrazovka **Soukromí** (SPEC §29); `accessibility_service_config` description; `values-en/`; `docs/accessibility-policy.md` finální; `docs/play-listing.md` (popis, Accessibility declaration odpovědi, scénář videa).
+**Rozsah:** 5 kroků onboardingu (SPEC §31): úvod → jak měření funguje → **prominent disclosure** (text SPEC §30, tlačítko „Rozumím a chci pokračovat", až pak „Otevřít nastavení zpřístupnění") → detekce služby po návratu (`onResume`) → kalibrace (karta / automatický odhad); obrazovka **Soukromí** (SPEC §29); `accessibility_service_config` description; `values-en/`; `docs/accessibility-policy.md` finální; `docs/play-listing.md` (popis, Accessibility declaration odpovědi, scénář videa). **Čas (D19):** volitelný krok 6 „Čas v aplikacích“ (přeskočitelný) s vlastní disclosure a tlačítky „Povolit“ / „Teď ne“, detekce po návratu, ošetřené odvolání oprávnění; v listingu Usage access jako volitelná funkce, v Accessibility declaration věta „UsageStats dává jen čas, ne scroll delta“.
 
-**DoD:** SPEC §29–§32 splněny; onboarding nejde přeskočit před zapnutím služby; texty česky i anglicky.
+**DoD:** SPEC §29–§32 splněny; onboarding nejde přeskočit před zapnutím služby; onboarding jde dokončit **bez** Usage access; texty česky i anglicky.
 
 **Odhad:** 1 session.
 
 ### Phase 8 — Release hardening (větev `phase-8-release`)
 
-**Rozsah:** release build s R8 (keep rules pro Room), podpis přes env proměnné (vzor DETECT — keystore nikdy v gitu), `versionName 0.1.0`; emulátory API 28/30/33/35/36 (`sdkmanager`), na nich build + onboarding + vlastní test list; fyzicky OnePlus (API 34) + alespoň jeden další telefon (Honza); **battery protokol** (`dumpsys batterystats --reset`, 1 h aktivního scrollování, 8 h běžného dne, 24 h; sledovat CPU, wakeupy, Room writes, počet eventů); kontrola, že release neobsahuje debug obrazovky ani logování; APK do GitHub Release (sideload) a příprava Play internal testing.
+**Rozsah:** release build s R8 (keep rules pro Room), podpis přes env proměnné (vzor DETECT — keystore nikdy v gitu), `versionName 0.1.0`; emulátory API 28/30/33/35/36 (`sdkmanager`), na nich build + onboarding + vlastní test list; fyzicky OnePlus (API 34) + alespoň jeden další telefon (Honza); **battery protokol** (`dumpsys batterystats --reset`, 1 h aktivního scrollování, 8 h běžného dne, 24 h; sledovat CPU, wakeupy, Room writes, počet eventů); kontrola, že release neobsahuje debug obrazovky ani logování; čas v aplikaci (D19): emulátor API 28 (eventy 1/2, bez STOPPED), zamčené zařízení (`queryEvents` vrací null), cena syncu v battery protokolu, ColorOS: odvolání oprávnění + restart; APK do GitHub Release (sideload) a příprava Play internal testing.
 
 **DoD:** SPEC §54 kompletně odškrtnuto; battery čísla v `docs/accuracy-testing.md`; tag `v0.1.0`.
 
@@ -232,6 +235,7 @@ Kompatibilitní test v nastavení (SPEC §48), Accuracy panel (§49), sessions v
 | R7 | Google Play policy pro AccessibilityService | zamítnutí | `isAccessibilityTool=false`, prominent disclosure, declaration form, video — Phase 7 |
 | R8 | Drift verzí AGP/JDK/Compose | rozbitý build | piny v `CLAUDE.md`; každý bump do `handoff.md` |
 | R9 | Lokální týden/měsíc při změně pásma | posunuté součty | ISO datum v lokálním pásmu, historie se nepřepisuje, test |
+| R10 | Usage access: systém drží eventy jen ~10 dní (AOSP `UsageStatsDatabase.prune`), ColorOS může oprávnění resetovat nebo vracet prázdná data; při split-screenu součet časů přesáhne reálný čas | mezery v čase v aplikaci, nedůvěra v čísla | denní snapshot do vlastní DB, sync i ze služby, neznámé = „—“ nikdy 0, test na CPH2399, porovnání s Digital Wellbeing |
 
 ## 7. Git a proces
 
@@ -249,6 +253,7 @@ Kompatibilitní test v nastavení (SPEC §48), Accuracy panel (§49), sessions v
 4. Rozhodnout **GO/NO-GO** po Phase 1 a případně R2 (Chrome vs `canRetrieveWindowContent`).
 5. Mergovat PR po každé fázi („mergni").
 6. Phase 2: kalibrace kartou na telefonu. Phase 3: restart telefonu. Phase 8: 24 h battery test + druhý telefon.
+7. Phase 3/4: povolit Přístup k údajům o využití pro ScrollMeter a porovnat jeden den s Digital Wellbeing.
 
 ## 9. Odhad
 
