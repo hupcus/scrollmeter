@@ -32,14 +32,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
 import com.scrollmeter.app.data.model.AppSummary
+import com.scrollmeter.app.data.model.DateRange
 import com.scrollmeter.app.format.DistanceFormatter
 import com.scrollmeter.app.format.TimeFormatter
+import com.scrollmeter.app.insights.AppRanking
 import com.scrollmeter.app.insights.AppsPeriod
 import com.scrollmeter.app.insights.ChartScale
 import com.scrollmeter.app.insights.HistoryPeriod
 import com.scrollmeter.app.insights.HistorySeriesBuilder
 import com.scrollmeter.app.insights.ScrollShare
-import com.scrollmeter.app.measurement.MeasurementQualityRater
 import com.scrollmeter.app.settings.Settings
 import com.scrollmeter.app.ui.components.AppIcon
 import com.scrollmeter.app.ui.components.BarChart
@@ -77,7 +78,10 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
     val chartRange = HistorySeriesBuilder.range(HistoryPeriod.DAYS_30, today)
     val days by remember(chartRange, packageName) { graph.scrollRepository.appDays(packageName, chartRange) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    val first by remember { graph.scrollRepository.firstMeasuredDay() }.collectAsStateWithLifecycle(initialValue = null)
+    // Quality describes the app, not the period: rated on its all-time counters (ADR-029).
+    val allTime by remember(packageName) {
+        graph.scrollRepository.apps(DateRange.ALL).map { apps -> apps.firstOrNull { it.packageName == packageName } }
+    }.collectAsStateWithLifecycle(initialValue = null)
 
     fun distance(mm: Double) = DistanceFormatter.format(mm, unit, locale)
 
@@ -95,11 +99,9 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
         PeriodSelector(AppsPeriod.entries, period, { stringResource(appsPeriodLabel(it)) }, { period = it })
         PeriodSummary(summary, usageGranted, ::distance, locale)
 
-        val app = summary
-        if (app?.distanceMm != null) {
-            val quality = MeasurementQualityRater.rate(
-                app.measuredEventCount ?: 0, app.fallbackEventCount ?: 0, app.unmeasurableEventCount ?: 0, app.rejectedOutlierCount ?: 0, calibration,
-            )
+        val basis = allTime
+        if (basis?.distanceMm != null) {
+            val quality = AppRanking.quality(basis, calibration)
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(qualityLabel(quality)), style = MaterialTheme.typography.titleSmall)
@@ -108,7 +110,8 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
             }
         }
 
-        val distanceSeries = remember(days, today, first) { HistorySeriesBuilder.build(HistoryPeriod.DAYS_30, today, days, first) }
+        // Charts only: no statistics, so no first measured day.
+        val distanceSeries = remember(days, today) { HistorySeriesBuilder.build(HistoryPeriod.DAYS_30, today, days, firstMeasuredDay = null) }
         ChartCard(
             title = stringResource(R.string.app_detail_distance_chart),
             values = distanceSeries.bars.map { it.value },
@@ -117,8 +120,8 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
             barLabel = { labels.bar(HistoryPeriod.DAYS_30, distanceSeries.bars[it]) },
             selectedText = { i -> stringResource(R.string.history_day_value, labels.day(distanceSeries.bars[i].start), distance(distanceSeries.bars[i].value)) },
         )
-        val timeSeries = remember(days, today, first, usageGranted) {
-            HistorySeriesBuilder.build(HistoryPeriod.DAYS_30, today, days, first) {
+        val timeSeries = remember(days, today, usageGranted) {
+            HistorySeriesBuilder.build(HistoryPeriod.DAYS_30, today, days, firstMeasuredDay = null) {
                 (if (usageGranted) it.foregroundMs else it.activeScrollMs)?.toDouble()
             }
         }

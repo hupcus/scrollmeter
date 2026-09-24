@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
+import com.scrollmeter.app.data.model.DateRange
 import com.scrollmeter.app.format.DistanceFormatter
 import com.scrollmeter.app.format.TimeFormatter
 import com.scrollmeter.app.insights.AppRanking
@@ -63,8 +64,10 @@ fun AppsScreen(graph: AppGraph, onOpenApp: (String) -> Unit) {
     val settings by graph.settingsRepository.settings.collectAsStateWithLifecycle(initialValue = Settings())
     val range = period.range(today)
     val apps by remember(range) { graph.scrollRepository.apps(range) }.collectAsStateWithLifecycle(initialValue = null)
-    val ranked = remember(apps, sort, usageGranted, calibration) {
-        apps?.let { AppRanking.rank(it, sort, usageGranted, calibration) }
+    // Quality describes the app, not the period: rated on all-time counters (ADR-029).
+    val allTime by remember { graph.scrollRepository.apps(DateRange.ALL) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val ranked = remember(apps, allTime, sort, usageGranted, calibration) {
+        apps?.let { AppRanking.rank(it, sort, usageGranted, calibration, allTime.associateBy { a -> a.packageName }) }
     }
 
     LazyColumn(
@@ -104,7 +107,7 @@ private fun AppListRow(graph: AppGraph, row: RankedApp, usageGranted: Boolean, u
     val time = if (usageGranted) app.foregroundMs else app.activeScrollMs
     val detail = when {
         row.quality == null -> stringResource(R.string.apps_no_scroll_data)
-        row.sharePercent != null -> stringResource(R.string.apps_share, decimal(row.sharePercent, locale)) + " · " + stringResource(qualityLabel(row.quality))
+        row.sharePercent != null -> stringResource(R.string.apps_share_quality, decimal(row.sharePercent, locale), stringResource(qualityLabel(row.quality)))
         else -> stringResource(qualityLabel(row.quality))
     }
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {

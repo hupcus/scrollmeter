@@ -118,7 +118,7 @@
     <string name="apps_sort_time">Čas</string>
     <string name="apps_empty">Za toto období zatím nic.</string>
     <string name="apps_no_scroll_data">bez dat o scrollu</string>
-    <string name="apps_share">%1$s %%</string>
+    <string name="apps_share_quality">%1$s %% · %2$s</string>
     <string name="quality_high">Kvalita měření: vysoká</string>
     <string name="quality_medium">Kvalita měření: střední</string>
     <string name="quality_low">Kvalita měření: nízká</string>

@@ -41,4 +41,12 @@ class AppRankingTest {
         assertThat(AppsPeriod.DAYS_30.range(today).fromKey).isEqualTo("2026-08-26")
         assertThat(AppsPeriod.LIFETIME.range(today)).isEqualTo(DateRange.ALL)
     }
+
+    @Test
+    fun qualityComesFromTheAllTimeCountersWhenGiven() {
+        val today = listOf(app("a", 10.0, measured = 3)) // too few events today to judge
+        assertThat(AppRanking.rank(today, AppSort.DISTANCE, true, CalibrationConfidence.HIGH).single().quality).isEqualTo(MeasurementQuality.UNKNOWN)
+        val lifetime = mapOf("a" to app("a", 900.0, measured = 500))
+        assertThat(AppRanking.rank(today, AppSort.DISTANCE, true, CalibrationConfidence.HIGH, lifetime).single().quality).isEqualTo(MeasurementQuality.HIGH)
+    }
 }
