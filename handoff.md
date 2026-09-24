@@ -40,7 +40,7 @@
 | 1 Measurement POC | **GO (Honza, 2026-09-23)** | `phase-1-measurement-poc` / [#2](https://github.com/hupcus/scrollmeter/pull/2) | bez doměření Instagramu / TikToku — přijaté riziko |
 | 2 Kalibrace | hotovo, mergnuto (tag `v0.2`) | `phase-2-calibration` / [#4](https://github.com/hupcus/scrollmeter/pull/4) | kalibrace kartou + MAPE s ní → „Dluh ověření“ |
 | 3 Persistence | hotovo, mergnuto (tag `v0.3`) | `phase-3-persistence` / [#5](https://github.com/hupcus/scrollmeter/pull/5) | + čas v aplikaci (D19); restart telefonu a Digital Wellbeing → „Dluh ověření“ V4, V5 |
-| 4 Dashboard | hotovo, PR otevřený (merge + tag `v0.4` po CI) | `phase-4-dashboard` | ADR-028 |
+| 4 Dashboard | hotovo, mergnuto (tag `v0.4`) | `phase-4-dashboard` / [#6](https://github.com/hupcus/scrollmeter/pull/6) | ADR-028; CI zablokované billingem → brána v čistém checkoutu |
 | 5 Historie + Aplikace | nezačato | — | |
 | 6 Export + Nastavení | nezačato | — | |
 | 7 Onboarding + Policy | nezačato | — | |
@@ -203,6 +203,10 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 ## Otevřené body
 
 - [x] **OnePlus blokoval `settings put` přes adb** (`WRITE_SECURE_SETTINGS` denied — ColorOS „sledování oprávnění“). Vyřešeno 2026-09-23: Možnosti pro vývojáře → úplně dole **„Zakázat sledování oprávnění“** zapnuto (bez restartu), `settings put` funguje. Zároveň zapnuto „Při dobíjení nevypínat obrazovku“ (`stay_on_while_plugged_in=7`). Po resetu telefonu / aktualizaci OS zkontrolovat znovu.
+- [ ] **GitHub Actions nestartují (od 2026-09-24 07:04 UTC):** „The job was not started because recent account payments have failed or your spending limit needs to be increased.“ Jde o billing účtu, ne o kód.
+  - Do vyřešení se fáze mergují na **CI-ekvivalentní bráně v čistém checkoutu**: stejné příkazy jako `.github/workflows/ci.yml` + `assembleRelease`, stejné JDK 21; wrapper validace odpadá jen tam, kde se wrapper nemění. Každý PR to uvádí.
+  - Honza: zvýšit spending limit, nebo přesunout job na self-hosted runner (v hh-main běží privátní joby od 24. 9. v LXC 106 — potřeboval by Android SDK).
+  - Po opravě pustit CI znovu na `main` (`gh workflow run CI` nebo re-run posledního běhu).
 - [x] Přenos dat na nový telefon (device-to-device): rozhodnuto ADR-027 — nic se nepřenáší (`dataExtractionRules`), data si uživatel odnese CSV exportem (Phase 6).
 - [ ] **Phase 6 „Smazat všechna data“** musí smazat i Room (`clearAllTables()`), ne jen DataStore; `scroll_session` roste bez limitu (~desítky řádků denně) — rozhodnout retenci (bezpečnostní review, INFO).
 - [ ] Vyloučení aplikace platí od chvíle vyloučení (engine: EXCLUDED, sync času: vynechá ji v přepočítaných dnech). Starší řádky zůstávají — Phase 6 rozhodne, jestli je čtení skryje i v historii.
