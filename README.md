@@ -13,7 +13,8 @@ finger across the touchscreen.
 
 Project founded 2026-09-23. Merged: Phase 0 (bootstrap, `v0.0`), Phase 1 (measurement proof of concept,
 GO/NO-GO gate, `v0.1`), Phase 2 (calibration: card calibration, accuracy screen, accuracy tooling, `v0.2`),
-Phase 3 (persistence: Room, flushes, sessions, settings, optional time in app, `v0.3`), Phase 4 (dashboard, `v0.4`).
+Phase 3 (persistence: Room, flushes, sessions, settings, optional time in app, `v0.3`), Phase 4 (dashboard, `v0.4`),
+Phase 5 (history, apps, app detail, bottom navigation, `v0.5`).
 Manual on-phone checks still owed are listed under "Dluh ověření" in `handoff.md`. See `PLAN.md` (phases,
 gates) and `handoff.md` (live state).
 
@@ -107,6 +108,16 @@ přibližně délka jednoho běžeckého okruhu."). Every number is live — sto
 written yet. When the service is off, a red banner with *Zapnout měření* comes first. With Usage access the
 app rows add time in app and m/min; without it they show scroll time, and a card offers the feature once
 (*Ukázat jak* → a disclosure screen → Android settings).
+
+## History and apps (Phase 5)
+
+A bottom bar switches between *Přehled*, *Historie*, *Aplikace* and *Nastavení*. *Historie* charts the
+distance per day (7 or 30 days) or per month (12 months); tap a bar for its value; below it the average,
+highest and lowest day and the total, counted per day from the first measured day. *Aplikace* lists the apps
+of *Dnes / 7 dní / 30 dní / Celkem* by distance or time, with each app's share and a measurement-quality word
+(never an accuracy percentage — ADR-029); apps with time but no scroll data (YouTube) show "—". A row opens
+the app's detail with its 30-day charts. *Nastavení* holds the service and Usage-access status, *Přesnost
+měření* and, in debug builds, the developer screens.
 
 ## Stored data and time in app (Phase 3)
 
