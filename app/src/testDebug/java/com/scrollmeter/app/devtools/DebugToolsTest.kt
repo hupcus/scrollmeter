@@ -1,7 +1,7 @@
 package com.scrollmeter.app.devtools
 
 import com.google.common.truth.Truth.assertThat
-import com.scrollmeter.app.calibration.DisplaySnapshot
+import com.scrollmeter.app.calibration.CalibrationState
 import com.scrollmeter.app.measurement.MeasurementResult
 import com.scrollmeter.app.measurement.MeasurementSettings
 import com.scrollmeter.app.measurement.MeasurementSource
@@ -18,7 +18,7 @@ import org.junit.rules.TemporaryFolder
 /** Debug-only event log and CSV (spec §34, §70). Lives in testDebug because the classes are debug-only. */
 class DebugToolsTest {
     private val engine = ScrollMeasurementEngine(OWN_PACKAGE, MeasurementSettings(), TestPhone.display)
-    private val display = DisplaySnapshot(TestPhone.WIDTH_PX, TestPhone.HEIGHT_PX, TestPhone.XDPI, TestPhone.YDPI, TestPhone.DENSITY_DPI)
+    private val display = TestPhone.snapshot
 
     @get:Rule
     val tmp = TemporaryFolder()
@@ -64,12 +64,16 @@ class DebugToolsTest {
     @Test
     fun csvHasGeometryHeaderColumnsAndOneRowPerEvent() {
         val results = listOf(result(dy = 1200, uptimeMs = 5), result(dy = 20_000, uptimeMs = 9))
-        val csv = DebugCsv.build(results, display, device = "OnePlus CPH2399", appVersion = "0.1.0", overflowed = 0, zone = ZoneOffset.UTC)
+        val csv = DebugCsv.build(
+            results, display, CalibrationState(version = 3, manual = null),
+            device = "OnePlus CPH2399", appVersion = "0.1.0", overflowed = 0, zone = ZoneOffset.UTC,
+        )
         val lines = csv.trim().lines()
 
         assertThat(lines[0]).startsWith("# scrollmeter-debug")
         assertThat(lines[0]).contains("xdpi=403.411")
         assertThat(lines[0]).contains("max_event_px=10527.2")
+        assertThat(lines[0]).contains("scale_method=DISPLAY_METRICS calibration_version=3")
         assertThat(lines[1]).isEqualTo(DebugCsv.COLUMNS)
         assertThat(lines).hasSize(4)
         assertThat(lines[2].split(',')).hasSize(DebugCsv.COLUMNS.split(',').size)

@@ -1,5 +1,6 @@
 package com.scrollmeter.app.devtools
 
+import com.scrollmeter.app.calibration.CalibrationState
 import com.scrollmeter.app.calibration.DisplaySnapshot
 import com.scrollmeter.app.measurement.MeasurementResult
 import java.time.Instant
@@ -9,7 +10,9 @@ import java.util.Locale
 
 /**
  * Debug CSV (spec §34 plus the §70 dedupe fields). A `#` header line carries the device
- * geometry and scale, so `tools/analyze_debug_csv.py` can check the outlier limit on its own.
+ * geometry and the scale in force at export (calibration method and version), so
+ * `tools/analyze_debug_csv.py` can check the outlier limit on its own. Each row's `distance_mm`
+ * keeps the scale it was measured with (spec §65).
  */
 object DebugCsv {
     const val COLUMNS = "timestamp,uptime_ms,package,window_id,class_name,dx_px,dy_px," +
@@ -20,31 +23,33 @@ object DebugCsv {
     fun build(
         results: List<MeasurementResult>,
         display: DisplaySnapshot,
+        calibration: CalibrationState,
         device: String,
         appVersion: String,
         overflowed: Long,
         zone: ZoneId = ZoneId.systemDefault(),
-    ): String = document(results.map { row(it, zone) }, display, device, appVersion, overflowed)
+    ): String = document(results.map { row(it, zone) }, display, calibration, device, appVersion, overflowed)
 
     /** Header line, column names and [rows] as produced by [row] — from RAM or from the recording file. */
     fun document(
         rows: List<String>,
         display: DisplaySnapshot,
+        calibration: CalibrationState,
         device: String,
         appVersion: String,
         overflowed: Long,
     ): String = buildString {
-        val scale = display.toDisplayScale()
+        val scale = display.toDisplayScale(calibration)
         appendLine(
             String.format(
                 Locale.ROOT,
                 "# scrollmeter-debug app=%s device=%s width_px=%d height_px=%d xdpi=%.3f ydpi=%.3f " +
-                    "density_dpi=%d mm_per_px_x=%.6f mm_per_px_y=%.6f scale_method=%s " +
+                    "density_dpi=%d mm_per_px_x=%.6f mm_per_px_y=%.6f scale_method=%s calibration_version=%d " +
                     "diagonal_px=%.1f max_event_px=%.1f rows=%d overflowed=%d",
                 appVersion, device.replace(' ', '_'), display.widthPx, display.heightPx, display.xdpi,
                 display.ydpi, display.densityDpi, scale.scale.mmPerPxX, scale.scale.mmPerPxY,
-                scale.scale.method.name, scale.geometry.diagonalPx, scale.geometry.maxEventDistancePx,
-                rows.size, overflowed,
+                scale.scale.method.name, scale.scale.calibrationVersion, scale.geometry.diagonalPx,
+                scale.geometry.maxEventDistancePx, rows.size, overflowed,
             ),
         )
         appendLine(COLUMNS)

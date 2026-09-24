@@ -38,11 +38,13 @@ class ScrollMeasurementEngine(
     var display: DisplayScale = display
 
     fun process(sample: ScrollSample): MeasurementResult {
+        // One read: geometry, scale and its calibration version stay consistent for this event.
+        val (geometry, scale) = display
+        val version = scale.calibrationVersion
         val verdict = validator.classify(sample)
         if (verdict == ScrollEventValidator.Verdict.EXCLUDED) {
-            return MeasurementResult(sample, MeasurementSource.EXCLUDED, 0, 0, ScrollDistance.ZERO)
+            return MeasurementResult(sample, MeasurementSource.EXCLUDED, 0, 0, ScrollDistance.ZERO, version)
         }
-        val (geometry, scale) = display
         // The tracker sees every measurable event, so a fallback always compares against the
         // latest known position, even when the previous event carried a direct delta.
         val fallback = fallbackTracker.update(sample, geometry.maxEventDistancePx)
@@ -66,12 +68,12 @@ class ScrollMeasurementEngine(
             dy = fallback.dyPx
         } else {
             // Spec §6 C: no pixel data, no guessing — never convert item indexes to distance.
-            return MeasurementResult(sample, MeasurementSource.UNMEASURABLE, 0, 0, ScrollDistance.ZERO)
+            return MeasurementResult(sample, MeasurementSource.UNMEASURABLE, 0, 0, ScrollDistance.ZERO, version)
         }
 
         val distance = ScrollDistanceCalculator.distance(dx, dy, scale)
         val finalSource = if (source.counted && validator.isOutlier(dx, dy, geometry)) MeasurementSource.OUTLIER_REJECTED else source
-        return MeasurementResult(sample, finalSource, dx, dy, distance)
+        return MeasurementResult(sample, finalSource, dx, dy, distance, version)
     }
 
     /**

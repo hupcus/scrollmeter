@@ -17,6 +17,9 @@ private val BlueLight = Color(0xFFB4C5FF)
 private val Teal = Color(0xFF00696E)
 private val TealLight = Color(0xFF80D4DA)
 
+/** The calibration bar — the instruction calls it "modrá čára", so it stays blue under dynamic colour. */
+val CalibrationBarBlue = Color(0xFF2F6BFF)
+
 private val LightColors = lightColorScheme(primary = Blue, secondary = Teal)
 private val DarkColors = darkColorScheme(primary = BlueLight, secondary = TealLight)
 

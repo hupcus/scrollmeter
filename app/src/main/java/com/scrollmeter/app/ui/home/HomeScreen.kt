@@ -21,31 +21,40 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
+import com.scrollmeter.app.calibration.CalibrationMethod
 import com.scrollmeter.app.devtools.DevToolEntry
+import com.scrollmeter.app.measurement.PhysicalScale
+import com.scrollmeter.app.measurement.PhysicalScaleProvider
 import com.scrollmeter.app.ui.components.Format
 
 /** Spec §32: never claim data is being collected unless the service is actually running. */
 enum class ServiceStatus { ON, ENABLED_NOT_RUNNING, OFF }
 
 /**
- * Phase 1 home: service status with the way to Accessibility settings, the RAM-only total since
- * the service started, and (debug builds) the developer screens. Replaced by the dashboard in Phase 4.
+ * POC home: service status with the way to Accessibility settings, the RAM-only total since the
+ * service started, the calibration in use with the way to the accuracy screen, and (debug builds)
+ * the developer screens. Replaced by the dashboard in Phase 4.
  */
 @Composable
 fun HomeScreen(
     graph: AppGraph,
     devTools: List<DevToolEntry>,
     onOpenAccessibilitySettings: () -> Unit,
+    onOpenAccuracy: () -> Unit,
+    onCalibrate: () -> Unit,
     onOpenDevTool: (Int) -> Unit,
 ) {
     val connected by graph.monitor.serviceConnected.collectAsStateWithLifecycle()
     val totals by graph.monitor.totals.collectAsStateWithLifecycle()
+    val calibration by graph.calibrationRepository.state.collectAsStateWithLifecycle(initialValue = null)
+    val display = remember(LocalConfiguration.current.orientation) { graph.displayMetricsProvider.read() }
     var enabledInSettings by remember { mutableStateOf(graph.statusChecker.isEnabled()) }
     LifecycleResumeEffect(Unit) {
         enabledInSettings = graph.statusChecker.isEnabled()
@@ -83,6 +92,7 @@ fun HomeScreen(
                     }
                 }
             }
+            calibration?.let { AccuracyCard(PhysicalScaleProvider.resolve(it, display), onOpenAccuracy, onCalibrate) }
             if (devTools.isNotEmpty()) {
                 Text(stringResource(R.string.home_devtools_title), style = MaterialTheme.typography.titleMedium)
                 devTools.forEachIndexed { index, tool ->
@@ -91,6 +101,29 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/** Spec §8: offer the card calibration until it is done; afterwards show what it gives. */
+@Composable
+private fun AccuracyCard(scale: PhysicalScale, onOpenAccuracy: () -> Unit, onCalibrate: () -> Unit) {
+    val manual = scale.method == CalibrationMethod.MANUAL_CARD
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.home_accuracy_title), style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (manual) {
+                    stringResource(R.string.home_accuracy_manual, Format.decimal(scale.mmPerPxY, 4))
+                } else {
+                    stringResource(R.string.home_accuracy_auto)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (!manual) {
+                Button(onClick = onCalibrate) { Text(stringResource(R.string.home_calibrate)) }
+            }
+            OutlinedButton(onClick = onOpenAccuracy) { Text(stringResource(R.string.home_accuracy_open)) }
         }
     }
 }

@@ -21,8 +21,15 @@ Preparation: `./gradlew installDebug`, enable the service via adb (commands in `
 **Own test list** — `python3 tools/device_accuracy.py --surface view,column,lazy` opens the debug build's
 test list (`--es devtool testlist`), picks a surface, resets it and runs the gestures below. Ground truth
 is the list's own scroll: `OnScrollChangeListener` for the View surface, a `NestedScrollConnection`
-(Σ consumed) for the Compose surfaces. The screen logs one `TESTLIST` line per settled change; the
-script compares it with the engine's own-package totals.
+(Σ consumed) for the Compose surfaces. The screen logs one `TESTLIST` line per settled change (since
+Phase 2 with the calibration in force: method, version, mm/px); the script compares it with the engine's
+own-package totals. `--csv-out DIR` writes `ground_truth.csv` + `measured.csv`, and `tools/accuracy.py`
+turns such a pair into per-run error, MAE and MAPE (spec §38). On the phone, the test list shows MAE / MAPE
+over the runs of the current series ("Vynulovat" closes a run).
+
+Ground truth mm and measured mm use the same scale, so the percentages above measure the *pixel* pipeline.
+The scale itself is checked separately: the card calibration's mm/px against the display's `xdpi`/`ydpi`
+(Devices table) — a deviation above 5 % would point at a raw-pixel error in the calibration bar.
 
 | Test | What | Gesture (portrait, 1080×2400) | Pass |
 |---|---|---|---|

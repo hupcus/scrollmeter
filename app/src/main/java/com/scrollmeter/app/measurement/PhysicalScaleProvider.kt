@@ -2,18 +2,25 @@ package com.scrollmeter.app.measurement
 
 import com.scrollmeter.app.calibration.CalibrationConfidence
 import com.scrollmeter.app.calibration.CalibrationMethod
+import com.scrollmeter.app.calibration.CalibrationState
+import com.scrollmeter.app.calibration.DisplaySnapshot
 
-/** Millimetres per physical pixel on each axis, and where the numbers came from. */
+/**
+ * Millimetres per physical pixel on each axis, where the numbers came from, and the stored
+ * calibration version they were resolved under (spec §65 — distances keep the version they
+ * were computed with).
+ */
 data class PhysicalScale(
     val mmPerPxX: Double,
     val mmPerPxY: Double,
     val method: CalibrationMethod,
     val confidence: CalibrationConfidence,
+    val calibrationVersion: Int = 0,
 )
 
 /**
- * Picks the px → mm scale. Phase 1 knows only the display's own `xdpi`/`ydpi` (spec §9); the
- * manual card calibration takes precedence from Phase 2 on (spec §8).
+ * Picks the px → mm scale: the user's card calibration when it applies to this display
+ * (spec §8, ADR-024), otherwise the display's own `xdpi`/`ydpi` (spec §9).
  *
  * densityDpi is logical Android UI density and is not used as the
  * primary physical-distance conversion.
@@ -22,6 +29,15 @@ data class PhysicalScale(
  * It is used only when both `xdpi` and `ydpi` are implausible, and then with LOW confidence.
  */
 object PhysicalScaleProvider {
+    fun resolve(calibration: CalibrationState, display: DisplaySnapshot): PhysicalScale {
+        val manual = calibration.manual
+        return if (manual != null && manual.appliesTo(display)) {
+            PhysicalScale(manual.mmPerPxX, manual.mmPerPxY, CalibrationMethod.MANUAL_CARD, CalibrationConfidence.HIGH, calibration.version)
+        } else {
+            fromDisplayMetrics(display.xdpi, display.ydpi, display.densityDpi).copy(calibrationVersion = calibration.version)
+        }
+    }
+
     fun fromDisplayMetrics(xdpi: Double, ydpi: Double, densityDpi: Int): PhysicalScale {
         val xValid = xdpi.isPlausibleDpi()
         val yValid = ydpi.isPlausibleDpi()

@@ -11,9 +11,10 @@ finger across the touchscreen.
 
 ## Status
 
-Project founded 2026-09-23. Phase 0 (bootstrap) is merged (`v0.0`). Phase 1 — the measurement
-proof of concept and GO/NO-GO gate — is in review: accessibility service, pure-Kotlin measurement
-engine, debug screens. See `PLAN.md` (phases, gates) and `handoff.md` (live state).
+Project founded 2026-09-23. Merged: Phase 0 (bootstrap, `v0.0`), Phase 1 (measurement proof of concept,
+GO/NO-GO gate, `v0.1`), Phase 2 (calibration: card calibration, accuracy screen, accuracy tooling, `v0.2`).
+Manual on-phone checks still owed are listed under "Dluh ověření" in `handoff.md`. See `PLAN.md` (phases,
+gates) and `handoff.md` (live state).
 
 ## Repository map
 
@@ -28,7 +29,7 @@ engine, debug screens. See `PLAN.md` (phases, gates) and `handoff.md` (live stat
 | `docs/architecture.md` | Event pipeline, package layout, threading, data model |
 | `docs/measurement-decisions.md` | ADR log for non-obvious decisions |
 | `docs/prompts/` | Kick-off prompts for coding sessions |
-| `tools/` | `analyze_debug_csv.py` (per-app analysis of debug CSVs), `device_accuracy.py` (adb-driven accuracy tests) |
+| `tools/` | `analyze_debug_csv.py` (per-app analysis of debug CSVs), `device_accuracy.py` (adb-driven accuracy tests), `accuracy.py` (ground truth CSV vs measured CSV → MAE, MAPE) |
 | `CLAUDE.md` | Rules for coding agents working in this repo |
 
 ## Build and run (available from Phase 0)
@@ -83,6 +84,19 @@ exact ground truth). Release builds contain neither.
    *Sdílet* sends it elsewhere.
 7. **Switch the service off** when done: `$ADB shell settings delete secure enabled_accessibility_services` (an empty `put` fails with "Bad arguments")
    or in Accessibility settings.
+
+## Calibration (Phase 2)
+
+Home → *Zkalibrovat displej* (or *Přesnost měření* → *Zkalibrovat platební kartou*). Hold the phone upright,
+lay a payment card on the screen right of the blue vertical line with its top edge on the top line, and
+move the bottom line to the card's bottom edge (slider, then − / + for single pixels) → *Uložit kalibraci*.
+*Přesnost měření* then shows *Platební karta · 1 pixel = … mm* and the date. The card applies only to the
+phone and display resolution it was made on (ADR-024); *Přeskočit – použít automatický odhad* goes back to
+`xdpi`/`ydpi`. New calibration applies to new events only.
+
+Accuracy with the calibration in force: `python3 tools/device_accuracy.py --surface view,column --csv-out out/`
+then `python3 tools/accuracy.py out/ground_truth.csv out/measured.csv`. The test list itself shows MAE / MAPE
+over the runs of a series (*Vynulovat* closes a run, *Nová série* starts over).
 
 The debug CSV holds numbers and identifiers only (time, package, window id, view class, deltas, scroll
 positions, distance, source, accepted/rejected) — never text from the screen.

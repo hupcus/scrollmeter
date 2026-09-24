@@ -5,7 +5,7 @@
     <string name="accessibility_service_label">ScrollMeter — měření scrollování</string>
     <string name="accessibility_service_description">ScrollMeter měří, o kolik se při scrollování posune obsah na displeji, a převádí to na metry. Služba přijímá jen události scrollování: čísla o posunu a název aplikace. Nečte text, zprávy ani obsah obrazovky, nic neovládá a data nikam neposílá — aplikace nemá přístup k internetu.</string>
 
-    <string name="home_subtitle">Prototyp měření (fáze 1)</string>
+    <string name="home_subtitle">Prototyp měření a kalibrace (fáze 2)</string>
     <string name="home_status_on">Měření je zapnuté</string>
     <string name="home_status_on_body">Služba přijímá jen události scrollování.</string>
     <string name="home_status_not_running">Měření je povolené, ale služba neběží</string>
@@ -18,4 +18,42 @@
     <string name="home_live_events">%1$s započtených událostí z %2$s</string>
     <string name="home_live_note">Jen v paměti — ukládání přijde v další fázi.</string>
     <string name="home_devtools_title">Vývojářské nástroje</string>
+    <string name="home_accuracy_title">Přesnost měření</string>
+    <string name="home_accuracy_manual">Kalibrováno platební kartou · 1 pixel = %1$s mm</string>
+    <string name="home_accuracy_auto">Měří se podle automatického odhadu z údajů displeje. Zkalibruj displej pro přesnější měření.</string>
+    <string name="home_accuracy_open">Přesnost měření</string>
+    <string name="home_calibrate">Zkalibrovat displej</string>
+
+    <string name="back">Zpět</string>
+
+    <!-- Spec §8 UX kalibrace; the bar is vertical because 85.60 mm does not fit across a phone (ADR-023). -->
+    <string name="calibration_title">Kalibrace displeje</string>
+    <string name="calibration_instruction">Přilož platební kartu k displeji a posuvníkem uprav modrou čáru tak, aby měla stejnou délku jako delší strana karty.</string>
+    <string name="calibration_hint">Kartu polož na výšku hned vedle modré čáry, horní hranou na horní linku. Spodní linku dolaď tlačítky − a +.</string>
+    <string name="calibration_value">Čára %1$s px · 1 pixel = %2$s mm</string>
+    <string name="calibration_vs_auto">oproti odhadu %1$s %%</string>
+    <string name="calibration_too_small">Delší čára se sem nevejde. Drž telefon na výšku.</string>
+    <string name="calibration_shorter">Zkrátit čáru o 1 pixel</string>
+    <string name="calibration_longer">Prodloužit čáru o 1 pixel</string>
+    <string name="calibration_save">Uložit kalibraci</string>
+    <string name="calibration_skip">Přeskočit – použít automatický odhad</string>
+
+    <!-- Spec §33 About / Accuracy screen. -->
+    <string name="accuracy_title">Přesnost měření</string>
+    <string name="accuracy_method_label">Kalibrace</string>
+    <string name="accuracy_method_manual">Platební karta</string>
+    <string name="accuracy_method_display">Údaje displeje (xdpi / ydpi)</string>
+    <string name="accuracy_method_unknown">Odhad z hustoty rozhraní</string>
+    <string name="accuracy_confidence_high">Spolehlivost: vysoká</string>
+    <string name="accuracy_confidence_medium">Spolehlivost: střední</string>
+    <string name="accuracy_confidence_low">Spolehlivost: nízká</string>
+    <string name="accuracy_px_uniform">1 pixel = %1$s mm</string>
+    <string name="accuracy_px_axes">1 pixel = %1$s mm vodorovně · %2$s mm svisle</string>
+    <string name="accuracy_calibrated_label">Kalibrováno</string>
+    <string name="accuracy_auto_note">Automatický odhad z údajů, které o sobě hlásí displej. Kalibrace platební kartou je přesnější.</string>
+    <string name="accuracy_stale">Uložená kalibrace patří k jinému telefonu nebo jinému rozlišení displeje, proto se teď nepoužívá. Zkalibruj displej znovu.</string>
+    <string name="accuracy_device">%1$s · %2$d × %3$d px · xdpi %4$s · ydpi %5$s</string>
+    <string name="accuracy_history_note">Nová kalibrace platí jen pro nově naměřená data. Už naměřené metry se nepřepočítávají.</string>
+    <string name="accuracy_recalibrate">Překalibrovat</string>
+    <string name="accuracy_calibrate">Zkalibrovat platební kartou</string>
 </resources>

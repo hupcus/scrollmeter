@@ -37,6 +37,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,6 +57,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
+import com.scrollmeter.app.calibration.CalibrationState
+import com.scrollmeter.app.measurement.AccuracyRun
+import com.scrollmeter.app.measurement.AccuracySummary
 import com.scrollmeter.app.ui.components.Format
 import java.util.Locale
 import kotlin.math.abs
@@ -76,6 +80,9 @@ private enum class Surface(val label: String) { LAZY("Lazy"), COLUMN("Column"), 
  * accessibility pipeline measured for our package. Ground truth = Σ|consumed| seen by a
  * [NestedScrollConnection] (Compose) or Σ|Δscroll| from `OnScrollChangeListener` (View) — drag
  * and fling alike. While this screen is open our own package is measured (test mode).
+ *
+ * "Vynulovat" closes the current run; the runs of one surface form a series with MAE / MAPE
+ * (spec §38) on screen. Ground truth mm use the scale the engine uses — the stored calibration.
  */
 @OptIn(FlowPreview::class)
 @Composable
@@ -89,15 +96,26 @@ fun TestListScreen(graph: AppGraph, onBack: () -> Unit) {
     var groundTruthYPx by remember { mutableDoubleStateOf(0.0) }
     val engine by graph.monitor.selfTest.collectAsStateWithLifecycle()
     val connected by graph.monitor.serviceConnected.collectAsStateWithLifecycle()
-    val scale = remember { graph.readDisplayScale().scale }
-    val reset = {
+    val calibration by graph.calibrationRepository.state.collectAsStateWithLifecycle(initialValue = CalibrationState.NONE)
+    val scale = remember(calibration) { graph.readDisplayScale(calibration).scale }
+    val groundTruthMm = groundTruthXPx * scale.mmPerPxX + groundTruthYPx * scale.mmPerPxY
+    val runs = remember { mutableStateListOf<AccuracyRun>() }
+    val clear = {
         groundTruthXPx = 0.0
         groundTruthYPx = 0.0
         graph.monitor.resetSelfTest()
     }
+    val reset = {
+        if (groundTruthMm > 0.0) runs += AccuracyRun(groundTruthMm, engine.countedMm)
+        clear()
+    }
+    val newSeries = {
+        runs.clear()
+        clear()
+    }
 
     // One summary line after things settle, for the adb-driven accuracy runs (tools/device_accuracy.py).
-    LaunchedEffect(Unit) {
+    LaunchedEffect(scale) {
         combine(snapshotFlow { Triple(surface, groundTruthXPx, groundTruthYPx) }, graph.monitor.selfTest) { gt, eng -> gt to eng }
             .debounce(1_500)
             .collect { (gt, eng) ->
@@ -106,9 +124,11 @@ fun TestListScreen(graph: AppGraph, onBack: () -> Unit) {
                     LOG_TAG,
                     String.format(
                         Locale.ROOT,
-                        "TESTLIST surface=%s gt_x_px=%.1f gt_y_px=%.1f eng_x_px=%d eng_y_px=%d gt_mm=%.3f eng_mm=%.3f eng_events=%d",
+                        "TESTLIST surface=%s gt_x_px=%.1f gt_y_px=%.1f eng_x_px=%d eng_y_px=%d gt_mm=%.3f eng_mm=%.3f eng_events=%d " +
+                            "scale_method=%s calibration_version=%d mm_per_px_x=%.6f mm_per_px_y=%.6f",
                         current.name, gtX, gtY, eng.absDxPx, eng.absDyPx,
                         gtX * scale.mmPerPxX + gtY * scale.mmPerPxY, eng.countedMm, eng.events,
+                        scale.method.name, scale.calibrationVersion, scale.mmPerPxX, scale.mmPerPxY,
                     ),
                 )
             }
@@ -127,7 +147,7 @@ fun TestListScreen(graph: AppGraph, onBack: () -> Unit) {
                             selected = surface == option,
                             onClick = {
                                 surface = option
-                                reset()
+                                newSeries()
                             },
                             label = { Text(option.label) },
                         )
@@ -144,14 +164,26 @@ fun TestListScreen(graph: AppGraph, onBack: () -> Unit) {
                 )
                 Text(comparisonLine("svisle ", groundTruthYPx, engine.absDyPx), style = mono)
                 Text(comparisonLine("vodor. ", groundTruthXPx, engine.absDxPx), style = mono)
-                val groundTruthMm = groundTruthXPx * scale.mmPerPxX + groundTruthYPx * scale.mmPerPxY
                 Text(
                     "celkem GT ${Format.decimal(groundTruthMm, 1)} mm · měřeno ${Format.decimal(engine.countedMm, 1)} mm " +
                         "· událostí ${engine.events}",
                     style = mono,
                 )
-                OutlinedButton(onClick = reset, modifier = Modifier.padding(vertical = 4.dp)) {
-                    Text(stringResource(R.string.devtools_testlist_reset))
+                // The open run counts too, so the line is complete right after the last gesture.
+                val series = AccuracySummary.of(runs + listOfNotNull(AccuracyRun(groundTruthMm, engine.countedMm).takeIf { groundTruthMm > 0.0 }))
+                Text(
+                    "série ${series.runs} běhů · MAE ${series.maeMm?.let { Format.decimal(it, 2) + " mm" } ?: "—"} · " +
+                        "MAPE ${series.mapePercent?.let { Format.decimal(it, 2) + " %" } ?: "—"} · ${scale.method.name} v${scale.calibrationVersion}",
+                    style = mono,
+                    maxLines = 1,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = reset, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Text(stringResource(R.string.devtools_testlist_reset))
+                    }
+                    OutlinedButton(onClick = newSeries, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Text(stringResource(R.string.devtools_testlist_new_series))
+                    }
                 }
             }
             val onX: (Double) -> Unit = { groundTruthXPx += it }
