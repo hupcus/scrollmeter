@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -19,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -58,10 +61,23 @@ import kotlinx.coroutines.launch
  *
  * Height is the scarce resource (the card needs ~1360 of the test phone's 2400 px): the title
  * and the instructions sit beside the bar, where the card covers them once it is in place.
+ *
+ * [onBack] leaves without a change; [onSaved] follows a saved card or "use the automatic estimate".
  */
 @Composable
-fun CalibrationScreen(graph: AppGraph, onDone: () -> Unit) {
+fun CalibrationScreen(graph: AppGraph, onBack: () -> Unit, onSaved: () -> Unit) {
     val scope = rememberCoroutineScope()
+    // One change per visit: a double tap must not save twice (each save is a new calibration version).
+    var committing by remember { mutableStateOf(false) }
+    val commit: (suspend () -> Unit) -> Unit = { change ->
+        if (!committing) {
+            committing = true
+            scope.launch {
+                change()
+                onSaved()
+            }
+        }
+    }
     val state by graph.calibrationRepository.state.collectAsStateWithLifecycle(initialValue = null)
     val display = remember(LocalConfiguration.current.orientation) { graph.displayMetricsProvider.read() }
     val autoMmPerPx = remember(display) { automaticMmPerPx(display) }
@@ -102,11 +118,11 @@ fun CalibrationScreen(graph: AppGraph, onDone: () -> Unit) {
                     }
                 }
                 Column(
-                    Modifier.padding(start = 40.dp, top = 12.dp, end = 12.dp),
+                    Modifier.verticalScroll(rememberScrollState()).padding(start = 40.dp, top = 12.dp, end = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = onDone) { Text(stringResource(R.string.back)) }
+                        TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
                         Text(stringResource(R.string.calibration_title), style = MaterialTheme.typography.titleLarge)
                     }
                     Text(stringResource(R.string.calibration_instruction), style = MaterialTheme.typography.bodyLarge)
@@ -156,21 +172,14 @@ fun CalibrationScreen(graph: AppGraph, onDone: () -> Unit) {
                 Button(
                     onClick = {
                         val calibration = CardCalibration.create(shownPx, graph.displayMetricsProvider.read(), System.currentTimeMillis())
-                        scope.launch {
-                            graph.calibrationRepository.saveManual(calibration)
-                            onDone()
-                        }
+                        commit { graph.calibrationRepository.saveManual(calibration) }
                     },
-                    enabled = usable && !atLimit,
+                    enabled = usable && !atLimit && !committing,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.calibration_save)) }
                 TextButton(
-                    onClick = {
-                        scope.launch {
-                            graph.calibrationRepository.useAutomatic()
-                            onDone()
-                        }
-                    },
+                    onClick = { commit { graph.calibrationRepository.useAutomatic() } },
+                    enabled = !committing,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.calibration_skip)) }
             }

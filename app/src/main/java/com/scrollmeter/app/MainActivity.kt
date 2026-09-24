@@ -49,14 +49,20 @@ class MainActivity : ComponentActivity() {
 private enum class Screen { HOME, ACCURACY, CALIBRATION }
 
 /**
- * Home → Přesnost → Kalibrace, and back the same way; saving or skipping a calibration shows
- * its result on Přesnost. Debug builds add the developer screens.
+ * Home → Přesnost → Kalibrace (or Home → Kalibrace directly). Back returns to where the
+ * calibration was opened from; saving or skipping shows the result on Přesnost. Debug builds
+ * add the developer screens.
  */
 @Composable
 private fun ScrollMeterApp(graph: AppGraph, initialTool: Int, onOpenAccessibilitySettings: () -> Unit) {
     val devTools = DevTools.entries
     var openTool by rememberSaveable { mutableIntStateOf(initialTool) }
     var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
+    var calibrationOpenedFrom by rememberSaveable { mutableStateOf(Screen.HOME) }
+    val openCalibration = { from: Screen ->
+        calibrationOpenedFrom = from
+        screen = Screen.CALIBRATION
+    }
     val tool = devTools.getOrNull(openTool)
     when {
         tool != null -> {
@@ -64,19 +70,19 @@ private fun ScrollMeterApp(graph: AppGraph, initialTool: Int, onOpenAccessibilit
             tool.content(graph) { openTool = NO_TOOL }
         }
         screen == Screen.CALIBRATION -> {
-            BackHandler { screen = Screen.ACCURACY }
-            CalibrationScreen(graph, onDone = { screen = Screen.ACCURACY })
+            BackHandler { screen = calibrationOpenedFrom }
+            CalibrationScreen(graph, onBack = { screen = calibrationOpenedFrom }, onSaved = { screen = Screen.ACCURACY })
         }
         screen == Screen.ACCURACY -> {
             BackHandler { screen = Screen.HOME }
-            AccuracyScreen(graph, onBack = { screen = Screen.HOME }, onCalibrate = { screen = Screen.CALIBRATION })
+            AccuracyScreen(graph, onBack = { screen = Screen.HOME }, onCalibrate = { openCalibration(Screen.ACCURACY) })
         }
         else -> HomeScreen(
             graph = graph,
             devTools = devTools,
             onOpenAccessibilitySettings = onOpenAccessibilitySettings,
             onOpenAccuracy = { screen = Screen.ACCURACY },
-            onCalibrate = { screen = Screen.CALIBRATION },
+            onCalibrate = { openCalibration(Screen.HOME) },
             onOpenDevTool = { openTool = it },
         )
     }
