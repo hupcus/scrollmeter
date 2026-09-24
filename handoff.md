@@ -42,31 +42,28 @@
 | 3 Persistence | hotovo, mergnuto (tag `v0.3`) | `phase-3-persistence` / [#5](https://github.com/hupcus/scrollmeter/pull/5) | + čas v aplikaci (D19); restart telefonu a Digital Wellbeing → „Dluh ověření“ V4, V5 |
 | 4 Dashboard | hotovo, mergnuto (tag `v0.4`) | `phase-4-dashboard` / [#6](https://github.com/hupcus/scrollmeter/pull/6) | ADR-028; CI zablokované billingem → brána v čistém checkoutu |
 | 5 Historie + Aplikace | hotovo, mergnuto (tag `v0.5`) | `phase-5-history-apps` / [#7](https://github.com/hupcus/scrollmeter/pull/7) | ADR-029; CI zablokované billingem → brána v čistém checkoutu |
-| 6 Export + Nastavení | **rozpracováno** — kód, testy, emulátor a `/topshit` hotové; zbývá Stage 2 + PR + merge (oddíl „Zbývá“ v exit reportu) | `phase-6-export-settings` (pushnutá) / PR zatím není | ADR-030/031; oznámení na telefonu → „Dluh ověření“ V6 |
+| 6 Export + Nastavení | hotovo, mergnuto (tag `v0.6`) | `phase-6-export-settings` / [#8](https://github.com/hupcus/scrollmeter/pull/8) | ADR-030/031; oznámení a export na telefonu → „Dluh ověření“ V6; CI zablokované billingem → brána v čistém checkoutu |
 | 7 Onboarding + Policy | nezačato | — | |
 | 8 Release | nezačato | — | |
 
 ## Phase 6 — exit report (2026-09-24)
 
-**Zbývá** (stav 2026-09-24, poslední commit na větvi `24bce78`):
-1. **Stage 2** nad `git diff 498b301..phase-6-export-settings` — `/topshit` je hotový, neopakovat. Funkční + bezpečnostní review přes subagenta Plan/`model: "fable"`. Zaměřit se na:
-   - `ExportFileProvider` + SAF (žádná cesta mimo `cache/exports/`, grant jen pro jedno sdílení);
-   - PendingIntent oznámení;
-   - závody při mazání: `writeLock` / `dataEpoch` / spodní hranice syncu / `NonCancellable`;
-   - filtr výluk ve všech dotazech DAO (`appDaysBetween` je záměrně bez filtru — jen detail jedné aplikace);
-   - ochrana CSV proti vzorcům;
-   - HOME `<queries>`;
-   - čtení `DEFAULT_INPUT_METHOD`.
-2. Opravit nálezy (test ke každé opravě), znovu brány.
-3. PR s DoD checklistem (SPEC §25, §26, §28, §44, §45). GitHub Actions jsou zablokované billingem → brána v čistém worktree (`git worktree add --detach <scratchpad>/ci-check phase-6-export-settings`, brány + `processReleaseManifest`, pak `git worktree remove --force`) a uvést to v PR.
-4. Squash merge jako `hupcus` (`unset GH_TOKEN GH_CONFIG_DIR`), tag `v0.6`, smazat větev, aktualizovat tabulku fází a memory `project_scrollmeter_android.md`.
-5. Pokračovat Phase 7 (onboarding + policy) podle `PLAN.md`.
+**Stage 2** (funkční + bezpečnostní review, Fable, nad `498b301..phase-6-export-settings`) — opraveno v `dcd566f`, ke každé opravě test:
+- **HIGH (tvrdé pravidlo):** prahy rekordu `RECORD_MIN_PRIOR_DAYS` / `RECORD_MIN_MM` byly v `NotificationRules`, ne v `MeasurementConfig` → přesunuty; `PolicyGuardTest` teď selže, když je konstanta zmíněná v ADR logu deklarovaná jinde.
+- **MEDIUM:** oznámení mohlo po „Smazat všechna data“ ohlásit smazaná data (kontrola přečetla fakta těsně před smazáním) → celé mazání běží pod `writeLock`, oznámení se posílá pod stejným zámkem a jen když se epocha dat nezměnila; úklid oznámení a kopií CSV před mazáním i po něm.
+- **LOW:** chyba zápisu DataStore shodila aplikaci (8 přepínačů, kalibrace, mazání) → hláška „Nastavení se nepodařilo uložit“; mazání pokračuje dalšími kroky a řekne „Smazání se nepovedlo celé“.
+- **LOW:** zrušený export (Zpět, otočení) hlásil „Export se nepovedl“ → `attemptExport` zrušení propustí; nepovedený zápis přes SAF smaže napůl zapsaný soubor.
+- **LOW:** nečitelné nastavení by pustilo vyloučené aplikace do exportu → export čte výluky striktně (`stored`) a raději selže.
+- **LOW:** strážce release manifestu hlídal jen debug provider → přesný allowlist autorit (`….exports`, `….androidx-startup`).
+- **INFO:** doplněno do ADR-031 — známé meze: čas v aplikaci za den přesynchronizovaný během výluky se po zrušení výluky nevrátí; hodiny vrácené před čas mazání spodní hranici ignorují.
+- Emulátor po opravách: smazání dat (0,9 m → 0,0 m, bez pádu), sdílení exportu otevře systémový výběr.
 
-Neověřeno na emulátoru, jen čtením kódu: smazání dat zruší i už zobrazená oznámení (`cancelAll()`).
+Neověřeno na emulátoru, jen čtením kódu a testem: smazání dat zruší i už zobrazená oznámení (`cancelAll()`).
 
 **Emulátor pro další session:**
 - start: `~/Library/Android/sdk/emulator/emulator -avd scrollmeter34 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot-save` na pozadí;
 - `adb root` funguje;
+- fyzický telefon bývá připojený současně → každý `adb` i `installDebug` s `ANDROID_SERIAL=emulator-5554` (Gradle `installDebug` by jinak instaloval na všechna zařízení);
 - `uiautomator dump` odpojí službu → po navigaci ji vrátit `settings put secure enabled_accessibility_services …`;
 - release APK podepsat debug keystorem: `zipalign` + `apksigner` z `build-tools/36.0.0`.
 - Stav: nainstalovaný debug i release build, u debug buildu `POST_NOTIFICATIONS` odebrané s příznakem user-fixed (test cesty po odmítnutí), motiv podle systému.
@@ -353,7 +350,8 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 ### 2026-09-24 — Phase 6 export, nastavení, oznámení (Opus 5.5)
 - Oprávnění `POST_NOTIFICATIONS` (plán ho povoluje pro Phase 6), druhý `<queries>` (HOME), `ExportFileProvider` — ADR-030.
 - Sémantika výluk, mazání, CSV a oznámení — ADR-031; konstanty `RECORD_MIN_PRIOR_DAYS = 3`, `RECORD_MIN_MM = 10 m`, `SESSION_RETENTION_DAYS = 90`, rozsah cíle 10 m – 100 km.
-- Guard manifestu v release zakazuje jen debug provider (`….devtools.files`), ne každý FileProvider.
+- Guard manifestu v release: přesný allowlist autorit providerů (`….exports`, `….androidx-startup`) — po Stage 2 místo „jen ne debug provider“.
+- Stage 2 (Fable): 1× HIGH, 1× MEDIUM, 4× LOW opraveno (`dcd566f`), ADR-031 doplněné o bod (6).
 - Piny beze změny.
 
 ### 2026-09-24 — Phase 5 historie + aplikace (Opus 5.5, review Fable 5.1)
