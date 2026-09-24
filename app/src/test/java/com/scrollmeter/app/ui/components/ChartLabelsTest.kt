@@ -14,15 +14,18 @@ class ChartLabelsTest {
     private val cs = Locale.forLanguageTag("cs")
 
     @Test
-    fun distanceAxisIsRoundInMetresAndKilometres() {
+    fun distanceAxisIsRoundWithOneUnitPerAxis() {
         assertThat(ChartLabels.distanceScale(423_000.0)).isEqualTo(ChartScale(600_000.0, 200_000.0))
         assertThat(ChartLabels.distanceScale(0.0)).isEqualTo(ChartScale(100_000.0, 25_000.0))
-        assertThat(ChartLabels.distanceAxis(0.0, UnitPreference.AUTOMATIC, cs)).isEqualTo("0")
-        assertThat(ChartLabels.distanceAxis(200_000.0, UnitPreference.AUTOMATIC, cs)).isEqualTo("200 m")
-        assertThat(ChartLabels.distanceAxis(2_000_000.0, UnitPreference.AUTOMATIC, cs)).isEqualTo("2 km")
-        assertThat(ChartLabels.distanceAxis(2_500_000.0, UnitPreference.AUTOMATIC, cs)).isEqualTo("2,5 km")
-        assertThat(ChartLabels.distanceAxis(25_000.0, UnitPreference.KILOMETRES, cs)).isEqualTo("0,025 km")
-        assertThat(ChartLabels.distanceAxis(2_000_000.0, UnitPreference.METRES, cs)).isEqualTo("2\u00a0000 m")
+        val metres = ChartLabels.distanceAxis(ChartScale(600_000.0, 200_000.0), UnitPreference.AUTOMATIC, cs)
+        assertThat(metres(0.0)).isEqualTo("0")
+        assertThat(metres(200_000.0)).isEqualTo("200 m")
+        // An axis that reaches 1 km is in km all the way down — never "750 m · 1 km".
+        val km = ChartLabels.distanceAxis(ChartScale(1_000_000.0, 250_000.0), UnitPreference.AUTOMATIC, cs)
+        assertThat(km(250_000.0)).isEqualTo("0,25 km")
+        assertThat(km(1_000_000.0)).isEqualTo("1 km")
+        assertThat(ChartLabels.distanceAxis(ChartScale(100_000.0, 25_000.0), UnitPreference.KILOMETRES, cs)(25_000.0)).isEqualTo("0,025 km")
+        assertThat(ChartLabels.distanceAxis(ChartScale(3_000_000.0, 1_000_000.0), UnitPreference.METRES, cs)(2_000_000.0)).isEqualTo("2\u00a0000 m")
     }
 
     @Test

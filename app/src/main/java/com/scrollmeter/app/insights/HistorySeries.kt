@@ -57,8 +57,10 @@ object HistorySeriesBuilder {
     }
 
     private fun stats(allDays: List<LocalDate>, byDate: Map<LocalDate, Double>, first: LocalDate?, today: LocalDate): HistoryStats? {
-        if (first == null || first.isAfter(today)) return null
-        val counted = allDays.filter { !it.isBefore(first) }.map { DayValue(it, byDate[it] ?: 0.0) }
+        if (first == null) return null
+        // A first day "in the future" (the clock was moved back) still means something was measured.
+        val from = minOf(first, today)
+        val counted = allDays.filter { !it.isBefore(from) }.map { DayValue(it, byDate[it] ?: 0.0) }
         if (counted.isEmpty()) return null
         val total = counted.sumOf { it.value }
         return HistoryStats(

@@ -65,9 +65,12 @@ fun AppsScreen(graph: AppGraph, onOpenApp: (String) -> Unit) {
     val range = period.range(today)
     val apps by remember(range) { graph.scrollRepository.apps(range) }.collectAsStateWithLifecycle(initialValue = null)
     // Quality describes the app, not the period: rated on all-time counters (ADR-029).
-    val allTime by remember { graph.scrollRepository.apps(DateRange.ALL) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val allTime by remember { graph.scrollRepository.apps(DateRange.ALL) }.collectAsStateWithLifecycle(initialValue = null)
+    // Ranked only once both are read, so a row never flashes the period's own quality first.
     val ranked = remember(apps, allTime, sort, usageGranted, calibration) {
-        apps?.let { AppRanking.rank(it, sort, usageGranted, calibration, allTime.associateBy { a -> a.packageName }) }
+        val period = apps ?: return@remember null
+        val basis = allTime ?: return@remember null
+        AppRanking.rank(period, sort, usageGranted, calibration, basis.associateBy { it.packageName })
     }
 
     LazyColumn(

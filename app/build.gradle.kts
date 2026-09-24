@@ -77,7 +77,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     // D14: bottom navigation with type-safe (@Serializable) routes, from Phase 5.
     implementation(libs.androidx.navigation.compose)
-    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.serialization.core)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

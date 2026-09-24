@@ -60,4 +60,13 @@ class HistorySeriesTest {
         assertThat(series.bars.takeLast(2).map { it.value }).containsExactly(30_000.0, 60_000.0).inOrder()
         assertThat(series.stats!!.total).isEqualTo(90_000.0)
     }
+
+    @Test
+    fun aFirstDayAfterTodayStillHasStatistics() {
+        // The clock was moved back: rows exist "in the future", today counts as measured.
+        val series = HistorySeriesBuilder.build(HistoryPeriod.DAYS_7, today, emptyList(), d("2026-09-30"))
+        val stats = series.stats!!
+        assertThat(stats.total).isEqualTo(0.0)
+        assertThat(stats.maxDay.date).isEqualTo(today)
+    }
 }

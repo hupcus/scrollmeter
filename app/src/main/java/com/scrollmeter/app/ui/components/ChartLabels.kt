@@ -37,15 +37,20 @@ class ChartLabels(locale: Locale) {
         fun distanceScale(maxMm: Double): ChartScale = ChartScale.of(maxMm, emptyMax = 100_000.0)
 
         /**
-         * Grid values are round, so without the fixed decimals of `DistanceFormatter`: "250 m", "2 km",
-         * "2,5 km". The unit follows the preference; AUTOMATIC switches to km at 1 km.
+         * Labels for a distance axis. Grid values are round, so without the fixed decimals of
+         * `DistanceFormatter`: "250 m", "2 km", "2,5 km". One unit per axis — AUTOMATIC picks km when
+         * the axis reaches 1 km, so it never reads "750 m · 1 km".
          */
-        fun distanceAxis(mm: Double, unit: UnitPreference, locale: Locale): String {
-            if (mm == 0.0) return "0"
-            val metres = mm / 1_000.0
-            val km = unit == UnitPreference.KILOMETRES || (unit == UnitPreference.AUTOMATIC && metres >= 1_000)
+        fun distanceAxis(scale: ChartScale, unit: UnitPreference, locale: Locale): (Double) -> String {
+            val km = unit == UnitPreference.KILOMETRES || (unit == UnitPreference.AUTOMATIC && scale.max >= 1_000_000.0)
             val number = NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 3 }
-            return if (km) "${number.format(metres / 1_000.0)} km" else "${number.format(metres)} m"
+            return { mm ->
+                when {
+                    mm == 0.0 -> "0"
+                    km -> "${number.format(mm / 1_000_000.0)} km"
+                    else -> "${number.format(mm / 1_000.0)} m"
+                }
+            }
         }
 
         /** Time axes run in minutes so the steps read as clock time. */

@@ -13,6 +13,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.scrollmeter.app.devtools.DevTools
 import com.scrollmeter.app.settings.ThemePreference
+import com.scrollmeter.app.ui.navigation.NavIntents
 import com.scrollmeter.app.ui.navigation.ScrollMeterNavHost
 import com.scrollmeter.app.ui.theme.ScrollMeterTheme
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val graph = (application as ScrollMeterApplication).graph
+        intent = NavIntents.scrubbed(intent) // before the NavHost reads it
         setContent {
             val theme by graph.settingsRepository.settings.collectAsStateWithLifecycle(initialValue = null)
             val dark = when (theme?.theme) {

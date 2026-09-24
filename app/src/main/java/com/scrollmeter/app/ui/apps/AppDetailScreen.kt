@@ -31,10 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
-import com.scrollmeter.app.data.model.AppSummary
 import com.scrollmeter.app.data.model.DateRange
 import com.scrollmeter.app.format.DistanceFormatter
 import com.scrollmeter.app.format.TimeFormatter
+import com.scrollmeter.app.insights.AppPeriodTotals
 import com.scrollmeter.app.insights.AppRanking
 import com.scrollmeter.app.insights.AppsPeriod
 import com.scrollmeter.app.insights.ChartScale
@@ -72,9 +72,9 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
     val settings by graph.settingsRepository.settings.collectAsStateWithLifecycle(initialValue = Settings())
     val unit = settings.unitPreference
     val range = period.range(today)
-    val summary by remember(range, packageName) {
-        graph.scrollRepository.apps(range).map { apps -> apps.firstOrNull { it.packageName == packageName } }
-    }.collectAsStateWithLifecycle(initialValue = null)
+    val periodDays by remember(range, packageName) { graph.scrollRepository.appDays(packageName, range) }
+        .collectAsStateWithLifecycle(initialValue = null)
+    val totals = remember(periodDays) { periodDays?.let(AppPeriodTotals::of) }
     val chartRange = HistorySeriesBuilder.range(HistoryPeriod.DAYS_30, today)
     val days by remember(chartRange, packageName) { graph.scrollRepository.appDays(packageName, chartRange) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
@@ -97,7 +97,7 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
             Text(label, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         }
         PeriodSelector(AppsPeriod.entries, period, { stringResource(appsPeriodLabel(it)) }, { period = it })
-        PeriodSummary(summary, usageGranted, ::distance, locale)
+        PeriodSummary(totals, usageGranted, ::distance, locale)
 
         val basis = allTime
         if (basis?.distanceMm != null) {
@@ -112,12 +112,14 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
 
         // Charts only: no statistics, so no first measured day.
         val distanceSeries = remember(days, today) { HistorySeriesBuilder.build(HistoryPeriod.DAYS_30, today, days, firstMeasuredDay = null) }
+        val distanceScale = remember(distanceSeries) { ChartLabels.distanceScale(distanceSeries.bars.maxOf { it.value }) }
         ChartCard(
             title = stringResource(R.string.app_detail_distance_chart),
             values = distanceSeries.bars.map { it.value },
-            scale = remember(distanceSeries) { ChartLabels.distanceScale(distanceSeries.bars.maxOf { it.value }) },
-            axisLabel = { ChartLabels.distanceAxis(it, unit, locale) },
+            scale = distanceScale,
+            axisLabel = remember(distanceScale, unit, locale) { ChartLabels.distanceAxis(distanceScale, unit, locale) },
             barLabel = { labels.bar(HistoryPeriod.DAYS_30, distanceSeries.bars[it]) },
+            firstBar = distanceSeries.range.from.toString(),
             selectedText = { i -> stringResource(R.string.history_day_value, labels.day(distanceSeries.bars[i].start), distance(distanceSeries.bars[i].value)) },
         )
         val timeSeries = remember(days, today, usageGranted) {
@@ -132,6 +134,7 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
             scale = remember(timeSeries) { ChartLabels.minutesScale(timeSeries.bars.maxOf { it.value }) },
             axisLabel = ChartLabels::minutesAxis,
             barLabel = { labels.bar(HistoryPeriod.DAYS_30, timeSeries.bars[it]) },
+            firstBar = timeSeries.range.from.toString(),
             selectedText = { i ->
                 stringResource(R.string.history_day_value, labels.day(timeSeries.bars[i].start), TimeFormatter.duration(timeSeries.bars[i].value.toLong()))
             },
@@ -141,10 +144,11 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
 
 /**
  * Distance, time in app and pace (with Usage access, ADR-022), scroll time; the scroll-share sentence
- * when both times are known, or a note that the app reports no scrolling.
+ * when both times are known, or a note that the app reports no scrolling. Pace and share use only
+ * the days that have a time in app ([AppPeriodTotals]).
  */
 @Composable
-private fun PeriodSummary(app: AppSummary?, usageGranted: Boolean, distance: (Double) -> String, locale: Locale) {
+private fun PeriodSummary(app: AppPeriodTotals?, usageGranted: Boolean, distance: (Double) -> String, locale: Locale) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             SummaryRow(stringResource(R.string.app_detail_distance), app?.distanceMm?.let(distance) ?: TimeFormatter.UNKNOWN)
@@ -156,14 +160,14 @@ private fun PeriodSummary(app: AppSummary?, usageGranted: Boolean, distance: (Do
             SummaryRow(stringResource(R.string.app_detail_scroll_time), TimeFormatter.duration(app?.activeScrollMs))
             if (usageGranted) {
                 HorizontalDivider()
-                SummaryRow(stringResource(R.string.app_detail_pace), TimeFormatter.pace(app?.distanceMm, app?.foregroundMs, locale))
+                SummaryRow(stringResource(R.string.app_detail_pace), TimeFormatter.pace(app?.pairedDistanceMm, app?.foregroundMs, locale))
             }
-            val share = if (usageGranted) ScrollShare.percent(app?.activeScrollMs, app?.foregroundMs) else null
+            val share = if (usageGranted) ScrollShare.percent(app?.pairedScrollMs, app?.foregroundMs) else null
             val note = when {
                 app != null && app.distanceMm == null && app.foregroundMs != null -> stringResource(R.string.app_detail_no_scroll)
                 share != null -> stringResource(
                     R.string.app_detail_scroll_share,
-                    TimeFormatter.duration(app?.activeScrollMs),
+                    TimeFormatter.duration(app?.pairedScrollMs),
                     TimeFormatter.duration(app?.foregroundMs),
                     share.toString(),
                 )
@@ -192,9 +196,11 @@ private fun ChartCard(
     scale: ChartScale,
     axisLabel: (Double) -> String,
     barLabel: (Int) -> String,
+    firstBar: String,
     selectedText: @Composable (Int) -> String,
 ) {
-    var selected by rememberSaveable(values.size) { mutableStateOf<Int?>(null) }
+    // Keyed by the first bar's date: after midnight the same index is another day.
+    var selected by rememberSaveable(firstBar) { mutableStateOf<Int?>(null) }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(selected?.takeIf { it in values.indices }?.let { selectedText(it) } ?: title, style = MaterialTheme.typography.titleSmall)

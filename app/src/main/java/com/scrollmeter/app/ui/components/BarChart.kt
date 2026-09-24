@@ -106,7 +106,8 @@ fun BarChart(
         xLabels.forEachIndexed { i, label ->
             if ((values.lastIndex - i) % every != 0 || label.size.width == 0) return@forEachIndexed
             val center = plotLeft + i * slot + slot / 2
-            val x = (center - label.size.width / 2f).coerceIn(plotLeft, size.width - label.size.width)
+            // max(): on a plot narrower than the label (split screen) the range must not invert.
+            val x = (center - label.size.width / 2f).coerceIn(plotLeft, max(plotLeft, size.width - label.size.width))
             drawText(label, topLeft = Offset(x, plotBottom + gapPx / 2))
         }
     }

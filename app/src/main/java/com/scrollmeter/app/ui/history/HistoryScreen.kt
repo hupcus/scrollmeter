@@ -83,7 +83,7 @@ fun HistoryScreen(graph: AppGraph) {
                 BarChart(
                     values = series.bars.map { it.value },
                     scale = scale,
-                    axisLabel = { ChartLabels.distanceAxis(it, unit, locale) },
+                    axisLabel = remember(scale, unit, locale) { ChartLabels.distanceAxis(scale, unit, locale) },
                     barLabel = { labels.bar(period, series.bars[it]) },
                     contentDescription = stringResource(
                         R.string.history_chart_description,

@@ -18,7 +18,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -31,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
+import com.scrollmeter.app.apps.PackageNames
 import com.scrollmeter.app.devtools.DevTools
 import com.scrollmeter.app.ui.apps.AppDetailScreen
 import com.scrollmeter.app.ui.apps.AppsScreen
@@ -124,7 +124,13 @@ fun ScrollMeterNavHost(graph: AppGraph, initialDevTool: String?, onOpenAccessibi
                 )
             }
             composable<AppDetailRoute> { back ->
-                AppDetailScreen(graph, back.toRoute<AppDetailRoute>().packageName, onBack = { nav.leave(back) })
+                val packageName = back.toRoute<AppDetailRoute>().packageName
+                // Defence in depth next to MainActivity's deep-link scrub: never show an arbitrary string as an app name.
+                if (PackageNames.isValid(packageName)) {
+                    AppDetailScreen(graph, packageName, onBack = { nav.leave(back) })
+                } else {
+                    LaunchedEffect(back) { nav.leave(back) }
+                }
             }
             composable<AccuracyRoute> { back ->
                 AccuracyScreen(graph, onBack = { nav.leave(back) }, onCalibrate = { nav.open(CalibrationRoute) })
@@ -146,9 +152,10 @@ fun ScrollMeterNavHost(graph: AppGraph, initialDevTool: String?, onOpenAccessibi
 private fun NavController.open(route: Any) = navigate(route) { launchSingleTop = true }
 
 /**
- * Leaves [entry] only while it is the resumed screen: a second tap on "Zpět" during the exit
- * animation would otherwise pop the screen below as well — down to an empty host.
+ * Leaves [entry] only while it is the top of the stack: a second tap on "Zpět" during the exit
+ * animation would otherwise pop the screen below as well — down to an empty host. Identity, not
+ * lifecycle: an entry is not RESUMED during its enter animation or in an unfocused split window.
  */
 private fun NavController.leave(entry: NavBackStackEntry) {
-    if (entry.lifecycle.currentState == Lifecycle.State.RESUMED) popBackStack()
+    if (currentBackStackEntry?.id == entry.id) popBackStack()
 }
