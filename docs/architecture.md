@@ -66,9 +66,12 @@ com.scrollmeter.app
 │                   UsageEventsSource, UsageAccessChecker (the only Android parts)
 ├── settings        Settings, SettingsRepository (DataStore)
 ├── format          DistanceFormatter, TimeFormatter (pure Kotlin — ADR-028)
-├── insights        DistanceComparisonProvider, TopApps (pure Kotlin)
+├── insights        DistanceComparisonProvider, TopApps, HistorySeries, ChartScale, AppRanking,
+│                   ScrollShare (pure Kotlin — ADR-028, ADR-029)
 ├── apps            AppInfoProvider (labels + icons via PackageManager, cached; UI only — ADR-008)
-├── ui              onboarding, dashboard, history, apps, calibration, settings, about, components, theme
+├── ui              navigation (routes + bottom bar), dashboard, history, apps (list + detail), calibration,
+│                   usage, settings, components (BarChart, PeriodSelector, AppIcon, LiveState), theme;
+│                   onboarding and about come in Phases 6–7
 ├── export          CsvExporter
 ├── AppGraph.kt, ScrollMeterApplication.kt, MainActivity.kt
 └── src/debug/…     DebugEventLog, DebugMeasurementScreen, TestListScreen (never in release)
@@ -103,10 +106,14 @@ com.scrollmeter.app
 
 ## Navigation
 
-Bottom bar: Přehled · Historie · Aplikace · Nastavení (Navigation Compose 2.9, type-safe routes).
-Onboarding is a separate graph shown until `onboardingCompleted`.
+Bottom bar: Přehled · Historie · Aplikace · Nastavení (Navigation Compose 2.9.8, `@Serializable` routes — D14,
+ADR-029), in `ui/navigation/ScrollMeterNavHost`. The bar shows only on those four; switching tabs saves and restores
+each tab's state. Below them, without the bar:
 
-Until the bottom bar of Phase 5, `MainActivity` switches on a saveable enum: Přehled (`ui/dashboard/DashboardScreen`)
-→ Přesnost měření (`ui/calibration/AccuracyScreen`) → Kalibrace displeje (`ui/calibration/CalibrationScreen`), and
-Přehled → Čas v aplikacích (`ui/usage/UsageAccessScreen`, the Usage-access disclosure). Saving or skipping a
-calibration lands on Přesnost.
+- Aplikace (or a top-app row on Přehled) → detail `AppDetailRoute(packageName)`,
+- Přehled or Nastavení → Přesnost měření → Kalibrace displeje (saving or skipping lands back on Přesnost),
+- Přehled card or Nastavení → Čas v aplikacích (the Usage-access disclosure; closes itself once access is granted),
+- Nastavení → developer screens (`DevToolRoute`, registered only when `DevTools.entries` is non-empty — debug).
+
+A "Zpět" tap leaves a screen only while it is the resumed one, so a double tap cannot pop the screen below.
+Onboarding (Phase 7) will be a separate graph shown until `onboardingCompleted`.

@@ -91,6 +91,61 @@
 
     <string name="back">Zpět</string>
 
+    <!-- Spec §43 bottom navigation. -->
+    <string name="nav_overview">Přehled</string>
+    <string name="nav_history">Historie</string>
+    <string name="nav_apps">Aplikace</string>
+    <string name="nav_settings">Nastavení</string>
+
+    <!-- Spec §23 History. -->
+    <string name="history_title">Historie</string>
+    <string name="period_7_days">7 dní</string>
+    <string name="period_30_days">30 dní</string>
+    <string name="period_12_months">12 měsíců</string>
+    <string name="period_today">Dnes</string>
+    <string name="period_lifetime">Celkem</string>
+    <string name="history_average">Průměr / den</string>
+    <string name="history_max">Nejvyšší den</string>
+    <string name="history_min">Nejnižší den</string>
+    <string name="history_total">Celkem</string>
+    <string name="history_day_value">%1$s · %2$s</string>
+    <string name="history_empty">Zatím nic naměřeno. Jakmile budeš scrollovat, objeví se tu graf.</string>
+    <string name="history_chart_description">Graf vzdálenosti: celkem %1$s, nejvyšší den %2$s</string>
+
+    <!-- Spec §24 Apps, §20 quality, D19 time. -->
+    <string name="apps_title">Aplikace</string>
+    <string name="apps_sort_distance">Vzdálenost</string>
+    <string name="apps_sort_time">Čas</string>
+    <string name="apps_empty">Za toto období zatím nic.</string>
+    <string name="apps_no_scroll_data">bez dat o scrollu</string>
+    <string name="apps_share">%1$s %%</string>
+    <string name="quality_high">Kvalita měření: vysoká</string>
+    <string name="quality_medium">Kvalita měření: střední</string>
+    <string name="quality_low">Kvalita měření: nízká</string>
+    <string name="quality_unknown">Kvalita měření: málo dat</string>
+    <string name="quality_high_info">Tato aplikace poskytuje standardní Android scroll data a displej je zkalibrovaný, takže měření je pravděpodobně spolehlivé.</string>
+    <string name="quality_medium_info">Měření je použitelné, ale buď displej není zkalibrovaný kartou, nebo aplikace často hlásí jen polohu místo posunu.</string>
+    <string name="quality_low_info">Velká část událostí z této aplikace nenese použitelný údaj o posunu, takže naměřená vzdálenost bude spíš nižší než skutečná.</string>
+    <string name="quality_unknown_info">Zatím je z této aplikace málo událostí na posouzení.</string>
+    <string name="app_detail_distance">Vzdálenost</string>
+    <string name="app_detail_time_in_app">Čas v aplikaci</string>
+    <string name="app_detail_scroll_time">Čas scrollování</string>
+    <string name="app_detail_pace">Tempo</string>
+    <string name="app_detail_distance_chart">Vzdálenost za 30 dní</string>
+    <string name="app_detail_time_chart">Čas v aplikaci za 30 dní</string>
+    <string name="app_detail_scroll_chart">Čas scrollování za 30 dní</string>
+    <string name="app_detail_scroll_share">Scrolluješ %1$s z %2$s v aplikaci (%3$s %%).</string>
+    <string name="app_detail_no_scroll">Tahle aplikace scrollování nehlásí — ScrollMeter u ní zná jen čas v aplikaci.</string>
+
+    <!-- Nastavení (Phase 5 core; Phase 6 adds goal, units, notifications, data, privacy, about). -->
+    <string name="settings_title">Nastavení</string>
+    <string name="settings_section_measurement">Měření</string>
+    <string name="settings_service">Služba Usnadnění</string>
+    <string name="settings_on">Zapnuto</string>
+    <string name="settings_off">Vypnuto</string>
+    <string name="settings_usage_access">Čas v aplikacích</string>
+    <string name="settings_accuracy">Přesnost měření</string>
+
     <!-- Spec §8 UX kalibrace; the bar is vertical because 85.60 mm does not fit across a phone (ADR-023). -->
     <string name="calibration_title">Kalibrace displeje</string>
     <string name="calibration_instruction">Přilož platební kartu k displeji a posuvníkem uprav modrou čáru tak, aby měla stejnou délku jako delší strana karty.</string>
