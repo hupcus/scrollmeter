@@ -13,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -29,7 +28,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
 import com.scrollmeter.app.apps.PackageNames
@@ -49,7 +47,6 @@ import com.scrollmeter.app.ui.settings.PrivacyScreen
 import com.scrollmeter.app.ui.settings.SettingsActions
 import com.scrollmeter.app.ui.settings.SettingsScreen
 import com.scrollmeter.app.ui.usage.UsageAccessScreen
-import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
 // Type-safe routes (D14). A package name is the only argument; it is ours, read back from Room.
@@ -80,19 +77,24 @@ private val TOP_LEVEL = listOf(
 /**
  * Přehled / Historie / Aplikace / Nastavení in a bottom bar (spec §43); the bar hides on the screens
  * below them (app detail, Přesnost, Kalibrace, Čas v aplikacích, Vyloučené aplikace, Export,
- * Soukromí, O aplikaci, the disclosure, developer screens). Switching tabs
+ * Soukromí, O aplikaci, the disclosure, developer screens). [onOpenAccessibilitySettings] is only ever
+ * called behind the gate, never passed on (PolicyGuardTest). Switching tabs
  * keeps each tab's state. [initialDevTool] opens a developer screen from the launch intent (debug).
  */
 @Composable
-fun ScrollMeterNavHost(graph: AppGraph, initialDevTool: String?, onOpenAccessibilitySettings: () -> Unit) {
+fun ScrollMeterNavHost(
+    graph: AppGraph,
+    initialDevTool: String?,
+    disclosureAccepted: Boolean,
+    onOpenAccessibilitySettings: () -> Unit,
+) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val destination = entry?.destination
     val onTopLevel = TOP_LEVEL.any { destination?.hasRoute(it.route::class) == true }
     // Spec §30: the dashboard banner and Nastavení reach the accessibility settings only through the
-    // prominent disclosure while it has not been accepted (ADR-032).
-    val disclosureAccepted by remember(graph) { graph.settingsRepository.settings.map { it.privacyDisclosureAccepted } }
-        .collectAsStateWithLifecycle(initialValue = false)
+    // prominent disclosure while it has not been accepted (ADR-032). [disclosureAccepted] is the stored
+    // flag MainActivity has already loaded — no first frames with a default.
     val openAccessibilitySettings = {
         when (AccessibilityGate.route(disclosureAccepted)) {
             AccessibilityGate.Route.OPEN_SETTINGS -> onOpenAccessibilitySettings()

@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
                     current.onboardingCompleted || devTool != null -> ScrollMeterNavHost(
                         graph = graph,
                         initialDevTool = devTool,
+                        disclosureAccepted = current.privacyDisclosureAccepted,
                         onOpenAccessibilitySettings = ::openAccessibilitySettings,
                     )
                     else -> OnboardingScreen(graph, onOpenAccessibilitySettings = ::openAccessibilitySettings)

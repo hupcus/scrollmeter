@@ -80,8 +80,11 @@ fun OnboardingScreen(graph: AppGraph, onOpenAccessibilitySettings: () -> Unit) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.WELCOME) }
     var calibrating by rememberSaveable { mutableStateOf(false) }
     var openedSettings by rememberSaveable { mutableStateOf(false) }
+    // Set only after the acceptance was written: a later read error of the settings (the screens' flow
+    // then shows defaults) must not send the user round from step 4 to the disclosure again.
+    var acceptedHere by rememberSaveable { mutableStateOf(false) }
     val state = OnboardingState(
-        disclosureAccepted = settings?.privacyDisclosureAccepted == true,
+        disclosureAccepted = settings?.privacyDisclosureAccepted == true || acceptedHere,
         serviceEnabled = status != ServiceStatus.OFF,
     )
 
@@ -135,18 +138,20 @@ fun OnboardingScreen(graph: AppGraph, onOpenAccessibilitySettings: () -> Unit) {
                 .forEach { Bullet(it) }
         }
 
-        OnboardingStep.DISCLOSURE -> StepPage(step, stringResource(R.string.disclosure_title), actions = {
+        // The consent button follows the whole text inside the scroll — never tappable before it is read
+        // to the end on a small screen or with large fonts.
+        OnboardingStep.DISCLOSURE -> StepPage(step, stringResource(R.string.disclosure_title), actions = {}) {
+            DisclosureTexts()
             Button(
                 onClick = {
                     scope.launchWrite(context) {
                         repository.setPrivacyDisclosureAccepted(true)
+                        acceptedHere = true
                         step = OnboardingStep.ENABLE_SERVICE
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.disclosure_accept)) }
-        }) {
-            DisclosureTexts()
         }
 
         OnboardingStep.ENABLE_SERVICE -> StepPage(step, stringResource(R.string.onboarding_enable_title), actions = {

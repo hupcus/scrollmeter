@@ -33,7 +33,12 @@ class TranslationsTest {
     private val cs = read("values")
     private val en = read("values-en")
 
-    private fun args(text: String): List<String> = Regex("""%(\d+\$)?[sdf]|%%""").findAll(text).map { it.value }.sorted().toList()
+    private fun args(text: String): List<String> = ARG.findAll(text).map { it.value }.sorted().toList()
+
+    @Test
+    fun theArgumentPatternSeesEveryFormat() {
+        assertThat(args("%1\$.1f km, %2\$s, %d × %% %,d")).containsExactly("%1\$.1f", "%2\$s", "%d", "%%", "%,d")
+    }
 
     @Test
     fun englishHasEveryCzechKeyAndNothingElse() {
@@ -84,5 +89,10 @@ class TranslationsTest {
         val section = spec.substring(spec.indexOf("# 29. Privacy"), spec.indexOf("# 30. Google Play"))
             .lines().joinToString(" ") { it.removePrefix(">").trim() }
         assertThat(section).contains(cs.strings.getValue("privacy_intro"))
+    }
+
+    private companion object {
+        /** java.util.Formatter specifiers: index, flags, width, precision, conversion; `%%` too. */
+        val ARG = Regex("""%(\d+\$)?[-#+ 0,(]*\d*(\.\d+)?[a-zA-Z%]""")
     }
 }

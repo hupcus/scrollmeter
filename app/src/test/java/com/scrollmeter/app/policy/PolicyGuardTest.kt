@@ -224,10 +224,21 @@ class PolicyGuardTest {
      */
     @Test
     fun onlyMainActivityOpensTheAccessibilitySettings() {
-        val openers = sources.filter { it.extension == "kt" && "ACTION_ACCESSIBILITY_SETTINGS" in stripComments(it.readText(), "kt") }
+        // The constants and their string values ("android.settings.ACCESSIBILITY_SETTINGS", the details page).
+        val opener = Regex("""ACCESSIBILITY_SETTINGS|ACCESSIBILITY_DETAILS_SETTINGS|android\.settings\.ACCESSIBILITY""")
+        val openers = sources.filter { it.extension in setOf("kt", "java", "xml") && opener.containsMatchIn(stripComments(it.readText(), it.extension)) }
         assertThat(openers.map { it.name }).containsExactly("MainActivity.kt")
-        val navHost = sources.single { it.name == "ScrollMeterNavHost.kt" }.readText()
+        val navHost = stripComments(sources.single { it.name == "ScrollMeterNavHost.kt" }.readText(), "kt")
         assertThat(navHost).contains("AccessibilityGate.route(")
+        assertWithMessage("the NavHost passes the ungated callback on").that(rawCallbackPassedOn(navHost)).isEmpty()
+    }
+
+    @Test
+    fun theGateGuardSeesARawCallbackPassedOn() {
+        val gated = "fun X(onOpenAccessibilitySettings: () -> Unit) { Dashboard(onOpenAccessibilitySettings = gated); onOpenAccessibilitySettings() }"
+        assertThat(rawCallbackPassedOn(gated)).isEmpty()
+        assertThat(rawCallbackPassedOn("Dashboard(onOpenAccessibilitySettings = onOpenAccessibilitySettings)")).hasSize(1)
+        assertThat(rawCallbackPassedOn("Settings(open = onOpenAccessibilitySettings, x)")).hasSize(1)
     }
 
     /**
@@ -258,6 +269,13 @@ class PolicyGuardTest {
 
     private companion object {
         const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
+
+        /**
+         * The NavHost's ungated callback may be declared (`name:`), used as a parameter name of another
+         * screen (`name =`) and called (`name(`) — any other use hands it on past the gate.
+         */
+        fun rawCallbackPassedOn(code: String): List<String> =
+            Regex("""onOpenAccessibilitySettings(?!\s*[(:=])""").findAll(code).map { it.value }.toList()
         val ALLOWED_PERMISSIONS = setOf("android.permission.PACKAGE_USAGE_STATS", "android.permission.POST_NOTIFICATIONS")
         val USAGE_PLATFORM_ADAPTERS = setOf("UsageEventsSource.kt", "UsageAccessChecker.kt")
 

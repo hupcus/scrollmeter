@@ -66,8 +66,8 @@ Soukromí. Czech and English sets (the app has both, ADR-032).
 - **Core functionality that needs the AccessibilityService API:** measuring the scroll distance the user covers in
   other apps. Android offers no other API that reports how far content moved in another app; the service receives
   only `TYPE_VIEW_SCROLLED` events with `canRetrieveWindowContent="false"`.
-- **Data accessed:** per scroll event the package name of the app, the view class name, the event time and the
-  scroll offsets / deltas (numbers). Never text, content descriptions, the node tree, URLs or form values.
+- **Data accessed:** per scroll event the package name of the app, the view class name (used in memory to tell
+  scrollables apart, never stored in release builds), the event time and the scroll offsets / deltas (numbers). Never text, content descriptions, the node tree, URLs or form values.
 - **Use of the data:** summed on the device into distance per day and app, shown to the user, exportable by the
   user as CSV. Not transmitted — the app has no `INTERNET` permission.
 - **Usage statistics (optional, separate permission):** "UsageStats dává jen čas, ne scroll delta" — Usage access
@@ -110,7 +110,7 @@ internet); a public page is needed — **Honza decides where** (e.g. a page on h
 > ScrollMeter nesbírá, neodesílá ani nesdílí žádná osobní data. Aplikace nemá oprávnění k internetu.
 >
 > Služba Usnadnění (Accessibility API) se používá jen k detekci scrollování v jiných aplikacích: ScrollMeter z ní
-> čte název aplikace a číselné údaje o posunu obsahu. Nečte ani neukládá text, zprávy, hesla, adresy stránek,
+> čte název aplikace, číselné údaje o posunu obsahu a typ posouvaného prvku (název třídy, který se neukládá). Nečte ani neukládá text, zprávy, hesla, adresy stránek,
 > obsah obrazovky ani vyplněné formuláře.
 >
 > Volitelný „Přístup k údajům o využití“ slouží jen k výpočtu času stráveného v aplikacích (součet minut na

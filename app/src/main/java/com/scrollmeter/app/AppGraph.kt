@@ -1,6 +1,7 @@
 package com.scrollmeter.app
 
 import android.content.Context
+import android.widget.Toast
 import com.scrollmeter.app.accessibility.AccessibilityStatusChecker
 import com.scrollmeter.app.apps.AppInfoProvider
 import com.scrollmeter.app.calibration.CalibrationRepository
@@ -22,9 +23,12 @@ import com.scrollmeter.app.data.DataEraser
 import com.scrollmeter.app.export.CsvExportWriter
 import com.scrollmeter.app.notifications.AndroidNotificationPoster
 import com.scrollmeter.app.notifications.NotificationWatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -89,6 +93,13 @@ class AppGraph(context: Context) {
         )
     }
 
+    /**
+     * Work that must outlive the screen that started it: "Smazat data i nastavení" clears the
+     * onboarding flag, MainActivity swaps to the onboarding and the settings screen is gone before
+     * the erase reports.
+     */
+    val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
     /** "Smazat všechna data" (spec §45, ADR-031). */
     val dataEraser by lazy {
         DataEraser(
@@ -103,6 +114,14 @@ class AppGraph(context: Context) {
             },
             usageExclusive = usageSyncer::exclusive,
         )
+    }
+
+    /** Runs the erase in [appScope] and says how it went, whatever screen is showing by then. */
+    fun eraseAndReport(alsoSettings: Boolean) {
+        appScope.launch {
+            val ok = dataEraser.erase(alsoSettings)
+            Toast.makeText(appContext, if (ok) R.string.delete_done else R.string.delete_failed, Toast.LENGTH_LONG).show()
+        }
     }
 
     /** Debug builds: event log + logcat. Release builds: none (src/release DevTools). */

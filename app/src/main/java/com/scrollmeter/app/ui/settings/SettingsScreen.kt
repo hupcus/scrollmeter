@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -258,10 +257,7 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
             onDismiss = { dialog = null },
             onDelete = { alsoSettings ->
                 dialog = null
-                scope.launch {
-                    val ok = graph.dataEraser.erase(alsoSettings)
-                    Toast.makeText(context, if (ok) R.string.delete_done else R.string.delete_failed, Toast.LENGTH_LONG).show()
-                }
+                graph.eraseAndReport(alsoSettings)
             },
         )
         null -> Unit

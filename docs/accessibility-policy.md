@@ -112,8 +112,11 @@ limited instead of working around it (spec §67).
     *Čas v aplikacích*. `OnboardingFlow` does not let the user past the disclosure without the button, nor past
     the setup while the service is off. "Zpět" or leaving the screen is not consent.
   - Every other way into the accessibility settings — the dashboard's *Zapnout měření*, Nastavení › Služba
-    Usnadnění — goes through `AccessibilityGate`: without a stored acceptance the disclosure screen comes first.
-    Only `MainActivity` builds the settings intent.
+    Usnadnění — goes through `AccessibilityGate`: without a stored acceptance the disclosure screen comes first,
+    and its *Rozumím a chci pokračovat* opens the settings right away (the user already asked for them).
+    Only `MainActivity` builds the settings intent, and the NavHost never hands the ungated callback on
+    (`PolicyGuardTest`).
+  - In the onboarding the consent button sits after the whole text, inside the scroll.
   - *Smazat data i nastavení* clears the acceptance too; the onboarding (and the disclosure) come back.
   - Debug builds only: a developer screen requested by the launch intent skips the onboarding (automation).
 - Play Console answers, listing texts, Data safety and the video scenario: `docs/play-listing.md`.
