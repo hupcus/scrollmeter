@@ -38,6 +38,11 @@ import com.scrollmeter.app.ui.calibration.AccuracyScreen
 import com.scrollmeter.app.ui.calibration.CalibrationScreen
 import com.scrollmeter.app.ui.dashboard.DashboardScreen
 import com.scrollmeter.app.ui.history.HistoryScreen
+import com.scrollmeter.app.ui.settings.AboutScreen
+import com.scrollmeter.app.ui.settings.ExcludedAppsScreen
+import com.scrollmeter.app.ui.settings.ExportScreen
+import com.scrollmeter.app.ui.settings.PrivacyScreen
+import com.scrollmeter.app.ui.settings.SettingsActions
 import com.scrollmeter.app.ui.settings.SettingsScreen
 import com.scrollmeter.app.ui.usage.UsageAccessScreen
 import kotlinx.serialization.Serializable
@@ -52,6 +57,10 @@ import kotlinx.serialization.Serializable
 @Serializable data object CalibrationRoute
 @Serializable data object UsageAccessRoute
 @Serializable data class DevToolRoute(val key: String)
+@Serializable data object ExcludedAppsRoute
+@Serializable data object ExportRoute
+@Serializable data object PrivacyRoute
+@Serializable data object AboutRoute
 
 private class TopLevel(val route: Any, @get:StringRes val label: Int, @get:DrawableRes val icon: Int)
 
@@ -64,7 +73,8 @@ private val TOP_LEVEL = listOf(
 
 /**
  * Přehled / Historie / Aplikace / Nastavení in a bottom bar (spec §43); the bar hides on the screens
- * below them (app detail, Přesnost, Kalibrace, Čas v aplikacích, developer screens). Switching tabs
+ * below them (app detail, Přesnost, Kalibrace, Čas v aplikacích, Vyloučené aplikace, Export,
+ * Soukromí, O aplikaci, developer screens). Switching tabs
  * keeps each tab's state. [initialDevTool] opens a developer screen from the launch intent (debug).
  */
 @Composable
@@ -117,12 +127,22 @@ fun ScrollMeterNavHost(graph: AppGraph, initialDevTool: String?, onOpenAccessibi
                 SettingsScreen(
                     graph = graph,
                     devTools = DevTools.entries,
-                    onOpenAccessibilitySettings = onOpenAccessibilitySettings,
-                    onOpenUsageAccess = { nav.open(UsageAccessRoute) },
-                    onOpenAccuracy = { nav.open(AccuracyRoute) },
-                    onOpenDevTool = { nav.open(DevToolRoute(it)) },
+                    actions = SettingsActions(
+                        openAccessibilitySettings = onOpenAccessibilitySettings,
+                        openUsageAccess = { nav.open(UsageAccessRoute) },
+                        openAccuracy = { nav.open(AccuracyRoute) },
+                        openExcluded = { nav.open(ExcludedAppsRoute) },
+                        openExport = { nav.open(ExportRoute) },
+                        openPrivacy = { nav.open(PrivacyRoute) },
+                        openAbout = { nav.open(AboutRoute) },
+                        openDevTool = { nav.open(DevToolRoute(it)) },
+                    ),
                 )
             }
+            composable<ExcludedAppsRoute> { back -> ExcludedAppsScreen(graph, onBack = { nav.leave(back) }) }
+            composable<ExportRoute> { back -> ExportScreen(graph, onBack = { nav.leave(back) }) }
+            composable<PrivacyRoute> { back -> PrivacyScreen(onBack = { nav.leave(back) }) }
+            composable<AboutRoute> { back -> AboutScreen(graph, onBack = { nav.leave(back) }) }
             composable<AppDetailRoute> { back ->
                 val packageName = back.toRoute<AppDetailRoute>().packageName
                 // Defence in depth next to MainActivity's deep-link scrub: never show an arbitrary string as an app name.

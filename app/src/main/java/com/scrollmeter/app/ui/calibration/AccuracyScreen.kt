@@ -32,6 +32,7 @@ import com.scrollmeter.app.calibration.CalibrationMethod
 import com.scrollmeter.app.measurement.PhysicalScale
 import com.scrollmeter.app.measurement.PhysicalScaleProvider
 import com.scrollmeter.app.ui.components.Format
+import com.scrollmeter.app.ui.components.appLocale
 
 /**
  * Spec §33 accuracy screen: which calibration measures now, 1 pixel = x mm, when it was made,
@@ -41,6 +42,7 @@ import com.scrollmeter.app.ui.components.Format
 fun AccuracyScreen(graph: AppGraph, onBack: () -> Unit, onCalibrate: () -> Unit) {
     val state by graph.calibrationRepository.state.collectAsStateWithLifecycle(initialValue = null)
     val display = remember(LocalConfiguration.current.orientation) { graph.displayMetricsProvider.read() }
+    val locale = appLocale()
 
     Scaffold { padding ->
         Column(
@@ -64,7 +66,7 @@ fun AccuracyScreen(graph: AppGraph, onBack: () -> Unit, onCalibrate: () -> Unit)
                     Text(pixelLine(scale), style = MaterialTheme.typography.titleMedium)
                     if (manualActive) {
                         Text(stringResource(R.string.accuracy_calibrated_label), style = MaterialTheme.typography.labelLarge)
-                        Text(Format.date(manual.calibratedAtMs), style = MaterialTheme.typography.bodyLarge)
+                        Text(Format.date(manual.calibratedAtMs, locale = locale), style = MaterialTheme.typography.bodyLarge)
                     } else {
                         Text(stringResource(R.string.accuracy_auto_note), style = MaterialTheme.typography.bodyMedium)
                     }
@@ -81,8 +83,8 @@ fun AccuracyScreen(graph: AppGraph, onBack: () -> Unit, onCalibrate: () -> Unit)
                     "${display.manufacturer} ${display.model}".trim(),
                     display.widthPx,
                     display.heightPx,
-                    Format.decimal(display.xdpi, 1),
-                    Format.decimal(display.ydpi, 1),
+                    Format.decimal(display.xdpi, 1, locale),
+                    Format.decimal(display.ydpi, 1, locale),
                 ),
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -96,21 +98,22 @@ fun AccuracyScreen(graph: AppGraph, onBack: () -> Unit, onCalibrate: () -> Unit)
 
 /** "1 pixel = 0,0630 mm", or both axes when xdpi and ydpi differ at the shown precision. */
 @Composable
-private fun pixelLine(scale: PhysicalScale): String {
-    val x = Format.decimal(scale.mmPerPxX, 4)
-    val y = Format.decimal(scale.mmPerPxY, 4)
+internal fun pixelLine(scale: PhysicalScale): String {
+    val locale = appLocale()
+    val x = Format.decimal(scale.mmPerPxX, 4, locale)
+    val y = Format.decimal(scale.mmPerPxY, 4, locale)
     return if (x == y) stringResource(R.string.accuracy_px_uniform, x) else stringResource(R.string.accuracy_px_axes, x, y)
 }
 
 @StringRes
-private fun CalibrationMethod.labelRes(): Int = when (this) {
+internal fun CalibrationMethod.labelRes(): Int = when (this) {
     CalibrationMethod.MANUAL_CARD -> R.string.accuracy_method_manual
     CalibrationMethod.DISPLAY_METRICS -> R.string.accuracy_method_display
     CalibrationMethod.UNKNOWN -> R.string.accuracy_method_unknown
 }
 
 @StringRes
-private fun CalibrationConfidence.labelRes(): Int = when (this) {
+internal fun CalibrationConfidence.labelRes(): Int = when (this) {
     CalibrationConfidence.HIGH -> R.string.accuracy_confidence_high
     CalibrationConfidence.MEDIUM -> R.string.accuracy_confidence_medium
     CalibrationConfidence.LOW -> R.string.accuracy_confidence_low
