@@ -15,7 +15,9 @@ Pracuj v `/Users/hupcus/Documents/VIBE-CODE/SCROLLMETER` — ScrollMeter (Androi
 
 Ze `docs/SPEC.md` otevírej jen oddíly, které ta fáze cituje. **Rozpracovaná fáze:** když `handoff.md` u fáze uvádí větev a PR a oddíl „Zbývá“, pokračuj na té větvi přesně od „Zbývá“ — nezakládej novou větev a neopakuj hotové kroky (Stage 0, `/topshit`, bezpečnostní review), pokud se od nich nezměnil kód.
 
-**Telefon je vrácený do původního stavu** (2026-09-24): ScrollMeter odinstalovaný, služba Usnadnění vypnutá, displej při nabíjení normálně zhasíná. Připrav si ho znovu:
+**Režim od 2026-09-24 (viz `handoff.md` → „Režim práce“):** dodělej aplikaci až do konce bez zastavování. Rozhoduj sám, rozhodnutí zapiš do `handoff.md` nebo ADR. Ruční testy, které potřebují moje ruce, nečekej — zapiš je do „Dluh ověření“ v `handoff.md` a pokračuj.
+
+**Zařízení:** automatické ověření běží na **emulátoru** (API 34, `google_apis` arm64-v8a; AVD viz `handoff.md`). Fyzický telefon je vrácený do původního stavu a používám ho — sahej na něj, jen když výslovně napíšu, že je k dispozici. Pak si ho připrav:
 1. `installDebug`.
 2. Zapni službu přes adb (příkazy v `CLAUDE.md`).
 3. Na dobu práce `settings put global stay_on_while_plugged_in 7`.
@@ -30,7 +32,7 @@ Pokud telefon `settings put` odmítne, řekni mi, ať zapnu **Volby vývojáře 
 **Úkol:** udělej tu jednu fázi přesně v rozsahu `PLAN.md`, nic z pozdějších fází. Nová fáze = větev `phase-N-…` z aktuálního `main`; rozpracovaná fáze = její existující větev.
 - **Stage 0:** impact analýza, protože fáze sahá na existující moduly.
 - **Testy:** unit testy podle PLAN.
-- **Ověření na telefonu:** OnePlus, serial v `CLAUDE.md`. Co musím udělat ručně (kalibrace kartou, restart telefonu, Přístup k údajům o využití), mi napiš jako přesný postup krok za krokem a počkej.
+- **Ověření na zařízení:** emulátor (automaticky). Co by muselo proběhnout na skutečném telefonu nebo mýma rukama (kalibrace kartou, restart telefonu, Přístup k údajům o využití vs Digitální pohoda, aplikace s účtem, baterie), zapiš do „Dluh ověření“ jako přesný postup krok za krokem a **pokračuj**.
 - **Brány před každým pushem:**
   - `./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease`,
   - `python3 -m unittest discover -s tools -p 'test_*.py'`,
@@ -39,14 +41,9 @@ Pokud telefon `settings put` odmítne, řekni mi, ať zapnu **Volby vývojáře 
   1. PR s DoD checklistem fáze, CI zelené.
   2. `/topshit` jednou nad kumulativním diffem.
   3. Stage 2: funkční + bezpečnostní review.
-  4. Zápis do `handoff.md`: stav fáze, rozhodnutí, otevřené body, log.
-  5. Napiš „mergni?“ a **čekej**.
-- **Po mém „go“ / „mergni“:**
-  1. Squash merge jako `hupcus`.
-  2. Tag `v0.N`.
-  3. Smazat větev.
-  4. Pokračuj další fází stejným postupem, dokud neřeknu stop.
-  5. Když se kontext plní, zapiš handoff a řekni mi, ať vložím tenhle prompt (`docs/prompts/continue-next-phase.md`) do nové session.
+  4. Zápis do `handoff.md`: stav fáze, rozhodnutí, otevřené body, dluh ověření, log.
+  5. **Bez ptaní:** squash merge jako `hupcus` (`unset GH_TOKEN GH_CONFIG_DIR`), tag `v0.N`, smazat větev a pokračuj další fází stejným postupem, dokud neřeknu stop.
+  6. Když se kontext plní, zapiš handoff a řekni mi, ať vložím tenhle prompt (`docs/prompts/continue-next-phase.md`) do nové session.
 
 **Pravidla:**
 - **Jazyk a commity:** platí globální `CLAUDE.md` — pracovní chatter anglicky, deliverable česky, commity anglicky s trailerem.

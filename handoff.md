@@ -38,15 +38,15 @@
 |---|---|---|---|
 | 0 Bootstrap | hotovo, mergnuto (tag `v0.0`) | `phase-0-bootstrap` / [#1](https://github.com/hupcus/scrollmeter/pull/1) | build/test/lint zelené lokálně i v CI; `installDebug` + spuštění na OnePlus OK |
 | 1 Measurement POC | **GO (Honza, 2026-09-23)** | `phase-1-measurement-poc` / [#2](https://github.com/hupcus/scrollmeter/pull/2) | bez doměření Instagramu / TikToku — přijaté riziko |
-| 2 Kalibrace | **rozpracováno** — kód hotový, CI zelené; chybí kalibrace kartou + MAPE s ní (viz „Phase 2 — stav“) | `phase-2-calibration` / [#4](https://github.com/hupcus/scrollmeter/pull/4) | pokračovat promptem `docs/prompts/continue-next-phase.md` na téže větvi |
-| 3 Persistence | nezačato | — | + čas v aplikaci (D19) |
+| 2 Kalibrace | hotovo, mergnuto (tag `v0.2`) | `phase-2-calibration` / [#4](https://github.com/hupcus/scrollmeter/pull/4) | kalibrace kartou + MAPE s ní → „Dluh ověření“ |
+| 3 Persistence | nezačato — **další na řadě** | — | + čas v aplikaci (D19) |
 | 4 Dashboard | nezačato | — | |
 | 5 Historie + Aplikace | nezačato | — | |
 | 6 Export + Nastavení | nezačato | — | |
 | 7 Onboarding + Policy | nezačato | — | |
 | 8 Release | nezačato | — | |
 
-## Phase 2 — stav (2026-09-24, přerušeno na Honzovo přání)
+## Phase 2 — exit report (2026-09-24)
 
 **Hotovo a ověřené** (větev `phase-2-calibration`, PR #4, CI zelené, 4 commity):
 - Kalibrace kartou: `CalibrationRepository` (DataStore), `calibrationVersion`, `PhysicalScaleProvider.resolve` (karta přes xdpi/ydpi jen na stejném telefonu a rozlišení — ADR-024), obrazovky **Kalibrace displeje** (svislá čára — ADR-023) a **Přesnost měření** (SPEC §33), karta na domovské obrazovce.
@@ -57,13 +57,7 @@
 - Na telefonu: nakreslená čára má na screenshotu přesně tolik px, kolik ukazuje (1356, 1359); engine s kartou `544 px → 34,265 mm` = 85,60 / 1359, `cv=1`; „Přeskočit – použít automatický odhad“ přepnul běžící službu bez reconnectu (`cv=2`, 25,4 / ydpi); na šířku nejde uložit; Zpět vede tam, odkud se přišlo; dvojí tap uloží jednou.
 - `/topshit` (7/10) nad kumulativním diffem — tři nálezy opravené a ověřené na telefonu (čára se na OnePlusu nevešla: 1219 px místo ~1356; na šířku šla uložit nesmyslná kalibrace; Zpět a dvojí tap). Bezpečnostní čtení (Stage 2): manifest ani accessibility config se nezměnily, nové soubory jen app-private DataStore (`rw-------`), žádné logy / intenty / síť v novém kódu, uložené hodnoty se validují — bez nálezu.
 
-**Zbývá (v tomhle pořadí):**
-1. Připravit telefon z větve `phase-2-calibration`: `installDebug`, `stay_on_while_plugged_in 7`. Debug build byl odinstalovaný, takže kalibrace je pryč (verze 0).
-2. Otevřít **Kalibrace displeje** (Domů → *Zkalibrovat displej*) — naviguj s **vypnutou** službou (uiautomator výpis ji odpojí a domovská obrazovka se přeskládá), službu zapni až na obrazovce kalibrace.
-3. **Honza — kalibrace kartou** (přesný postup mu napsat znovu): telefon na výšku na stole; karta velikosti platební karty (i občanka, řidičák) na výšku hned vpravo od svislé modré čáry, horní hranou na horní vodorovnou linku; posuvníkem spodní linku ke spodní hraně karty, doladit − / +; kartu sundat → *Uložit kalibraci*; pak ~3 min na telefon nesahat.
-4. Zkontrolovat mm/px proti 0,0630 (xdpi) — odchylka > 5 % = chyba v raw px. Zapsat do `docs/accuracy-testing.md` (tabulka Devices, sloupec „Manual card mm/px“).
-5. `python3 tools/device_accuracy.py --surface view,column --markdown --csv-out <scratch>` + `tools/accuracy.py` → MAPE < 5 % (cíl < 2 %) s `MANUAL_CARD` zapsat do „Accuracy runs“.
-6. Odškrtnout DoD v popisu PR #4, dopsat tenhle oddíl a log, stav fáze → „hotovo, čeká na merge“, push, CI zelené, napsat „mergni?“ a čekat. `/topshit` a bezpečnostní review neopakovat, pokud se nezměnil kód.
+**Odloženo do „Dluh ověření“** (Honza, 2026-09-24: vývoj pokračuje, ruční testy se dodělají najednou): kalibrace skutečnou kartou (mm/px vs 0,0630) a MAPE vlastního test listu s `MANUAL_CARD`. Automatická část ověření proběhla se syntetickou kalibrací (1359 px): MAE 0,00 mm / MAPE 0,00 % na View (A1000, E_reversal) — tahle čísla ale měří pixelovou cestu, ne přesnost karty.
 
 ## Phase 1 — exit report (2026-09-23)
 
@@ -113,11 +107,29 @@ Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
 - **Odchylky od PLAN:** testovací seznam má 300 položek a tři plochy (View / Column / Lazy) místo 500 položek `LazyColumn`. Lazy se ukázal jako neměřitelný, proto přibyly plochy s přesnou ground truth. Test B (20 ručních tahů) nahradilo 20 automatických tahů.
 - **Detail:** `docs/accuracy-testing.md` (matice, přesnost, YouTube, zabíjení služby), ADR-013 až ADR-020 v `docs/measurement-decisions.md`.
 
+## Režim práce od 2026-09-24
+
+Honza: „pusť se do vývoje, nezastavuj, rozhoduj se sám — cílem je dodělat celou aplikaci.“ Proto:
+- každá fáze se po zelených branách, CI, `/topshit` a Stage 2 **mergne bez ptaní** (squash jako `hupcus`, tag `v0.N`) a pokračuje se další,
+- ruční testy, které potřebují Honzovy ruce, se nečekají — jdou do „Dluh ověření“ níže a dodělají se najednou (nejpozději ověřovací den před vydáním),
+- fyzický telefon zůstává v původním stavu (Honza ho používá); automatické ověření na zařízení běží na **emulátoru** (API 34, arm64),
+- tvrdá pravidla (bez `INTERNET`, `QUERY_ALL_PACKAGES`, foreground service; služba jen `typeViewScrolled`; žádný text z eventů) platí dál; zveřejnění (Google Play, veřejný release) jen s Honzou.
+
+## Dluh ověření (ruční testy odložené na později)
+
+Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = doporučené pořadí provedení.
+
+| # | Test | Fáze | Kdo | Postup | Když vyjde špatně |
+|---|---|---|---|---|---|
+| V1 | **Instagram + TikTok (+ X, Reddit) s účtem** | 1 → 5 | Honza + session | přihlásit se, 20–30 s scrollovat v každé; session vytáhne `recording.csv` a spustí `tools/analyze_debug_csv.py` | může změnit smysl produktu (mlčí-li jako YouTube) — doporučeno co nejdřív |
+| V2 | Kalibrace skutečnou kartou | 2 | Honza | Domů → Zkalibrovat displej; telefon na výšku na stole, karta na výšku vpravo od modré čáry, horní hranou na horní linku, posuvníkem a − / + spodní linku ke spodní hraně karty → Uložit kalibraci | mm/px dál než 5 % od 0,0630 → chyba v raw px kalibrační obrazovky (místní oprava) |
+| V3 | MAPE vlastního test listu s `MANUAL_CARD` | 2 | session | po V2: `python3 tools/device_accuracy.py --surface view,column --markdown --csv-out <dir>` + `tools/accuracy.py` → zapsat do `docs/accuracy-testing.md` | MAPE ≥ 5 % → hledat v kalibraci / pipeline |
+
 ## Otevřené body
 
 - [x] **OnePlus blokoval `settings put` přes adb** (`WRITE_SECURE_SETTINGS` denied — ColorOS „sledování oprávnění“). Vyřešeno 2026-09-23: Možnosti pro vývojáře → úplně dole **„Zakázat sledování oprávnění“** zapnuto (bez restartu), `settings put` funguje. Zároveň zapnuto „Při dobíjení nevypínat obrazovku“ (`stay_on_while_plugged_in=7`). Po resetu telefonu / aktualizaci OS zkontrolovat znovu.
 - [ ] Přenos dat na nový telefon (device-to-device): `allowBackup="false"` vypíná cloud backup, D2D transfer zůstává na výchozím chování platformy — rozhodnout v Phase 6 (export/nastavení).
-- [ ] **Instagram + TikTok (+ X, Reddit) doměřit s účtem** — GO dané bez nich (přijaté riziko); ověřit při první příležitosti, nejpozději v Phase 5. Reddit na telefonu chybí.
+- [ ] **Instagram + TikTok (+ X, Reddit) doměřit s účtem** → Dluh ověření V1. GO dané bez nich (přijaté riziko). Reddit na telefonu chybí.
 - [ ] YouTube mlčí (ADR-013 poznámka). Sledovat, jestli se chování změní s novou verzí YouTube; jinak „unsupported" v Phase 5 seznamu aplikací.
 - [ ] Compose lazy seznamy neměřitelné (ADR-019) — přibývá jich. Hledat zdroj bez čtení obsahu až po GO (backlog).
 - [ ] Launcher počítat do součtu, nebo vyloučit? (Phase 5/6, výchozí výluky)
@@ -153,14 +165,18 @@ Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
 
 ## Log rozhodnutí (nejnovější nahoře)
 
-### 2026-09-24 — Phase 2 kalibrace, rozpracováno (Opus 5.5)
+### 2026-09-24 — Phase 2 mergnuta, režim „dodělat celou aplikaci“ (Opus 5.5)
+- Honza rozhodl pokračovat ve vývoji bez čekání na ruční testy a svěřil rozhodování session (viz „Režim práce“). Kalibrace kartou a MAPE s ní → Dluh ověření V2, V3; Instagram/TikTok → V1.
+- Emulátor (API 34, `google_apis` arm64-v8a) přidán už teď místo Phase 8 — fyzický telefon je Honzův.
+
+### 2026-09-24 — Phase 2 kalibrace (Opus 5.5)
 - PR #3 (plán „čas v aplikaci“) mergnutý jako první krok (`e7f761f`), po schválení v promptu.
 - Stage 0 (`/impact`): riziko HIGH — měřítko násobí každou vzdálenost a mění se start pipeline ve službě.
 - ADR-023: kalibrační čára je **svislá** (odchylka od SPEC §8 „vodorovný pruh“) — 85,60 mm se na šířku telefonu nevejde (1080 px ≈ 68 mm). Start délky = průměr os z xdpi/ydpi.
 - ADR-024: kalibrace v DataStore; `calibrationVersion` počítá změny uživatele; karta platí jen pro stejného výrobce + model + rozlišení panelu (jinak xdpi/ydpi a Přesnost to řekne); `DisplayMetricsProvider` zůstává na `getRealMetrics` (PLAN zmiňoval `WindowMetrics`).
 - Bez nových konstant v `MeasurementConfig`; rozsah čáry vychází z existujícího 100–1000 dpi (ADR-016). Piny beze změny, DataStore zapojen (okio 3.4.0 tranzitivně).
 - Nálezy z telefonu (opraveno): čára se nevešla (max 1219 px, karta ~1356 px) → nadpis a text vedle čáry; na šířku šla uložit +222 % → čára na okraji displeje zakáže Uložit.
-- Přerušeno na Honzovo přání před kalibrací kartou; telefon vrácen. Co zbývá: oddíl „Phase 2 — stav“.
+- Přerušeno na Honzovo přání před kalibrací kartou; telefon vrácen.
 
 ### 2026-09-23 — plán: čas v aplikaci (Opus 5.5, návrh Fable 5.1)
 - Honza chce kompletní dashboard: kolik času a kolik metrů v které aplikaci. Prověřeno z primárních zdrojů (AOSP, Google Play policy):
@@ -207,4 +223,4 @@ Instagram a TikTok jsou pro scroll-metr nejdůležitější aplikace.
 
 ## Jak navázat
 
-Nová session: vlož prompt z `docs/prompts/continue-next-phase.md` — přečte `CLAUDE.md`, tenhle soubor a první nedokončenou fázi z `PLAN.md` a jede fázi po fázi s „mergni?“ na konci každé. Rozpracovanou fázi (teď Phase 2) dokončí na její větvi od oddílu „Zbývá“. Historický kickoff Phase 0+1: `docs/prompts/kickoff-phase-0-1.md`.
+Nová session: vlož prompt z `docs/prompts/continue-next-phase.md` — přečte `CLAUDE.md`, tenhle soubor a první nedokončenou fázi z `PLAN.md` a jede fázi po fázi s „mergni?“ na konci každé. Rozpracovanou fázi dokončí na její větvi; ruční testy zapisuje do „Dluh ověření“ a nečeká na ně (režim od 2026-09-24). Historický kickoff Phase 0+1: `docs/prompts/kickoff-phase-0-1.md`.

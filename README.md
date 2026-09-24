@@ -11,9 +11,10 @@ finger across the touchscreen.
 
 ## Status
 
-Project founded 2026-09-23. Phase 0 (bootstrap, `v0.0`) and Phase 1 (measurement proof of concept,
-GO/NO-GO gate, `v0.1`) are merged. Phase 2 — calibration (card calibration, accuracy screen, accuracy
-tooling) — is in review. See `PLAN.md` (phases, gates) and `handoff.md` (live state).
+Project founded 2026-09-23. Merged: Phase 0 (bootstrap, `v0.0`), Phase 1 (measurement proof of concept,
+GO/NO-GO gate, `v0.1`), Phase 2 (calibration: card calibration, accuracy screen, accuracy tooling, `v0.2`).
+Manual on-phone checks still owed are listed under "Dluh ověření" in `handoff.md`. See `PLAN.md` (phases,
+gates) and `handoff.md` (live state).
 
 ## Repository map
 
