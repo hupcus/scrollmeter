@@ -102,7 +102,7 @@ over the runs of a series (*Vynulovat* closes a run, *Nová série* starts over)
 
 ## Dashboard (Phase 4)
 
-*Přehled* shows today's distance in a ring against the daily goal (500 m until Phase 6 adds the setting),
+*Přehled* shows today's distance in a ring against the daily goal (500 m by default, set in *Nastavení*),
 this week / month / in total, the top apps today with their names and icons, and one comparison ("To je
 přibližně délka jednoho běžeckého okruhu."). Every number is live — stored plus what the service has not
 written yet. When the service is off, a red banner with *Zapnout měření* comes first. With Usage access the
@@ -116,8 +116,18 @@ distance per day (7 or 30 days) or per month (12 months); tap a bar for its valu
 highest and lowest day and the total, counted per day from the first measured day. *Aplikace* lists the apps
 of *Dnes / 7 dní / 30 dní / Celkem* by distance or time, with each app's share and a measurement-quality word
 (never an accuracy percentage — ADR-029); apps with time but no scroll data (YouTube) show "—". A row opens
-the app's detail with its 30-day charts. *Nastavení* holds the service and Usage-access status, *Přesnost
-měření* and, in debug builds, the developer screens.
+the app's detail with its 30-day charts.
+
+## Settings, export and notifications (Phase 6)
+
+*Nastavení* holds the service and Usage-access status, *Přesnost měření*, the daily goal (100 m – 5 km or a
+custom 10 m – 100 km), *Vyloučené aplikace* (launcher, keyboard and System UI are suggested; an excluded app
+disappears from every total, history and export and comes back when switched on again), units, theme,
+the three opt-in notifications (goal reached, new record, yesterday's summary — each at most once a day; on
+Android 13+ the system asks for permission when one is switched on), *Exportovat CSV* (save `per_app.csv` /
+`daily_summary.csv` through the system file picker, or share both), *Smazat všechna data* (optionally with the
+settings and the card calibration), *Soukromí* and *O aplikaci*; in debug builds also the developer screens.
+The CSV format is in ADR-031: comma separated, dot decimals, UTF-8 with BOM, an empty field means unknown.
 
 ## Stored data and time in app (Phase 3)
 

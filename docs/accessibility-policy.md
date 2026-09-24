@@ -39,11 +39,13 @@ The `<service>` is `android:exported="false"` and protected by `android.permissi
 Two guards fail CI:
 - `PolicyGuardTest` (JVM) — forbidden APIs, flags and manifest entries in the app's own sources (Kotlin, Java,
   XML; comments ignored, string literals kept), content reads or runtime `setServiceInfo` in any file touching
-  accessibility types, and the XML pins of the service config.
+  accessibility types, the XML pins of the service config, the two `<queries>` intents, and every `<provider>`
+  being a closed FileProvider (not exported, per-URI grants, paths in the manifest meta-data).
 - `tools/check_manifest_policy.py` — the **merged** debug and release manifests, so a permission a library
   adds is caught too (`uses-permission` and `uses-permission-sdk-23`, against the allowlist); `allowBackup=false`
   and `dataExtractionRules` present; no exported component without a permission except the launcher activity;
-  release must carry no debug `FileProvider`.
+  release must carry no debug `FileProvider` (authority `….devtools.files`). The CSV share provider
+  (`….exports`, `cache/exports/` only, not exported — ADR-030) ships in release.
 
 `Do not expand requested accessibility capabilities without a documented product need and privacy/policy review.`
 (the comment lives above the service class; ADR-013 — Chrome/WebView coverage — was settled by measurement: the
@@ -59,13 +61,24 @@ activity's start with its end and are never stored (ADR-025). `UsageEventsSource
 `android.app.usage` (`PolicyGuardTest` pins it). The app works fully without it (time then shows as "—").
 Disclosure and onboarding step: Phase 7.
 
-App names and icons on the dashboard come from `PackageManager` through a single `<queries>` entry for launcher
-activities (ADR-008) — no `QUERY_ALL_PACKAGES`; `PolicyGuardTest` allows exactly that query. Before the Usage-access
+App names and icons on the dashboard come from `PackageManager` through a `<queries>` entry for launcher
+activities (ADR-008) plus one for the home screen (ADR-030, so the launcher can be suggested as an exclusion) — no
+`QUERY_ALL_PACKAGES`; `PolicyGuardTest` allows exactly those two MAIN intents. Before the Usage-access
 settings open, the app shows its own disclosure screen (*Čas v aplikacích*): what is read, what is stored, what is
 not, and that everything works without it; only the explicit *Povolit* button opens the settings.
 
-Permissions are an **allowlist** in both guards: `PACKAGE_USAGE_STATS` now, `POST_NOTIFICATIONS` from Phase 6.
-Anything else fails CI and needs an ADR plus Honza's OK.
+Permissions are an **allowlist** in both guards: `PACKAGE_USAGE_STATS` (Phase 3) and `POST_NOTIFICATIONS`
+(Phase 6, ADR-030 — asked only when the user switches a notification on; nothing is measured differently without
+it). Anything else fails CI and needs an ADR plus Honza's OK.
+
+## Export and deletion (ADR-030, ADR-031)
+
+The CSV export leaves the phone only where the user sends it: *Uložit* opens the system file picker (Storage
+Access Framework — no storage permission), *Sdílet* hands two files from the app's cache to the app the user picks
+in the share sheet, with read access for that share only. The files hold per day and app what the database holds:
+distance, event counts, time in app — never content. Excluded apps are left out. *Smazat všechna data* removes
+every measured value, the time in app, sessions and the shared copies; optionally the settings and the card
+calibration too.
 
 ## Why minimal
 

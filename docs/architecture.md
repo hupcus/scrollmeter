@@ -24,6 +24,7 @@ aggregation/ScrollAccumulator  (in-memory map (date, packageName) → AggregateD
 aggregation/ScrollSessionManager (gap > 60 s = new session)
   ↓ flush: every 10 s while pending / 50th event / new local day / onInterrupt / end of the pipeline (unbind, destroy, reconnect)
   ↓ ScrollRepository.write → ScrollDao.addFlush: one transaction of INSERT OR IGNORE + UPDATE x = x + :x (ADR-026)
+  ↓ after a committed write: NotificationWatcher.check (opt-in goal / record / summary, once a day each — ADR-031)
 data/repository/ScrollRepository → Room Flows (day / week / month / lifetime, per app, per day) → Compose UI
 
 usage/UsageEventsSource (UsageStatsManager.queryEvents; needs Usage access — ADR-021)
@@ -31,6 +32,8 @@ usage/UsageEventsSource (UsageStatsManager.queryEvents; needs Usage access — A
 usage/ForegroundTimeAggregator (pure Kotlin: foreground intervals per local day — ADR-025)
   ↓ UsageSyncer (window from the last sync, replace whole days) → ScrollDao.replaceUsage → daily_app_usage
   triggers: MainActivity.onResume · service connect when the last sync is ≥ 6 h old · local day change in the pipeline
+data/DataEraser ("Smazat všechna data"): pauses the usage sync, stores the data floor, then under the pipeline's
+  write lock bumps the data epoch and clears the tables — the pipeline drops what it held from before (ADR-031)
 debug-only: DebugEventLog (ring buffer of 100 MeasurementResults in RAM) → DebugMeasurementScreen, debug CSV
 ```
 
@@ -65,14 +68,18 @@ com.scrollmeter.app
 ├── usage           ForegroundTimeAggregator, UsageSyncer, UsageEvents (pure Kotlin);
 │                   UsageEventsSource, UsageAccessChecker (the only Android parts)
 ├── settings        Settings, SettingsRepository (DataStore)
-├── format          DistanceFormatter, TimeFormatter (pure Kotlin — ADR-028)
+├── format          DistanceFormatter, TimeFormatter, GoalInput (pure Kotlin — ADR-028, ADR-031)
 ├── insights        DistanceComparisonProvider, TopApps, HistorySeries, ChartScale, AppRanking,
 │                   ScrollShare (pure Kotlin — ADR-028, ADR-029)
-├── apps            AppInfoProvider (labels + icons via PackageManager, cached; UI only — ADR-008)
+├── apps            AppInfoProvider (labels + icons via PackageManager, cached; UI only — ADR-008),
+│                   SuggestedExclusions (launcher / keyboard / System UI — ADR-030), PackageNames
+├── notifications   NotificationRules, NotificationWatcher (pure Kotlin — ADR-031);
+│                   AndroidNotificationPoster (the only Android part — ADR-030)
 ├── ui              navigation (routes + bottom bar), dashboard, history, apps (list + detail), calibration,
-│                   usage, settings, components (BarChart, PeriodSelector, AppIcon, LiveState), theme;
-│                   onboarding and about come in Phases 6–7
-├── export          CsvExporter
+│                   usage, settings (+ excluded apps, export, privacy, about), components (BarChart,
+│                   PeriodSelector, AppIcon, LiveState, SettingsParts), theme; onboarding comes in Phase 7
+├── export          CsvExporter (pure Kotlin), CsvExportWriter (SAF + share), ExportFileProvider — ADR-030/031
+├── data/DataEraser "Smazat všechna data" (write lock + data epoch + usage floor — ADR-031)
 ├── AppGraph.kt, ScrollMeterApplication.kt, MainActivity.kt
 └── src/debug/…     DebugEventLog, DebugMeasurementScreen, TestListScreen (never in release)
 ```
@@ -83,7 +90,8 @@ com.scrollmeter.app
   `rawDeltaXPx`, `rawDeltaYPx`, `measuredEventCount`, `fallbackEventCount`, `unmeasurableEventCount`,
   `rejectedOutlierCount`, `firstEventTimestamp?`, `lastEventTimestamp?`, `calibrationVersion` (the newest one used),
   `activeScrollMs` (ADR-022). Every flush adds; nothing is overwritten.
-- `scroll_session`: `id`, `packageName`, `startTimestamp`, `endTimestamp`, `distanceMm`, `eventCount` — written when a session closes; no UI in MVP.
+- `scroll_session`: `id`, `packageName`, `startTimestamp`, `endTimestamp`, `distanceMm`, `eventCount` — written when a session closes; no UI in MVP;
+  pruned after 90 days (`SESSION_RETENTION_DAYS`, on service connect and at midnight — ADR-030).
 - `daily_app_usage` (PK `date`, `packageName`): `foregroundMs`, `launchCount`, `lastEventTimestamp?`, `syncedAt` —
   replaced per date range by each usage sync (ADR-021, ADR-025). Per-app and per-day summaries join it with
   `daily_app_aggregate` through `UNION ALL … GROUP BY` (SQLite has no FULL JOIN); a missing side is NULL → "—".
@@ -92,8 +100,12 @@ com.scrollmeter.app
   `panel_short_px`, `panel_long_px`, `calibration_version` (ADR-024).
 - Settings (DataStore Preferences file `settings`, Phase 3; screens in Phase 6): `daily_goal_mm` (default 500 m),
   `excluded_packages`, `unit_preference` (AUTOMATIC / METRES / KILOMETRES), `theme`, `show_comparisons`,
-  `onboarding_completed`, `privacy_disclosure_accepted`, `usage_time_card_dismissed`, and `usage_sync_last_ms`
-  (state for the usage sync). An unreadable value reads as its default (spec §61).
+  `onboarding_completed`, `privacy_disclosure_accepted`, `usage_time_card_dismissed`, `notify_goal` /
+  `notify_record` / `notify_summary` (opt-in, off) with `notified_<kind>_date` (once a day — ADR-031), and state
+  for the usage sync: `usage_sync_last_ms` and `data_floor_ms` (set by "Smazat všechna data": time in app is never
+  re-imported from before it). An unreadable value reads as its default (spec §61).
+- Excluded packages are filtered out of every read (`packageName NOT IN (:excluded)` in the DAO, the unflushed map
+  in `ScrollRepository`) — their rows stay and come back when the exclusion is lifted (ADR-031).
 - Per-package compatibility (spec §64) is derived by `SUM` over `daily_app_aggregate`; no extra table.
 - `date` is `LocalDate.now(ZoneId.systemDefault())` as an ISO string; weeks are Monday–Sunday (`WeekFields.ISO`).
 - Room `version = 1`, `exportSchema = true` (`app/schemas/` in git); destructive migration only in debug builds.
@@ -113,6 +125,7 @@ each tab's state. Below them, without the bar:
 - Aplikace (or a top-app row on Přehled) → detail `AppDetailRoute(packageName)`,
 - Přehled or Nastavení → Přesnost měření → Kalibrace displeje (saving or skipping lands back on Přesnost),
 - Přehled card or Nastavení → Čas v aplikacích (the Usage-access disclosure; closes itself once access is granted),
+- Nastavení → Vyloučené aplikace · Export CSV · Soukromí · O aplikaci (goal, units, theme and delete are dialogs),
 - Nastavení → developer screens (`DevToolRoute`, registered only when `DevTools.entries` is non-empty — debug).
 
 A "Zpět" tap leaves a screen only while it is the resumed one, so a double tap cannot pop the screen below.

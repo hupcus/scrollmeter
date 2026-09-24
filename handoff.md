@@ -42,9 +42,48 @@
 | 3 Persistence | hotovo, mergnuto (tag `v0.3`) | `phase-3-persistence` / [#5](https://github.com/hupcus/scrollmeter/pull/5) | + čas v aplikaci (D19); restart telefonu a Digital Wellbeing → „Dluh ověření“ V4, V5 |
 | 4 Dashboard | hotovo, mergnuto (tag `v0.4`) | `phase-4-dashboard` / [#6](https://github.com/hupcus/scrollmeter/pull/6) | ADR-028; CI zablokované billingem → brána v čistém checkoutu |
 | 5 Historie + Aplikace | hotovo, mergnuto (tag `v0.5`) | `phase-5-history-apps` / [#7](https://github.com/hupcus/scrollmeter/pull/7) | ADR-029; CI zablokované billingem → brána v čistém checkoutu |
-| 6 Export + Nastavení | nezačato | — | |
+| 6 Export + Nastavení | hotovo, čeká na merge | `phase-6-export-settings` | ADR-030/031; oznámení na telefonu → „Dluh ověření“ V6 |
 | 7 Onboarding + Policy | nezačato | — | |
 | 8 Release | nezačato | — | |
+
+## Phase 6 — exit report (2026-09-24)
+
+**Hotovo a ověřené** (větev `phase-6-export-settings`):
+- **Nastavení** (SPEC §44): sekce Měření / Jednotky / Zobrazení / Oznámení / Data / Soukromí / O aplikaci.
+  - Denní cíl: předvolby 100 m – 5 km, vlastní 10 m – 100 km v m nebo km (čárka i tečka), mimo rozsah hláška, nic se tiše neořízne.
+  - Jednotky (automaticky / metry / kilometry), motiv (podle systému / světlý / tmavý), srovnání na přehledu.
+- **Vyloučené aplikace** (SPEC §27): nahoře navržené výluky zjištěné za běhu (launcher přes HOME, výchozí klávesnice, System UI), pod nimi aplikace s daty.
+  - Vyloučená aplikace zmizí z Přehledu, Historie, Aplikací, oznámení i exportu.
+  - Řádky zůstávají; po zrušení výluky se data vrátí (na emulátoru: Chrome 20 m zmizel a vrátil se).
+- **Export CSV** (SPEC §28, D15):
+  - `per_app.csv` + `daily_summary.csv` přes systémový výběr souboru (SAF, žádné oprávnění k úložišti);
+  - nebo sdílení obou souborů přes neexportovaný `ExportFileProvider` (jen `cache/exports/`).
+  - Formát: BOM, CRLF, desetinná tečka, prázdné = neznámé, ochrana proti vzorcům.
+- **Smazat všechna data** (SPEC §45):
+  - dvě tlačítka: data / data i nastavení a kalibrace;
+  - smaže Room, živý nezapsaný stav i sdílené kopie.
+  - Rozpracovaný flush ani sync času v aplikaci smazaná data nevrátí: zámek zápisu, epocha dat a spodní hranice pro sync.
+- **Oznámení** (SPEC §26): Denní cíl dosažen / Nový rekord / Shrnutí včerejška.
+  - Všechna jsou volitelná, každé nejvýš 1× denně, kontrola po každém zapsaném flushi.
+  - `POST_NOTIFICATIONS` se žádá až při zapnutí přepínače. Po odmítnutí se ukáže cesta do systémových nastavení (po druhém odmítnutí se systém už neptá).
+- **Soukromí a O aplikaci:** vysvětlení služby Usnadnění a času v aplikacích; verze, zařízení, metoda a měřítko.
+- **Úklid:** sessions starší 90 dní se mažou při připojení služby a o půlnoci.
+- **Brány:**
+  - JVM testy zelené (nové: pravidla oznámení, CSV, vstup cíle, výluky ve všech čteních, mazání s rozpracovaným flushem, spodní hranice syncu, guard na providery);
+  - lint 0 chyb (6 starých `SetTextI18n` z debug plochy);
+  - debug + release build, Python testy, manifest policy.
+- **Emulátor (API 34):**
+  - výzva k oznámením: odmítnutí i povolení; trvalé odmítnutí vede na systémovou stránku;
+  - všechna tři oznámení přišla, cíl se po reinstalaci neposlal podruhé;
+  - export přes výběr souboru a sdílení v debug i R8 release;
+  - cizí uid provider nepřečte a path traversal odmítne;
+  - smazání (obě varianty) — po něm jen nová data, čas v Nastavení nezačal znovu od 33 min;
+  - snímky světlý i tmavý motiv.
+- **Chyby nalezené až na zařízení a opravené:**
+  - Sdílení padalo: `FileProvider.getUriForFile` (androidx.core 1.18) čte cesty jen z meta-data v manifestu, ne z konstruktoru podtřídy. Opraveno a hlídáno testem `PolicyGuardTest`.
+  - Pole „Vlastní cíl“ nedostalo fokus.
+  - Přesnost / Kalibrace / O aplikaci psaly čísla podle jazyka zařízení („0.0605“) → jazyk textů („0,0605“).
+  - Texty oznámení byly v mužském rodě → neutrální.
 
 ## Phase 5 — exit report (2026-09-24)
 
@@ -235,6 +274,7 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 | V3 | MAPE vlastního test listu s `MANUAL_CARD` | 2 | session | po V2: `python3 tools/device_accuracy.py --surface view,column --markdown --csv-out <dir>` + `tools/accuracy.py` → zapsat do `docs/accuracy-testing.md` | MAPE ≥ 5 % → hledat v kalibraci / pipeline |
 | V4 | Restart telefonu (ColorOS) | 3 | Honza + session | na emulátoru ověřeno (data drží, služba se sama vrátí); na OnePlusu: nascrollovat, počkat 15 s, restartovat; po startu Domů → „Dnes“ drží hodnotu a služba běží | služba se nezapne → ColorOS ji po restartu nevrací (Phase 7 nápověda) |
 | V5 | Čas v aplikaci proti Digital Wellbeing | 3 | Honza + session | povolit „Přístup k údajům o využití“, otevřít aplikaci; session porovná `daily_app_usage` pro dnešek a včerejšek s Digitální rovnováhou (± 5 %) → `docs/accuracy-testing.md` | odchylka > 5 % → ADR-025 (tolerance, uzavírače) přeladit |
+| V6 | Oznámení a export na telefonu | 6 | Honza + session | na emulátoru ověřeno (výzva k povolení, cíl / rekord / shrnutí přijdou jednou denně, export přes výběr souboru i sdílení); na OnePlusu: zapnout „Denní cíl dosažen“, nastavit cíl 100 m, nascrollovat → oznámení přijde do ~10 s; Export CSV → Sdílet → otevřít v Tabulkách Google / Excelu (čeština a čísla správně) | oznámení nepřijde → ColorOS ho tlumí (Phase 7 nápověda); CSV se rozpadne → ADR-031 formát |
 
 ## Otevřené body
 
@@ -244,12 +284,12 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
   - Honza: zvýšit spending limit, nebo přesunout job na self-hosted runner (v hh-main běží privátní joby od 24. 9. v LXC 106 — potřeboval by Android SDK).
   - Po opravě pustit CI znovu na `main` (`gh workflow run CI` nebo re-run posledního běhu).
 - [x] Přenos dat na nový telefon (device-to-device): rozhodnuto ADR-027 — nic se nepřenáší (`dataExtractionRules`), data si uživatel odnese CSV exportem (Phase 6).
-- [ ] **Phase 6 „Smazat všechna data“** musí smazat i Room (`clearAllTables()`), ne jen DataStore; `scroll_session` roste bez limitu (~desítky řádků denně) — rozhodnout retenci (bezpečnostní review, INFO).
-- [ ] Vyloučení aplikace platí od chvíle vyloučení (engine: EXCLUDED, sync času: vynechá ji v přepočítaných dnech). Starší řádky zůstávají — Phase 6 rozhodne, jestli je čtení skryje i v historii.
+- [x] **„Smazat všechna data“** maže Room (`clearAllTables()`), čas v aplikacích i sdílené kopie CSV; `scroll_session` se promazává po 90 dnech (ADR-030/031, Phase 6).
+- [x] Vyloučená aplikace zmizí ze všech čtení včetně historie a exportu; řádky zůstávají a po zrušení výluky se vrátí (ADR-031, Phase 6).
 - [ ] **Instagram + TikTok (+ X, Reddit) doměřit s účtem** → Dluh ověření V1. GO dané bez nich (přijaté riziko). Reddit na telefonu chybí.
 - [x] YouTube mlčí (ADR-013 poznámka) — od Phase 5 se v seznamu aplikací ukazuje s časem, „—“ a štítkem „bez dat o scrollu“. Sledovat dál, jestli se chování změní s novou verzí YouTube.
 - [ ] Compose lazy seznamy neměřitelné (ADR-019) — přibývá jich. Hledat zdroj bez čtení obsahu až po GO (backlog).
-- [ ] Launcher počítat do součtu, nebo vyloučit? → Phase 6 výchozí výluky. Do té doby se v Aplikacích ukazuje názvem balíčku (není vidět přes `<queries>` LAUNCHER); `<queries>` pro HOME = ADR.
+- [x] Launcher: `<queries>` pro HOME (ADR-030) — ukazuje se názvem a je první navržená výluka; vyloučit ho rozhoduje uživatel (Phase 6).
 - [ ] Kvalita měření se hodnotí s kalibrací platnou *teď* (ADR-029): den změřený před kalibrací kartou může ukázat „vysoká“. Přijato; kdyby vadilo, uložit metodu kalibrace k řádku (migrace Room).
 - [ ] R6: zabíjení procesu ColorOS — Phase 3 flush ≤ 10 s, Phase 7 onboarding (výjimka z optimalizace baterie — ověřit, že pomáhá).
 - [ ] GitHub Actions jsou připnuté na SHA tagů `v4`; bump na aktuální major (checkout v7, setup-java v6, gradle/actions v6, upload-artifact v7) je samostatné rozhodnutí.
@@ -282,6 +322,12 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 - [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-24 — Phase 6 export, nastavení, oznámení (Opus 5.5)
+- Oprávnění `POST_NOTIFICATIONS` (plán ho povoluje pro Phase 6), druhý `<queries>` (HOME), `ExportFileProvider` — ADR-030.
+- Sémantika výluk, mazání, CSV a oznámení — ADR-031; konstanty `RECORD_MIN_PRIOR_DAYS = 3`, `RECORD_MIN_MM = 10 m`, `SESSION_RETENTION_DAYS = 90`, rozsah cíle 10 m – 100 km.
+- Guard manifestu v release zakazuje jen debug provider (`….devtools.files`), ne každý FileProvider.
+- Piny beze změny.
 
 ### 2026-09-24 — Phase 5 historie + aplikace (Opus 5.5, review Fable 5.1)
 - Toolchain:
