@@ -48,7 +48,7 @@
 
 ## Phase 8 — příprava (2026-09-24, konec session po Phase 7)
 
-Session skončila na hranici fáze kvůli plnému kontextu. Na větvi `phase-8-release` je zatím jen tenhle zápis.
+Session skončila na hranici fáze kvůli plnému kontextu. Na větvi `phase-8-release` je zatím jen tenhle zápis; systémové obrazy jsou stažené, emulátor `scrollmeter34` možná ještě běží (`adb devices`).
 
 **Zbývá — celá Phase 8 podle `PLAN.md`** (rozhodnutí níže už padla, neotvírat znovu):
 1. **Stage 0** `/impact` (release build, podepisování, CI).
@@ -63,11 +63,11 @@ Session skončila na hranici fáze kvůli plnému kontextu. Na větvi `phase-8-r
    - `versionName 0.1.0` zůstává.
 4. **Emulátory API 28 / 30 / 33 / 35 / 36:**
    - `google_apis` arm64-v8a obrazy existují (tím je uzavřený otevřený bod o API 28);
-   - stahování začalo: `yes | sdkmanager "system-images;android-28;google_apis;arm64-v8a" … android-36 …` — při startu zkontrolovat `ls ~/Library/Android/sdk/system-images/` a doběhnout;
+   - obrazy jsou **stažené** (android-28, -30, -33, -35, -36 vedle -34; `sdkmanager` doběhl 2026-09-24);
    - AVD `scrollmeter28` … `scrollmeter36` přes `avdmanager create avd -n scrollmeterNN -k "system-images;android-NN;google_apis;arm64-v8a" -d pixel_6`;
    - na každém: instalace, onboarding (cs/en), testovací seznam (`tools/device_accuracy.py --surface view,column`), export, smazání;
    - D19 na API 28: události 1/2, bez STOPPED; zamčené zařízení → `queryEvents` null;
-   - disk má ~50 GB volných — AVD mimo `scrollmeter34` po měření smazat, obrazy nechat.
+   - po stažení zbývá na disku ~33 GB (93 % plno) — AVD vytvářet a měřit postupně, AVD mimo `scrollmeter34` po měření smazat, obrazy nechat.
 5. **Battery protokol:**
    - na emulátoru jen relativní čísla: `dumpsys batterystats --reset`, 10–15 min skriptovaného scrollování, CPU a wakelocky pro uid ScrollMeteru, počet flushů za minutu;
    - skutečné 1 h / 8 h / 24 h na OnePlusu a druhý telefon → „Dluh ověření“ (nový bod V8);
