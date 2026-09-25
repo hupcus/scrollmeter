@@ -46,6 +46,7 @@ Bumping a pin is allowed only when the build demands it; record old → new and 
 ./gradlew testDebugUnitTest             # JVM unit tests (the measurement engine is pure Kotlin)
 ./gradlew lintDebug                     # Android lint
 ./gradlew installDebug                  # install on the connected phone (applicationId com.scrollmeter.app.debug)
+tools/build_release.sh                  # signed release APK + AAB (keystore + Keychain, ADR-034), checked by tools/check_release_apk.py
 ADB=~/Library/Android/sdk/platform-tools/adb
 $ADB shell settings put secure enabled_accessibility_services com.scrollmeter.app.debug/com.scrollmeter.app.accessibility.ScrollAccessibilityService
 $ADB shell settings put secure accessibility_enabled 1          # POC only — real users go through Settings + disclosure
@@ -73,8 +74,10 @@ physical `xdpi 403.411 / ydpi 401.052`, logical `densityDpi 480` (19 % above the
 exactly why `densityDpi` is never used for distance), 60/90 Hz. Installed for tests: Chrome,
 Instagram, Facebook, Messenger, YouTube, TikTok, X, Play Store, Google Maps, Seznam Mapy.
 **Reddit is not installed** — Honza installs it before the Phase 1 app matrix. Launcher
-`com.android.launcher`, keyboard `com.google.android.inputmethod.latin`. No emulator is installed
-(Phase 8 adds them via `sdkmanager`); no Android Studio — everything runs from the CLI.
+`com.android.launcher`, keyboard `com.google.android.inputmethod.latin`. Emulator AVD `scrollmeter34`
+(`google_apis` arm64, `pixel_6`) for automatic checks; system images 28–36 are installed, create other AVDs with
+`avdmanager create avd -n scrollmeterNN -k "system-images;android-NN;google_apis;arm64-v8a" -d pixel_6` and delete
+them afterwards (disk). No Android Studio — everything runs from the CLI.
 
 ## Hard rules (do not relax without an ADR and Honza's explicit OK)
 

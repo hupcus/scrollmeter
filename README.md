@@ -11,11 +11,11 @@ finger across the touchscreen.
 
 ## Status
 
-Project founded 2026-09-23. Merged: Phase 0 (bootstrap, `v0.0`), Phase 1 (measurement proof of concept,
-GO/NO-GO gate, `v0.1`), Phase 2 (calibration: card calibration, accuracy screen, accuracy tooling, `v0.2`),
-Phase 3 (persistence: Room, flushes, sessions, settings, optional time in app, `v0.3`), Phase 4 (dashboard, `v0.4`),
-Phase 5 (history, apps, app detail, bottom navigation, `v0.5`), Phase 6 (export, settings, goal, notifications,
-`v0.6`). Phase 7 (onboarding, Play disclosure, English) is in progress.
+Project founded 2026-09-23. Phases 0–7 merged (`v0.0` … `v0.7`): bootstrap, measurement proof of concept
+(GO/NO-GO gate), calibration, persistence with optional time in app, dashboard, history and apps, export and
+settings, onboarding with the Play disclosure and English. Phase 8 (release hardening, `v0.8`) adds the signed
+release build, the emulator matrix API 28–36, the battery protocol and the first release `v0.1.0`.
+**Requires Android 10 (API 29) or newer** — Android 9 does not deliver the scroll events (ADR-033).
 Manual on-phone checks still owed are listed under "Dluh ověření" in `handoff.md`. See `PLAN.md` (phases,
 gates) and `handoff.md` (live state).
 
@@ -33,7 +33,7 @@ gates) and `handoff.md` (live state).
 | `docs/architecture.md` | Event pipeline, package layout, threading, data model |
 | `docs/measurement-decisions.md` | ADR log for non-obvious decisions |
 | `docs/prompts/` | Kick-off prompts for coding sessions |
-| `tools/` | `analyze_debug_csv.py` (per-app analysis of debug CSVs), `device_accuracy.py` (adb-driven accuracy tests), `accuracy.py` (ground truth CSV vs measured CSV → MAE, MAPE) |
+| `tools/` | `analyze_debug_csv.py` (per-app analysis of debug CSVs), `device_accuracy.py` (adb-driven accuracy tests), `accuracy.py` (ground truth CSV vs measured CSV → MAE, MAPE), `check_manifest_policy.py` / `check_release_apk.py` (what a build may ship), `build_release.sh` (signed release) |
 | `CLAUDE.md` | Rules for coding agents working in this repo |
 
 ## Build and run (available from Phase 0)
@@ -47,6 +47,23 @@ gates) and `handoff.md` (live state).
 
 Requires JDK 21 for Gradle (pinned in `gradle/gradle-daemon-jvm.properties`)
 and the Android SDK with platform 36 (`local.properties` → `sdk.dir`).
+
+## Release build (Phase 8)
+
+```bash
+tools/build_release.sh     # clean tree only: signed APK + AAB, both checked against the upload certificate, APK checked
+```
+
+Signing comes only from environment variables (`SIGNING_KEYSTORE_PATH`, `SIGNING_STORE_PASSWORD`,
+`SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`, ADR-034); without them `assembleRelease` builds an unsigned APK
+(CI does). The script takes the upload key from `~/.android-keystores/scrollmeter-upload.jks` and its password
+from the macOS Keychain item `scrollmeter-upload-keystore` — neither is in the repository. Outputs:
+`app/build/outputs/apk/release/app-release.apk` (sideload) and `app/build/outputs/bundle/release/app-release.aab`
+(Google Play).
+
+Release APKs are signed by `CN=ScrollMeter, O=Honza Hubka, C=CZ`, certificate SHA-256
+`04:6F:8C:D0:B0:73:23:F7:07:12:E1:12:53:CA:D7:FB:82:03:F2:68:C8:D8:10:53:78:3D:9C:1A:66:9C:0E:88` —
+check a downloaded APK with `apksigner verify --print-certs app-release.apk`.
 
 ## How to test the measurement POC (Phase 1)
 
