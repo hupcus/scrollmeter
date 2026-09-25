@@ -8,6 +8,22 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Release signing comes only from environment variables (pattern from DETECT), so no keystore or
+// password ever lives in the repository. Without SIGNING_KEYSTORE_PATH the release build stays
+// unsigned and still succeeds (CI, local gates). A path that is set but wrong, or a missing
+// password, fails the build: a release silently left unsigned is worse than a loud error.
+// tools/build_release.sh fills the variables from the macOS Keychain.
+val signingKeystore: File? = providers.environmentVariable("SIGNING_KEYSTORE_PATH").orNull
+    ?.takeIf { it.isNotBlank() }
+    ?.let { path ->
+        File(path).also { require(it.isFile) { "SIGNING_KEYSTORE_PATH does not point to a file" } }
+    }
+
+fun signingEnv(name: String): String =
+    requireNotNull(providers.environmentVariable(name).orNull?.takeIf { it.isNotEmpty() }) {
+        "$name must be set when SIGNING_KEYSTORE_PATH is"
+    }
+
 android {
     namespace = "com.scrollmeter.app"
     compileSdk = 36
@@ -23,6 +39,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (signingKeystore != null) {
+            create("release") {
+                storeFile = signingKeystore
+                storePassword = signingEnv("SIGNING_STORE_PASSWORD")
+                keyAlias = signingEnv("SIGNING_KEY_ALIAS")
+                keyPassword = signingEnv("SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -32,6 +59,9 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (signingKeystore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

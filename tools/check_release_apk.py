@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+"""Checks a release APK for what must never ship (spec §34, §66; ADR-010; PLAN Phase 8).
+
+The merged manifest is checked by check_manifest_policy.py; this looks at the built APK itself:
+
+- not debuggable (`aapt2 dump badging`);
+- no ScrollMeter class calls `android.util.Log` — app code logs only in debug builds, behind
+  `BuildConfig.DEBUG`, which R8 removes from release. Library logging stays (it never sees event
+  data). R8 renames classes, so the dex (`dexdump -d`) is read through the build's mapping.txt;
+- none of the debug recording's literals in the dex (the raw event file lives in `src/debug/`).
+
+    python3 tools/check_release_apk.py --apk app/build/outputs/apk/release/app-release.apk \\
+        --mapping app/build/outputs/mapping/release/mapping.txt
+
+Exit 0 = clean, 1 = violations (listed on stderr), 2 = a tool could not run.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+import zipfile
+from pathlib import Path
+
+APP_PACKAGE = "com.scrollmeter.app."
+LOG_CLASS = "Landroid/util/Log;"
+# Literals only the debug event recording uses (src/debug/.../DebugRecordingFile.kt, DebugExport.kt).
+FORBIDDEN_DEX_LITERALS = (b"recording.csv", b"files/debug")
+
+_CLASS_DESCRIPTOR = re.compile(r"^\s*Class descriptor\s*:\s*'L([^;]+);'")
+_MAPPING_CLASS = re.compile(r"^(\S+) -> (\S+):$")
+
+
+def deobfuscation_map(mapping_text: str) -> dict[str, str]:
+    """Obfuscated class name → original, from R8's mapping.txt (class lines only)."""
+    result: dict[str, str] = {}
+    for line in mapping_text.splitlines():
+        if line.startswith(("#", " ")):
+            continue
+        match = _MAPPING_CLASS.match(line)
+        if match:
+            result[match.group(2)] = match.group(1)
+    return result
+
+
+def classes_calling_log(dexdump_text: str) -> set[str]:
+    """Dotted names of the classes whose code invokes android.util.Log (as named in the dex)."""
+    found: set[str] = set()
+    current: str | None = None
+    for line in dexdump_text.splitlines():
+        match = _CLASS_DESCRIPTOR.match(line)
+        if match:
+            current = match.group(1).replace("/", ".")
+        elif current and "invoke-" in line and LOG_CLASS in line:
+            found.add(current)
+    return found
+
+
+def app_classes_calling_log(dexdump_text: str, mapping_text: str) -> list[str]:
+    names = deobfuscation_map(mapping_text)
+    original = (names.get(name, name) for name in classes_calling_log(dexdump_text))
+    return sorted(name for name in original if name.startswith(APP_PACKAGE))
+
+
+def is_debuggable(badging_text: str) -> bool:
+    return any(line.strip() == "application-debuggable" for line in badging_text.splitlines())
+
+
+def forbidden_literals(apk: Path) -> list[str]:
+    found = []
+    with zipfile.ZipFile(apk) as archive:
+        for entry in archive.namelist():
+            if re.fullmatch(r"classes\d*\.dex", entry):
+                data = archive.read(entry)
+                found += [f"{entry} contains {literal.decode()!r}" for literal in FORBIDDEN_DEX_LITERALS if literal in data]
+    return found
+
+
+def violations(apk: Path, mapping_text: str, dexdump_text: str, badging_text: str) -> list[str]:
+    found = [f"{name} calls android.util.Log" for name in app_classes_calling_log(dexdump_text, mapping_text)]
+    if is_debuggable(badging_text):
+        found.append("the APK is debuggable")
+    return found + forbidden_literals(apk)
+
+
+def _run(command: list[str]) -> str:
+    # dexdump prints string constants raw (MUTF-8), which is not always valid UTF-8.
+    return subprocess.run(command, check=True, capture_output=True, text=True, errors="replace").stdout
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--apk", type=Path, required=True)
+    parser.add_argument("--mapping", type=Path, required=True, help="R8 mapping.txt of the same build")
+    sdk = Path(os.environ.get("ANDROID_HOME", Path.home() / "Library/Android/sdk"))
+    parser.add_argument("--build-tools", type=Path, default=sdk / "build-tools/36.0.0")
+    args = parser.parse_args(argv)
+
+    try:
+        dexdump = _run([str(args.build_tools / "dexdump"), "-d", str(args.apk)])
+        badging = _run([str(args.build_tools / "aapt2"), "dump", "badging", str(args.apk)])
+        mapping = args.mapping.read_text(encoding="utf-8")
+    except (OSError, subprocess.CalledProcessError) as error:
+        print(f"check_release_apk: cannot inspect {args.apk}: {error}", file=sys.stderr)
+        return 2
+
+    found = violations(args.apk, mapping, dexdump, badging)
+    for item in found:
+        print(f"VIOLATION: {item}", file=sys.stderr)
+    if not found:
+        print(f"release APK clean: {args.apk}")
+    return 1 if found else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
