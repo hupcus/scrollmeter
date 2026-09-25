@@ -30,8 +30,9 @@ android {
 
     defaultConfig {
         applicationId = "com.scrollmeter.app"
-        // scrollDeltaX/Y exist from API 28 (ADR-002).
-        minSdk = 28
+        // scrollDeltaX/Y exist from API 28 (ADR-002), but Android 9 delivers a scroll-only service the
+        // events of the "active" window alone, which it hardly ever updates for such a service (ADR-033).
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"

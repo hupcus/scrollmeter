@@ -4,7 +4,6 @@ import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Process
 import android.provider.Settings
 import androidx.core.net.toUri
@@ -16,14 +15,10 @@ import androidx.core.net.toUri
 class UsageAccessChecker(private val context: Context) {
     fun isGranted(): Boolean = try {
         val appOps = context.getSystemService(AppOpsManager::class.java)
-        // checkOpNoThrow was deprecated in API 29 for unsafeCheckOpNoThrow, which compileSdk 36
-        // deprecates in turn; both read the same op mode, so each is used where it exists.
+        // unsafeCheckOpNoThrow (API 29, minSdk since ADR-033) is deprecated by compileSdk 36; it still
+        // reads the op mode without throwing.
         @Suppress("DEPRECATION")
-        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
-        } else {
-            appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
-        }
+        val mode = appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
         if (mode == AppOpsManager.MODE_DEFAULT) {
             context.checkSelfPermission(android.Manifest.permission.PACKAGE_USAGE_STATS) == PackageManager.PERMISSION_GRANTED
         } else {

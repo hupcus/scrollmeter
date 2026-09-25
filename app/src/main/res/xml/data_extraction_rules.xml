@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   ADR-027: nothing ScrollMeter stores leaves the phone — no cloud backup and no device-to-device
-  transfer (API 31+; allowBackup="false" covers API 28–30). Measured history, time in app and the
+  transfer (API 31+; allowBackup="false" covers API 29–30). Measured history, time in app and the
   card calibration belong to this phone; CSV export (Phase 6) is the way to take data along.
   PolicyGuardTest pins that both sections exclude every domain.
 -->

@@ -34,7 +34,7 @@ Metric: **scroll distance** = physical equivalent of content displacement (fling
 | Compose BOM | **2026.06.01** | 2026.08 needs compileSdk 37 + AGP 9.1. |
 | AndroidX | Room 2.8.4 · DataStore 1.1.7 · Navigation Compose 2.9.8 · Lifecycle 2.9.4 · Activity Compose 1.13.0 · core-ktx 1.18.0 · WorkManager 2.10.5 (only if used) · coroutines 1.10.2 · kotlinx-serialization 1.9.0 | |
 | Tests | JUnit 4.13.2 · Robolectric 4.16 · Truth 1.4.5 · androidx.test junit 1.3.0 · Compose ui-test | |
-| SDK | compileSdk 36 · targetSdk 36 · **minSdk 28** | `~/Library/Android/sdk` has platforms 31–36, build-tools 34–36, cmdline-tools 19. |
+| SDK | compileSdk 36 · targetSdk 36 · **minSdk 29** (ADR-033; SPEC says 28) | `~/Library/Android/sdk` has platforms 31–36, build-tools 34–36, cmdline-tools 19. |
 | DI | **none** — manual `AppGraph` on `ScrollMeterApplication` | No Hilt in MVP (ADR-003). |
 
 Bumping a pin is allowed only when the build demands it; record old → new and why in `handoff.md` in the same PR.
