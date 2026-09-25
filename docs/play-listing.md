@@ -1,5 +1,8 @@
 # Google Play — listing, declarations, Data safety (draft)
 
+> **Google Play is not planned** (Honza, 2026-09-25): ScrollMeter is a family app installed from the APK
+> (handoff.md → Identita projektu). This file stays as the source for store-like texts and in case that changes.
+
 Draft for the first Play upload (Phase 8 prepares internal testing; **nothing is submitted without Honza**).
 Source of truth for the behaviour described here: `docs/accessibility-policy.md`, ADR-021, ADR-027, ADR-030 –
 ADR-032. Every claim below must stay true for the build that is uploaded — re-read this file before each release.

@@ -58,8 +58,8 @@ Signing comes only from environment variables (`SIGNING_KEYSTORE_PATH`, `SIGNING
 `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`, ADR-034); without them `assembleRelease` builds an unsigned APK
 (CI does). The script takes the upload key from `~/.android-keystores/scrollmeter-upload.jks` and its password
 from the macOS Keychain item `scrollmeter-upload-keystore` — neither is in the repository. Outputs:
-`app/build/outputs/apk/release/app-release.apk` (sideload) and `app/build/outputs/bundle/release/app-release.aab`
-(Google Play).
+`app/build/outputs/apk/release/app-release.apk` (what gets installed — the app is distributed as an APK to family
+phones, not through Google Play) and `app/build/outputs/bundle/release/app-release.aab` (kept for a store, none planned).
 
 Release APKs are signed by `CN=ScrollMeter, O=Honza Hubka, C=CZ`, certificate SHA-256
 `04:6F:8C:D0:B0:73:23:F7:07:12:E1:12:53:CA:D7:FB:82:03:F2:68:C8:D8:10:53:78:3D:9C:1A:66:9C:0E:88` —

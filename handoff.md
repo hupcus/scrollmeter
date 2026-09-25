@@ -8,7 +8,7 @@
 - Lokální cesta: `/Users/hupcus/Documents/VIBE-CODE/SCROLLMETER`
 - GitHub: [`hupcus/scrollmeter`](https://github.com/hupcus/scrollmeter) (privátní), založen 2026-09-23 v Phase 0
 - Package: `com.scrollmeter.app` (debug: `com.scrollmeter.app.debug`)
-- Cíl: veřejná aplikace na Google Play (po Phase 8); do té doby sideload APK z GitHub Releases
+- Cíl (Honza, 2026-09-25): **aplikace pro rodinu**, instalace přes sideload APK; případně volně ke stažení na GitHubu (otevřené rozhodnutí). **Google Play není v plánu.**
 
 ## Toolchain (závazný — ověřeno reálným buildem v Phase 0, 2026-09-23)
 
@@ -91,7 +91,7 @@
   - sync času v aplikaci ≈ 12 ms na otevření.
 - **Distribuce:**
   - GitHub Release `v0.1.0` v privátním repu (APK, AAB, `SHA256SUMS`) z merge commitu;
-  - Play internal testing je připravené (`docs/play-listing.md` → „Internal testing — upload checklist“), nahrává Honza.
+  - Play internal testing bylo připravené (`docs/play-listing.md`); od 2026-09-25 **není v plánu** — distribuce jen sideload.
 - **Brány:**
   - 265 JVM testů, lint 0 chyb (6 starých `SetTextI18n` v debug seznamu), debug + release build;
   - manifest policy, kontrola release APK, 44 Python testů — vše v čistém checkoutu (CI stojí na billingu).
@@ -440,17 +440,23 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
   - automatické otáčení vrácené na původní hodnotu (`accelerometer_rotation 1`, `user_rotation 0`; Phase 2 testovala landscape).
   Přepínač **Zakázat sledování oprávnění** vrací Honza ručně. Další session si telefon připraví znovu, postup je v `docs/prompts/continue-next-phase.md`.
 - [x] Emulátory: arm64 `google_apis` obrazy existují pro API 28 / 30 / 33 / 35 / 36 (ověřeno `sdkmanager --list` 2026-09-24); matice změřená v Phase 8.
-- [ ] Ikona a barva aplikace: pořád zástupná značka (pravítko se šipkou na modré `#1E4FD8`) — SPEC §42 nechává na implementaci; finální ikona před vydáním na Play (Honza / grafik).
-- [ ] Výchozí jazyk pro Play: `values/` je čeština (D17) — telefon v němčině uvidí češtinu (v Androidu 13+ si může přepnout na angličtinu). Pro zahraniční vydání zvážit angličtinu jako výchozí; rozhodnutí Honzy.
-- [ ] Zásady ochrany soukromí potřebují veřejnou URL (Play to u Accessibility API vyžaduje); text je v `docs/play-listing.md`, kde ho zveřejnit, rozhoduje Honza.
+- [ ] Ikona a barva aplikace: pořád zástupná značka (pravítko se šipkou na modré `#1E4FD8`) — SPEC §42 nechává na implementaci; bez Play jen volitelné (Honza / grafik).
+- [x] Výchozí jazyk: `values/` je čeština (D17) — pro rodinu správně; řešilo se jen kvůli zahraničnímu vydání na Play, které není v plánu (2026-09-25).
+- [x] Zásady ochrany soukromí s veřejnou URL — potřeboval je jen Google Play, který není v plánu (2026-09-25). Text zůstává v `docs/play-listing.md` a stejné informace ukazuje aplikace (Soukromí).
 - [x] Podpisový keystore pro release — Phase 8 (ADR-034): `~/.android-keystores/scrollmeter-upload.jks`, heslo v Klíčence, `tools/build_release.sh`.
-- [ ] **Záloha upload keystoru** — Honza rozhodne kam (např. šifrovaně do Vaultwardenu / iCloud Drive Klíče vedle záložního klíče Supabase). Bez zálohy: Play klíč resetuje přes podporu, ale sideload uživatelé by museli aplikaci odinstalovat a přijít o data.
+- [ ] **Záloha upload keystoru** — Honza rozhodne kam (návrh: soubor do iCloud Drive › Klíče vedle záložního klíče Supabase, heslo zvlášť do správce hesel). Bez Google Play je klíč **jediná identita aplikace**: jeho ztráta = všichni v rodině musí aplikaci odinstalovat a přijdou o data (CSV export existuje, import ne).
+- [ ] **Ověření vývojáře Androidu (Google, globálně od 2027):** na certifikovaných telefonech půjde neověřená aplikace instalovat jen přes adb nebo „pokročilý postup“ (režim vývojáře, restart, 24 h čekání). Pro rodinu stačí **bezplatný účet „limited distribution“** v Android Developer Console: až 20 autorizovaných zařízení (párování QR kódem / odkazem se souhlasem na telefonu), bez dokladu totožnosti, potřebuje Google účet s dvoufázovým ověřením a platební profil (jméno, adresa); registrovat jde jen balíček, který Android ještě neviděl → `com.scrollmeter.app` zaregistrovat (Honza) před rokem 2027. Pro cizí lidi (veřejné stažení) by platilo plné ověření vývojáře. Zdroje: developer.android.com/developer-verification/guides/limited-distribution, android-developers.googleblog.com (03/2026). V ČR zatím beze změny (2026 jen BR, ID, SG, TH).
+- [ ] **Veřejné stažení z GitHubu** — rozhodnutí Honzy: (a) zveřejnit celé repo (před tím audit historie na citlivé údaje), (b) samostatné veřejné repo jen s releasy (kód zůstane privátní), (c) nic — APK posílat rodině přímo. Veřejné releasy navíc umožní aktualizace přes Obtainium (aplikace sama nemá `INTERNET`, takže se aktualizovat neumí).
 - [ ] **Android 9 (API 28)** — nepodporovaný od Phase 8 (ADR-033, minSdk 29). Vrátit by ho šlo jen s `typeWindowStateChanged` ve službě = změna tvrdého pravidla → jen s Honzovým souhlasem; doporučení: nechat (podíl Androidu 9 je malý a klesá).
 - [ ] Compose `Column` pomalé tahy podměřuje o 6–11 % (3 události na tah; MAPE přesto < 5 %). Hledat až s Compose lazy (ADR-019), stejný zdroj.
 - [ ] Ticker flushů (10 s) se po flushi po 50 událostech nerestartuje → při souvislém scrollu ~65 % zápisů navíc (115 místo ~70 za 10 min, každý ~0 ms). Zvážit až podle V8.
 - [ ] GitHub `ubuntu-latest` přejde od 2026-10-19 na Ubuntu 26 — po odblokování CI zkontrolovat, že obraz dál nese Android SDK (jinak připnout `ubuntu-24.04`).
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-25 — distribuce: rodina, ne Google Play (Honza)
+- Honza: aplikace jen pro rodinu, případně volně ke stažení na GitHubu; na Google Play ne. Play podklady (`docs/play-listing.md`, AAB z `build_release.sh`) zůstávají, nic se kvůli tomu v kódu nemění.
+- Dopad: záloha keystoru je kritická (bez Play App Signing), od 2027 účet „limited distribution“ (≤ 20 zařízení, zdarma), aktualizace jen ručně nebo přes Obtainium z veřejných releasů.
 
 ### 2026-09-25 — Phase 8 release (Opus 5.5, security review Fable 5.1)
 - **Pin:** `minSdk` 28 → **29** (ADR-033). Ostatní piny beze změny; nový nástroj mimo Gradle: `keytool` (JDK), `apksigner` / `dexdump` / `aapt2` z nejnovějších build-tools.
@@ -566,7 +572,7 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 
 **Všech 9 fází (0–8) je hotových a mergnutých; GitHub Release `v0.1.0` existuje.** Další práce už není fáze z `PLAN.md`, ale:
 1. **Dluh ověření V1–V9** s Honzou u telefonu (doporučené pořadí v tabulce; V1 Instagram / TikTok nejdřív — může změnit smysl produktu);
-2. **Play internal testing** — Honza nahraje AAB podle `docs/play-listing.md` (zásady ochrany soukromí potřebují veřejnou URL, ikona je pořád zástupná);
-3. otevřené body výše (záloha keystoru, CI billing, Android 9).
+2. **Distribuce rodině** — zálohovat keystore, rozhodnout veřejný GitHub (a/b/c v otevřených bodech), před rokem 2027 účet „limited distribution“ a registrace balíčku; telefony rodiny jsou zároveň druhé zařízení pro V4 / V8 (jiní výrobci = jiné zabíjení služby a jiný text „Omezeného nastavení“);
+3. otevřené body výše (CI billing, Android 9).
 
 Nová session: `docs/prompts/continue-next-phase.md` je psaný na fáze a ty došly — místo něj řekni session, který bod výše dělat (např. „V1 s telefonem, je k dispozici“), a ať nejdřív přečte `CLAUDE.md` a tenhle soubor. Pravidla o telefonu z promptu platí dál. Historický kickoff Phase 0+1: `docs/prompts/kickoff-phase-0-1.md`.
