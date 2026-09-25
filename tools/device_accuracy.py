@@ -82,8 +82,12 @@ class Device:
         subprocess.run(self.base + ["logcat", "-c"], check=True)
 
     def nodes(self) -> list[ET.Element]:
-        self.shell("uiautomator dump /sdcard/scrollmeter-ui.xml >/dev/null 2>&1", check=False)
-        xml = self.shell("cat /sdcard/scrollmeter-ui.xml")
+        # Remove the previous dump first: a failed dump must not hand back the old screen.
+        self.shell("rm -f /sdcard/scrollmeter-ui.xml; uiautomator dump /sdcard/scrollmeter-ui.xml >/dev/null 2>&1",
+                   check=False)
+        xml = self.shell("cat /sdcard/scrollmeter-ui.xml 2>/dev/null", check=False)
+        if not xml.strip():
+            raise RuntimeError("uiautomator dump failed")
         return list(ET.fromstring(xml).iter("node"))
 
     def find(self, *texts: str) -> dict[str, tuple[int, int, int, int]]:
