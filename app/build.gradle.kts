@@ -97,6 +97,15 @@ android {
         localeFilters += listOf("cs", "en")
     }
 
+    // Google Play installs from an app bundle only the language splits of the phone's languages, so a
+    // German phone switched to English for this app would lack the English strings. Both languages go
+    // into every install instead: a few kB (ADR-034).
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     testOptions {
         unitTests {
             // Robolectric (AccessibilityEvent parser test) needs the merged manifest and resources.
