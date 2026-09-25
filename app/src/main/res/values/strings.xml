@@ -204,6 +204,7 @@
     <string name="settings_section_notifications">Oznámení</string>
     <string name="notify_limit">Překročení limitu</string>
     <string name="notify_limit_body">Jednou denně, když přejdeš svůj denní limit.</string>
+    <string name="notify_limit_no_limit">Není nastavený denní limit — nic se neposílá.</string>
     <string name="notify_summary">Shrnutí včerejška</string>
     <string name="notify_summary_body">S prvním scrollováním dne: kolik to bylo včera.</string>
     <string name="notify_blocked">Oznámení má ScrollMeter v systému vypnutá, takže nepřijde žádné.</string>

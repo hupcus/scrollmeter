@@ -57,4 +57,16 @@ class ChartLabelsTest {
         assertThat(p(PeriodKind.MONTH, "2026-09-10")).isEqualTo("září 2026")
         assertThat(ChartLabels(Locale.ENGLISH).dates(Period(PeriodKind.MONTH, LocalDate.parse("2026-09-10")))).isEqualTo("September 2026")
     }
+
+    @Test
+    fun englishDatesAreWrittenTheEnglishWay() {
+        val labels = ChartLabels(Locale.ENGLISH)
+        fun p(kind: PeriodKind, date: String) = labels.dates(Period(kind, LocalDate.parse(date)))
+        assertThat(p(PeriodKind.DAY, "2026-09-25")).isEqualTo("Fri 25 Sep")
+        assertThat(p(PeriodKind.WEEK, "2026-09-24")).isEqualTo("21–27 Sep")
+        assertThat(p(PeriodKind.WEEK, "2026-10-01")).isEqualTo("28 Sep – 4 Oct")
+        assertThat(p(PeriodKind.WEEK, "2026-01-01")).isEqualTo("29 Dec 2025 – 4 Jan 2026")
+        assertThat(labels.bar(DayBar(LocalDate.parse("2026-09-24"), 1.0), 30)).isEqualTo("24")
+        assertThat(labels.day(LocalDate.parse("2026-01-05"))).isEqualTo("5 Jan")
+    }
 }

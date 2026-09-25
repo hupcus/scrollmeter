@@ -189,7 +189,12 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, onBack: () -> 
 
         SectionTitle(stringResource(R.string.settings_section_notifications))
         Card(Modifier.fillMaxWidth()) {
-            SwitchRow(stringResource(R.string.notify_limit), stringResource(R.string.notify_limit_body), current.notifyLimit) { setNotify(NotificationKind.LIMIT, it) }
+            SwitchRow(
+                stringResource(R.string.notify_limit),
+                // Without a limit there is nothing to go over: say so rather than leave a switch that never fires.
+                stringResource(if (current.dailyLimitMm > 0.0) R.string.notify_limit_body else R.string.notify_limit_no_limit),
+                current.notifyLimit,
+            ) { setNotify(NotificationKind.LIMIT, it) }
             HorizontalDivider()
             SwitchRow(stringResource(R.string.notify_summary), stringResource(R.string.notify_summary_body), current.notifySummary) { setNotify(NotificationKind.SUMMARY, it) }
             val anyOn = current.notifyLimit || current.notifySummary

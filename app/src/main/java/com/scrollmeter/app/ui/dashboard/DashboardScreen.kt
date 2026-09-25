@@ -108,7 +108,8 @@ fun DashboardScreen(
     val weekMm by remember(today) { repository.distance(week.range) }.collectAsStateWithLifecycle(initialValue = null)
     val monthMm by remember(today) { repository.distance(month.range) }.collectAsStateWithLifecycle(initialValue = null)
     val first by remember { repository.firstMeasuredDay() }.collectAsStateWithLifecycle(initialValue = null)
-    val apps by remember(today) { repository.apps(day.range) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    // Null until loaded: "Dnes zatím žádné scrollování" must not flash up before the rows.
+    val apps by remember(today) { repository.apps(day.range) }.collectAsStateWithLifecycle(initialValue = null)
     val calibration by graph.calibrationRepository.state.collectAsStateWithLifecycle(initialValue = null)
     val display = remember(LocalConfiguration.current.orientation) { graph.displayMetricsProvider.read() }
 
@@ -129,13 +130,13 @@ fun DashboardScreen(
             if (status != ServiceStatus.ON) ServiceBanner(status, onOpenAccessibilitySettings)
 
             val todayStatus = DailyLimit.status(todayMm, limitMm)
-            val timeToday = if (usageGranted) apps.sumOf { it.foregroundMs ?: 0L }.takeIf { it > 0 } else null
+            val timeToday = if (usageGranted) apps?.sumOf { it.foregroundMs ?: 0L }?.takeIf { it > 0 } else null
             LimitCard(
                 title = stringResource(R.string.home_today_title),
                 value = todayMm?.let(::distance) ?: TimeFormatter.UNKNOWN,
                 level = todayStatus.level,
                 lines = listOfNotNull(
-                    limitSentence(todayStatus, ::distance),
+                    todayMm?.let { limitSentence(todayStatus, ::distance) },
                     timeToday?.let { stringResource(R.string.period_time_in_apps, TimeFormatter.duration(it)) },
                 ),
                 onClick = { onOpenPeriod(day) },
@@ -145,7 +146,7 @@ fun DashboardScreen(
                 HorizontalDivider()
                 PeriodRow(month, monthMm, first, today, limitMm, ::distance, onOpenPeriod)
             }
-            MostTodayCard(graph, AppRanking.list(apps), usageGranted, ::distance, onOpenAll = { onOpenPeriod(day) }, onOpenApp = { onOpenApp(it, day) })
+            apps?.let { MostTodayCard(graph, AppRanking.list(it), usageGranted, ::distance, onOpenAll = { onOpenPeriod(day) }, onOpenApp = { pkg -> onOpenApp(pkg, day) }) }
             if (!usageGranted && loadedSettings?.usageTimeCardDismissed == false) {
                 UsageTimeCard(
                     onShow = onOpenUsageAccess,

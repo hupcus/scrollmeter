@@ -105,7 +105,7 @@ fun PeriodScreen(graph: AppGraph, initial: Period, onBack: () -> Unit, onOpenDay
 
         if (period.kind == PeriodKind.DAY) {
             val status = DailyLimit.status(total, limitMm)
-            LimitCard(null, total?.let(::distance) ?: TimeFormatter.UNKNOWN, status.level, listOfNotNull(limitSentence(status, ::distance), timeLine))
+            LimitCard(null, total?.let(::distance) ?: TimeFormatter.UNKNOWN, status.level, listOfNotNull(total?.let { limitSentence(status, ::distance) }, timeLine))
         } else {
             val average = DailyLimit.averagePerDay(total, range, first, today)
             val level = if (average == null) LimitLevel.NONE else DailyLimit.level(average, limitMm)

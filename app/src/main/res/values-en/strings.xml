@@ -179,6 +179,7 @@
     <string name="settings_section_notifications">Notifications</string>
     <string name="notify_limit">Over the limit</string>
     <string name="notify_limit_body">Once a day, when you go over your daily limit.</string>
+    <string name="notify_limit_no_limit">No daily limit is set — nothing is sent.</string>
     <string name="notify_summary">Yesterday’s summary</string>
     <string name="notify_summary_body">With the first scroll of the day: how much it was yesterday.</string>
     <string name="notify_blocked">Notifications for ScrollMeter are off in the system, so none will arrive.</string>
