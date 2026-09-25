@@ -46,7 +46,7 @@
 | 6 Export + Nastavení | hotovo, mergnuto (tag `v0.6`) | `phase-6-export-settings` / [#8](https://github.com/hupcus/scrollmeter/pull/8) | ADR-030/031; oznámení a export na telefonu → „Dluh ověření“ V6; CI zablokované billingem → brána v čistém checkoutu |
 | 7 Onboarding + Policy | hotovo, mergnuto (tag `v0.7`) | `phase-7-onboarding-policy` / [#9](https://github.com/hupcus/scrollmeter/pull/9) | ADR-032; onboarding se sideloadem a volba jazyka na telefonu → „Dluh ověření“ V7; CI zablokované billingem → brána v čistém checkoutu |
 | 8 Release | hotovo, mergnuto (tag `v0.8`; GitHub Release `v0.1.0`) | `phase-8-release` / [#10](https://github.com/hupcus/scrollmeter/pull/10) | ADR-033/034/035; baterie na telefonech a ColorOS → „Dluh ověření“ V8, V9; CI zablokované billingem → brána v čistém checkoutu |
-| 9 Statistiky + limit | hotovo, mergnuto (tag `v0.9`; GitHub Release `v0.2.0`) | `phase-9-ux-limit` / PR_PLACEHOLDER | ADR-036; Honzův test na telefonech → „Dluh ověření“ V10; CI zablokované billingem → brána v čistém checkoutu |
+| 9 Statistiky + limit | hotovo, mergnuto (tag `v0.9`; GitHub Release `v0.2.0`) | `phase-9-ux-limit` / [#12](https://github.com/hupcus/scrollmeter/pull/12) | ADR-036; Honzův test na telefonech → „Dluh ověření“ V10; CI zablokované billingem → brána v čistém checkoutu |
 
 ## Phase 9 — exit report (2026-09-25)
 
