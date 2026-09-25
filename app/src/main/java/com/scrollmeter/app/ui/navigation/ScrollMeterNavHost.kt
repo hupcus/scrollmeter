@@ -1,14 +1,8 @@
 package com.scrollmeter.app.ui.navigation
 
-import androidx.annotation.DrawableRes
-import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,30 +10,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
-import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.scrollmeter.app.AppGraph
-import com.scrollmeter.app.R
 import com.scrollmeter.app.apps.PackageNames
 import com.scrollmeter.app.onboarding.AccessibilityGate
 import com.scrollmeter.app.devtools.DevTools
+import com.scrollmeter.app.insights.Period
 import com.scrollmeter.app.ui.apps.AppDetailScreen
-import com.scrollmeter.app.ui.apps.AppsScreen
 import com.scrollmeter.app.ui.calibration.AccuracyScreen
 import com.scrollmeter.app.ui.calibration.CalibrationScreen
 import com.scrollmeter.app.ui.dashboard.DashboardScreen
-import com.scrollmeter.app.ui.history.HistoryScreen
 import com.scrollmeter.app.ui.onboarding.DisclosureScreen
+import com.scrollmeter.app.ui.period.PeriodScreen
 import com.scrollmeter.app.ui.settings.AboutScreen
 import com.scrollmeter.app.ui.settings.ExcludedAppsScreen
 import com.scrollmeter.app.ui.settings.ExportScreen
@@ -49,12 +36,12 @@ import com.scrollmeter.app.ui.settings.SettingsScreen
 import com.scrollmeter.app.ui.usage.UsageAccessScreen
 import kotlinx.serialization.Serializable
 
-// Type-safe routes (D14). A package name is the only argument; it is ours, read back from Room.
+// Type-safe routes (D14). Arguments are ours — a package name read back from Room, a period kind and
+// an ISO date — and are still validated on arrival.
 @Serializable data object OverviewRoute
-@Serializable data object HistoryRoute
-@Serializable data object AppsRoute
+@Serializable data class PeriodRoute(val kind: String, val anchor: String)
 @Serializable data object SettingsRoute
-@Serializable data class AppDetailRoute(val packageName: String)
+@Serializable data class AppDetailRoute(val packageName: String, val kind: String, val anchor: String)
 @Serializable data object AccuracyRoute
 @Serializable data object CalibrationRoute
 @Serializable data object UsageAccessRoute
@@ -65,21 +52,14 @@ import kotlinx.serialization.Serializable
 @Serializable data object AboutRoute
 @Serializable data object DisclosureRoute
 
-private class TopLevel(val route: Any, @get:StringRes val label: Int, @get:DrawableRes val icon: Int)
+private fun Period.route() = PeriodRoute(kind.name, anchor.toString())
 
-private val TOP_LEVEL = listOf(
-    TopLevel(OverviewRoute, R.string.nav_overview, R.drawable.ic_nav_overview),
-    TopLevel(HistoryRoute, R.string.nav_history, R.drawable.ic_nav_history),
-    TopLevel(AppsRoute, R.string.nav_apps, R.drawable.ic_nav_apps),
-    TopLevel(SettingsRoute, R.string.nav_settings, R.drawable.ic_nav_settings),
-)
+private fun appRoute(packageName: String, period: Period) = AppDetailRoute(packageName, period.kind.name, period.anchor.toString())
 
 /**
- * Přehled / Historie / Aplikace / Nastavení in a bottom bar (spec §43); the bar hides on the screens
- * below them (app detail, Přesnost, Kalibrace, Čas v aplikacích, Vyloučené aplikace, Export,
- * Soukromí, O aplikaci, the disclosure, developer screens). [onOpenAccessibilitySettings] is only ever
- * called behind the gate, never passed on (PolicyGuardTest). Switching tabs
- * keeps each tab's state. [initialDevTool] opens a developer screen from the launch intent (debug).
+ * Přehled is the one top-level screen (ADR-036: no bottom bar); Statistiky, Nastavení and everything
+ * else open over it with a way back. [onOpenAccessibilitySettings] is only ever called behind the gate,
+ * never passed on (PolicyGuardTest). [initialDevTool] opens a developer screen from the launch intent (debug).
  */
 @Composable
 fun ScrollMeterNavHost(
@@ -89,9 +69,6 @@ fun ScrollMeterNavHost(
     onOpenAccessibilitySettings: () -> Unit,
 ) {
     val nav = rememberNavController()
-    val entry by nav.currentBackStackEntryAsState()
-    val destination = entry?.destination
-    val onTopLevel = TOP_LEVEL.any { destination?.hasRoute(it.route::class) == true }
     // Spec §30: the dashboard banner and Nastavení reach the accessibility settings only through the
     // prominent disclosure while it has not been accepted (ADR-032). [disclosureAccepted] is the stored
     // flag MainActivity has already loaded — no first frames with a default.
@@ -107,28 +84,8 @@ fun ScrollMeterNavHost(
         launchHandled = true
     }
 
-    Scaffold(
-        bottomBar = {
-            if (onTopLevel) {
-                NavigationBar {
-                    TOP_LEVEL.forEach { item ->
-                        NavigationBarItem(
-                            selected = destination?.hierarchy?.any { it.hasRoute(item.route::class) } == true,
-                            onClick = {
-                                nav.navigate(item.route) {
-                                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Icon(painterResource(item.icon), contentDescription = null) },
-                            label = { Text(stringResource(item.label)) },
-                        )
-                    }
-                }
-            }
-        },
-    ) { padding ->
+    // Only for the system bar insets now that there is no bottom bar.
+    Scaffold { padding ->
         NavHost(nav, startDestination = OverviewRoute, modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
             composable<OverviewRoute> {
                 DashboardScreen(
@@ -136,15 +93,31 @@ fun ScrollMeterNavHost(
                     onOpenAccessibilitySettings = openAccessibilitySettings,
                     onOpenUsageAccess = { nav.open(UsageAccessRoute) },
                     onOpenAccuracy = { nav.open(AccuracyRoute) },
-                    onOpenApp = { nav.open(AppDetailRoute(it)) },
+                    onOpenSettings = { nav.open(SettingsRoute) },
+                    onOpenPeriod = { nav.open(it.route()) },
+                    onOpenApp = { pkg, period -> nav.open(appRoute(pkg, period)) },
                 )
             }
-            composable<HistoryRoute> { HistoryScreen(graph) }
-            composable<AppsRoute> { AppsScreen(graph, onOpenApp = { nav.open(AppDetailRoute(it)) }) }
-            composable<SettingsRoute> {
+            composable<PeriodRoute> { back ->
+                val route = back.toRoute<PeriodRoute>()
+                val period = Period.parse(route.kind, route.anchor)
+                if (period != null) {
+                    PeriodScreen(
+                        graph = graph,
+                        initial = period,
+                        onBack = { nav.leave(back) },
+                        onOpenDay = { nav.openFrom(back, it.route()) },
+                        onOpenApp = { pkg, shown -> nav.openFrom(back, appRoute(pkg, shown)) },
+                    )
+                } else {
+                    LaunchedEffect(back) { nav.leave(back) }
+                }
+            }
+            composable<SettingsRoute> { back ->
                 SettingsScreen(
                     graph = graph,
                     devTools = DevTools.entries,
+                    onBack = { nav.leave(back) },
                     actions = SettingsActions(
                         openAccessibilitySettings = openAccessibilitySettings,
                         openUsageAccess = { nav.open(UsageAccessRoute) },
@@ -168,10 +141,11 @@ fun ScrollMeterNavHost(
                 }, onBack = { nav.leave(back) })
             }
             composable<AppDetailRoute> { back ->
-                val packageName = back.toRoute<AppDetailRoute>().packageName
+                val route = back.toRoute<AppDetailRoute>()
+                val period = Period.parse(route.kind, route.anchor)
                 // Defence in depth next to MainActivity's deep-link scrub: never show an arbitrary string as an app name.
-                if (PackageNames.isValid(packageName)) {
-                    AppDetailScreen(graph, packageName, onBack = { nav.leave(back) })
+                if (PackageNames.isValid(route.packageName) && period != null) {
+                    AppDetailScreen(graph, route.packageName, period, onBack = { nav.leave(back) })
                 } else {
                     LaunchedEffect(back) { nav.leave(back) }
                 }
@@ -194,6 +168,14 @@ fun ScrollMeterNavHost(
 
 /** A double tap must not stack the same screen twice. */
 private fun NavController.open(route: Any) = navigate(route) { launchSingleTop = true }
+
+/**
+ * A day opened from a week is a new screen on top of the week, which launchSingleTop would replace
+ * instead: here only the screen [from] may open it, and only while it is on top — the double tap guard.
+ */
+private fun NavController.openFrom(from: NavBackStackEntry, route: Any) {
+    if (currentBackStackEntry?.id == from.id) navigate(route)
+}
 
 /**
  * Leaves [entry] only while it is the top of the stack: a second tap on "Zpět" during the exit

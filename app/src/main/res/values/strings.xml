@@ -18,17 +18,9 @@
     <string name="home_enable_button">Zapnout měření</string>
     <string name="home_settings_button">Otevřít nastavení Usnadnění</string>
     <string name="home_today_title">Dnes</string>
-    <string name="dashboard_goal">z cíle %1$s</string>
-    <string name="dashboard_goal_reached">Cíl %1$s splněn</string>
-    <string name="dashboard_week">Tento týden</string>
-    <string name="dashboard_month">Tento měsíc</string>
-    <string name="dashboard_lifetime">Celkem</string>
-    <string name="dashboard_top_apps">Top aplikace dnes</string>
-    <string name="dashboard_other_apps">Ostatní</string>
     <string name="dashboard_no_scroll_yet">Dnes zatím žádné scrollování. Jakmile budeš scrollovat v jiné aplikaci, objeví se tady.</string>
-    <string name="dashboard_time_in_app">V aplikaci %1$s</string>
-    <string name="dashboard_time_in_app_pace">V aplikaci %1$s · %2$s</string>
-    <string name="dashboard_scroll_time">Scrollování %1$s</string>
+    <string name="dashboard_most_today">Nejvíc dnes</string>
+    <string name="dashboard_all_apps">Všechny aplikace</string>
     <string name="dashboard_comparison_title">Pro představu</string>
     <string name="dashboard_usage_card_title">Chceš vidět i čas v aplikacích?</string>
     <string name="dashboard_usage_card_body">U každé aplikace pak uvidíš, kolik v ní trávíš minut a kolik metrů za minutu nascrolluješ.</string>
@@ -128,34 +120,35 @@
 
     <string name="back">Zpět</string>
 
-    <!-- Spec §43 bottom navigation. -->
-    <string name="nav_overview">Přehled</string>
-    <string name="nav_history">Historie</string>
-    <string name="nav_apps">Aplikace</string>
-    <string name="nav_settings">Nastavení</string>
-
-    <!-- Spec §23 History. -->
-    <string name="history_title">Historie</string>
-    <string name="period_7_days">7 dní</string>
-    <string name="period_30_days">30 dní</string>
-    <string name="period_12_months">12 měsíců</string>
+    <!-- ADR-036: Statistiky (replaces Historie and Aplikace) and the daily limit. -->
+    <string name="period_title">Statistiky</string>
+    <string name="period_day">Den</string>
+    <string name="period_week">Týden</string>
+    <string name="period_month">Měsíc</string>
     <string name="period_today">Dnes</string>
-    <string name="period_lifetime">Celkem</string>
-    <string name="history_average">Průměr / den</string>
-    <string name="history_max">Nejvyšší den</string>
-    <string name="history_min">Nejnižší den</string>
-    <string name="history_total">Celkem</string>
-    <string name="history_day_value">%1$s · %2$s</string>
-    <string name="history_empty">Zatím nic naměřeno. Jakmile budeš scrollovat, objeví se tu graf.</string>
-    <string name="history_chart_description">Graf vzdálenosti: celkem %1$s, nejvyšší den %2$s</string>
+    <string name="period_yesterday">Včera</string>
+    <string name="period_this_week">Tento týden</string>
+    <string name="period_last_week">Minulý týden</string>
+    <string name="period_this_month">Tento měsíc</string>
+    <string name="period_last_month">Minulý měsíc</string>
+    <string name="period_previous">Předchozí</string>
+    <string name="period_next">Další</string>
+    <string name="period_apps">Aplikace</string>
+    <string name="period_empty">Za toto období nic naměřeno.</string>
+    <string name="period_time_in_apps">V aplikacích %1$s</string>
+    <string name="period_chart_title">Po dnech</string>
+    <string name="period_chart_description">Vzdálenost po dnech, %1$s</string>
+    <string name="period_chart_hint">Klepnutím na sloupec otevřeš ten den.</string>
+    <string name="chart_day_value">%1$s · %2$s</string>
+    <string name="limit_remaining">Zbývá %1$s z limitu %2$s</string>
+    <string name="limit_over">Překročeno o %1$s (limit %2$s)</string>
+    <string name="limit_average">Průměr %1$s / den</string>
+    <string name="limit_average_of">Průměr %1$s / den · limit %2$s</string>
+    <string name="limit_none">Bez limitu</string>
+
+
 
     <!-- Spec §24 Apps, §20 quality, D19 time. -->
-    <string name="apps_title">Aplikace</string>
-    <string name="apps_sort_distance">Vzdálenost</string>
-    <string name="apps_sort_time">Čas</string>
-    <string name="apps_empty">Za toto období zatím nic.</string>
-    <string name="apps_no_scroll_data">bez dat o scrollu</string>
-    <string name="apps_share_quality">%1$s %% · %2$s</string>
     <string name="quality_high">Kvalita měření: vysoká</string>
     <string name="quality_medium">Kvalita měření: střední</string>
     <string name="quality_low">Kvalita měření: nízká</string>
@@ -173,6 +166,9 @@
     <string name="app_detail_scroll_chart">Čas scrollování za 30 dní</string>
     <string name="app_detail_scroll_share">Scrolluješ %1$s z %2$s v aplikaci (%3$s %%).</string>
     <string name="app_detail_no_scroll">Tahle aplikace scrollování nehlásí — ScrollMeter u ní zná jen čas v aplikaci.</string>
+    <string name="app_detail_period">%1$s · %2$s</string>
+    <string name="app_detail_share">Podíl na vzdálenosti</string>
+    <string name="percent">%1$s %%</string>
 
     <!-- Nastavení (Phase 5 core; Phase 6 adds goal, units, notifications, data, privacy, about). -->
     <string name="settings_title">Nastavení</string>
@@ -182,9 +178,9 @@
     <string name="settings_off">Vypnuto</string>
     <string name="settings_usage_access">Čas v aplikacích</string>
     <string name="settings_accuracy">Přesnost měření</string>
+    <string name="settings_limit">Denní limit</string>
 
     <!-- Phase 6: Nastavení (spec §44). -->
-    <string name="settings_goal">Denní cíl</string>
     <string name="settings_excluded">Vyloučené aplikace</string>
     <string name="settings_excluded_none">Žádné</string>
     <plurals name="settings_excluded_count">
@@ -206,10 +202,8 @@
     <string name="settings_comparisons">Srovnání na přehledu</string>
     <string name="settings_comparisons_body">Např. „To je přibližně délka jednoho běžeckého okruhu.“</string>
     <string name="settings_section_notifications">Oznámení</string>
-    <string name="notify_goal">Denní cíl dosažen</string>
-    <string name="notify_goal_body">Jednou denně, když přejdeš svůj cíl.</string>
-    <string name="notify_record">Nový rekord</string>
-    <string name="notify_record_body">Když dnes nascrolluješ víc než kterýkoli den předtím.</string>
+    <string name="notify_limit">Překročení limitu</string>
+    <string name="notify_limit_body">Jednou denně, když přejdeš svůj denní limit.</string>
     <string name="notify_summary">Shrnutí včerejška</string>
     <string name="notify_summary_body">S prvním scrollováním dne: kolik to bylo včera.</string>
     <string name="notify_blocked">Oznámení má ScrollMeter v systému vypnutá, takže nepřijde žádné.</string>
@@ -223,14 +217,15 @@
     <string name="settings_section_about">O aplikaci</string>
     <string name="settings_about">Verze, zařízení, metoda měření</string>
 
-    <!-- Spec §25 daily goal. -->
-    <string name="goal_title">Denní cíl</string>
-    <string name="goal_note">Cíl není zákaz: nic neblokuje, jen ukazuje, kolik zbývá.</string>
-    <string name="goal_custom">Vlastní</string>
-    <string name="goal_custom_label">Vlastní cíl</string>
-    <string name="goal_unit_m">m</string>
-    <string name="goal_unit_km">km</string>
-    <string name="goal_custom_error">Zadej číslo od 10 m do 100 km.</string>
+
+    <!-- ADR-036: the daily limit dialog (spec §25, as a limit). -->
+    <string name="limit_title">Denní limit</string>
+    <string name="limit_note">Limit není cíl, ale hranice, kterou za den nechceš překročit. Barva ukáže, jak blízko jsi: zelená, od %1$d %% oranžová, nad limitem červená. Nic neblokuje.</string>
+    <string name="limit_custom">Vlastní</string>
+    <string name="limit_custom_label">Vlastní limit</string>
+    <string name="limit_unit_m">m</string>
+    <string name="limit_unit_km">km</string>
+    <string name="limit_custom_error">Zadej číslo od 10 m do 100 km.</string>
     <string name="save">Uložit</string>
     <string name="cancel">Zrušit</string>
 
@@ -281,14 +276,14 @@
     <string name="about_method">Metoda měření</string>
     <string name="about_method_body">Posun, který Android hlásí při scrollování (scrollDeltaX/Y, jinak změna pozice), převedený na milimetry podle fyzické velikosti pixelu tohoto displeje.</string>
     <string name="about_scale">Měřítko</string>
+    <string name="about_total">Celkem naměřeno</string>
+    <string name="about_total_value">%1$s od %2$s</string>
 
     <!-- Spec §26 notifications. -->
-    <string name="notification_channel_name">Cíle a rekordy</string>
-    <string name="notification_channel_description">Denní cíl, nový rekord a shrnutí včerejška — každé nejvýš jednou denně.</string>
-    <string name="notification_goal_title">Denní cíl dosažen</string>
-    <string name="notification_goal_text">Dnešní vzdálenost přesáhla tvůj cíl %1$s.</string>
-    <string name="notification_record_title">Nový rekord</string>
-    <string name="notification_record_text">Dnes je to %1$s — víc než kterýkoli den předtím.</string>
+    <string name="notification_channel_name">Limit a shrnutí</string>
+    <string name="notification_channel_description">Překročení denního limitu a shrnutí včerejška — každé nejvýš jednou denně.</string>
+    <string name="notification_limit_title">Denní limit překročen</string>
+    <string name="notification_limit_text">Dnes jsi přes svůj denní limit %1$s.</string>
     <string name="notification_summary_title">Včerejší scrollování</string>
     <string name="notification_summary_text">Včera to dohromady bylo %1$s.</string>
 

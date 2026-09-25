@@ -9,7 +9,6 @@ import com.scrollmeter.app.data.model.AppSummary
 import com.scrollmeter.app.data.model.DaySummary
 import com.scrollmeter.app.data.model.ExportAppDay
 import com.scrollmeter.app.data.model.ExportDay
-import com.scrollmeter.app.data.model.PriorDays
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -169,18 +168,6 @@ abstract class ScrollDao {
     /** Every package with stored data, excluded ones included — the exclusion list (spec §44). */
     @Query("SELECT packageName FROM daily_app_aggregate UNION SELECT packageName FROM daily_app_usage ORDER BY packageName")
     abstract fun seenPackages(): Flow<List<String>>
-
-    /** The best earlier day and how many earlier days had a distance — "Nový rekord" (ADR-031). */
-    @Query(
-        """
-        SELECT COALESCE(MAX(total), 0) AS bestMm, COUNT(*) AS days FROM (
-            SELECT SUM(distanceMm) AS total FROM daily_app_aggregate
-            WHERE date < :date AND packageName NOT IN (:excluded)
-            GROUP BY date HAVING total > 0
-        )
-        """,
-    )
-    abstract suspend fun daysBefore(date: String, excluded: List<String>): PriorDays
 
     /** `per_app.csv` (spec §28, ADR-021): one row per day and app, scroll and time side by side. */
     @Query(

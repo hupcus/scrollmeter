@@ -1,6 +1,5 @@
 package com.scrollmeter.app.ui.dashboard
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +19,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -30,52 +31,52 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.R
 import com.scrollmeter.app.calibration.CalibrationMethod
 import com.scrollmeter.app.data.model.AppSummary
-import com.scrollmeter.app.data.model.DateRange
 import com.scrollmeter.app.format.DistanceFormatter
 import com.scrollmeter.app.format.TimeFormatter
+import com.scrollmeter.app.insights.AppRanking
+import com.scrollmeter.app.insights.DailyLimit
 import com.scrollmeter.app.insights.DistanceComparison
 import com.scrollmeter.app.insights.DistanceComparisonProvider
+import com.scrollmeter.app.insights.LimitLevel
+import com.scrollmeter.app.insights.Period
+import com.scrollmeter.app.insights.PeriodKind
 import com.scrollmeter.app.insights.Qualifier
 import com.scrollmeter.app.insights.Reference
-import com.scrollmeter.app.insights.TopApps
 import com.scrollmeter.app.measurement.PhysicalScaleProvider
 import com.scrollmeter.app.settings.Settings
-import com.scrollmeter.app.settings.UnitPreference
-import com.scrollmeter.app.ui.components.AppIcon
+import com.scrollmeter.app.ui.components.AppRow
+import com.scrollmeter.app.ui.components.LimitCard
 import com.scrollmeter.app.ui.components.ServiceStatus
 import com.scrollmeter.app.ui.components.appLocale
+import com.scrollmeter.app.ui.components.averageSentence
 import com.scrollmeter.app.ui.components.launchWrite
-import com.scrollmeter.app.ui.components.rememberAppInfo
+import com.scrollmeter.app.ui.components.limitSentence
 import com.scrollmeter.app.ui.components.rememberServiceStatus
 import com.scrollmeter.app.ui.components.rememberToday
 import com.scrollmeter.app.ui.components.rememberUsageGranted
-import java.util.Locale
+import com.scrollmeter.app.ui.theme.limitColors
+import java.time.LocalDate
 
 /**
- * Přehled (spec §21): today's distance against the goal, this week / month / in total, the top
- * apps today, and at most one comparison. Everything reads live from [AppGraph.scrollRepository]
- * (stored + not yet flushed). When the service is not running, a banner says so first (§32).
- * Time in app (D19) appears in the app rows once Usage access is granted; until then one card
- * offers it and can be dismissed for good. An app row opens its detail.
+ * Přehled (spec §21, ADR-036): today's distance against the daily limit — the card turns green, orange,
+ * red as the limit comes closer — this week and this month with their average per day, the apps
+ * scrolled most today, and at most one comparison. Everything reads live from [AppGraph.scrollRepository]
+ * (stored + not yet flushed). When the service is not running, a banner says so first (§32). Time in
+ * app (D19) appears once Usage access is granted; until then one card offers it and can be dismissed
+ * for good. Today, the week and the month open Statistiky; an app opens its detail for today;
+ * Nastavení sits behind the gear — there is no bottom bar.
  */
 @Composable
 fun DashboardScreen(
@@ -83,7 +84,9 @@ fun DashboardScreen(
     onOpenAccessibilitySettings: () -> Unit,
     onOpenUsageAccess: () -> Unit,
     onOpenAccuracy: () -> Unit,
-    onOpenApp: (String) -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenPeriod: (Period) -> Unit,
+    onOpenApp: (String, Period) -> Unit,
 ) {
     val locale = appLocale()
     val scope = rememberCoroutineScope()
@@ -92,20 +95,24 @@ fun DashboardScreen(
     val usageGranted = rememberUsageGranted(graph)
     // The screen may stay open across midnight: "Dnes" rolls over without waiting for a resume.
     val today = rememberToday()
+    val day = Period(PeriodKind.DAY, today)
+    val week = Period(PeriodKind.WEEK, today)
+    val month = Period(PeriodKind.MONTH, today)
 
     val repository = graph.scrollRepository
-    // Null until loaded: a card the user dismissed must not flash up while settings are read.
+    // Null until loaded: a card the user dismissed must not flash up, nor the default limit's colour.
     val loadedSettings by graph.settingsRepository.settings.collectAsStateWithLifecycle(initialValue = null)
     val settings = loadedSettings ?: Settings()
-    val todayMm by remember(today) { repository.distance(DateRange.day(today)) }.collectAsStateWithLifecycle(initialValue = null)
-    val weekMm by remember(today) { repository.distance(DateRange.week(today)) }.collectAsStateWithLifecycle(initialValue = null)
-    val monthMm by remember(today) { repository.distance(DateRange.month(today)) }.collectAsStateWithLifecycle(initialValue = null)
-    val lifetimeMm by remember { repository.lifetimeDistance() }.collectAsStateWithLifecycle(initialValue = null)
-    val apps by remember(today) { repository.apps(DateRange.day(today)) }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val limitMm = loadedSettings?.dailyLimitMm ?: Settings.NO_LIMIT
+    val todayMm by remember(today) { repository.distance(day.range) }.collectAsStateWithLifecycle(initialValue = null)
+    val weekMm by remember(today) { repository.distance(week.range) }.collectAsStateWithLifecycle(initialValue = null)
+    val monthMm by remember(today) { repository.distance(month.range) }.collectAsStateWithLifecycle(initialValue = null)
+    val first by remember { repository.firstMeasuredDay() }.collectAsStateWithLifecycle(initialValue = null)
+    val apps by remember(today) { repository.apps(day.range) }.collectAsStateWithLifecycle(initialValue = emptyList())
     val calibration by graph.calibrationRepository.state.collectAsStateWithLifecycle(initialValue = null)
     val display = remember(LocalConfiguration.current.orientation) { graph.displayMetricsProvider.read() }
 
-    fun distance(mm: Double?): String = mm?.let { DistanceFormatter.format(it, settings.unitPreference, locale) } ?: TimeFormatter.UNKNOWN
+    fun distance(mm: Double): String = DistanceFormatter.format(mm, settings.unitPreference, locale)
 
     Scaffold { padding ->
         Column(
@@ -115,11 +122,30 @@ fun DashboardScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 if (status == ServiceStatus.ON) MeasuringChip()
+                IconButton(onClick = onOpenSettings) {
+                    Icon(painterResource(R.drawable.ic_nav_settings), contentDescription = stringResource(R.string.settings_title))
+                }
             }
             if (status != ServiceStatus.ON) ServiceBanner(status, onOpenAccessibilitySettings)
-            TodayHeader(todayMm, settings.dailyGoalMm, ::distance)
-            PeriodStats(distance(weekMm), distance(monthMm), distance(lifetimeMm))
-            TopAppsCard(graph, TopApps.of(apps), usageGranted, settings.unitPreference, locale, onOpenApp)
+
+            val todayStatus = DailyLimit.status(todayMm, limitMm)
+            val timeToday = if (usageGranted) apps.sumOf { it.foregroundMs ?: 0L }.takeIf { it > 0 } else null
+            LimitCard(
+                title = stringResource(R.string.home_today_title),
+                value = todayMm?.let(::distance) ?: TimeFormatter.UNKNOWN,
+                level = todayStatus.level,
+                lines = listOfNotNull(
+                    limitSentence(todayStatus, ::distance),
+                    timeToday?.let { stringResource(R.string.period_time_in_apps, TimeFormatter.duration(it)) },
+                ),
+                onClick = { onOpenPeriod(day) },
+            )
+            Card(Modifier.fillMaxWidth()) {
+                PeriodRow(week, weekMm, first, today, limitMm, ::distance, onOpenPeriod)
+                HorizontalDivider()
+                PeriodRow(month, monthMm, first, today, limitMm, ::distance, onOpenPeriod)
+            }
+            MostTodayCard(graph, AppRanking.list(apps), usageGranted, ::distance, onOpenAll = { onOpenPeriod(day) }, onOpenApp = { onOpenApp(it, day) })
             if (!usageGranted && loadedSettings?.usageTimeCardDismissed == false) {
                 UsageTimeCard(
                     onShow = onOpenUsageAccess,
@@ -163,98 +189,64 @@ private fun ServiceBanner(status: ServiceStatus, onOpenAccessibilitySettings: ()
     }
 }
 
-/** The main number, very prominent (spec §42), inside a progress ring towards the daily goal (§21, §25). */
+/**
+ * This week / this month: its total, the average per day against the daily limit, and a dot in the
+ * limit colour of that average (ADR-036). The text carries the same, so the dot is never the only signal.
+ */
 @Composable
-private fun TodayHeader(todayMm: Double?, goalMm: Double, distance: (Double?) -> String) {
-    val progress = ((todayMm ?: 0.0) / goalMm).toFloat().coerceIn(0f, 1f)
-    val reached = todayMm != null && todayMm >= goalMm
-    val track = MaterialTheme.colorScheme.surfaceVariant
-    val bar = MaterialTheme.colorScheme.primary
-    val strokePx = with(LocalDensity.current) { 14.dp.toPx() }
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(stringResource(R.string.home_today_title), style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.size(8.dp))
-        Box(Modifier.size(232.dp), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.fillMaxSize()) {
-                val inset = strokePx / 2
-                val arcSize = Size(size.width - strokePx, size.height - strokePx)
-                drawArc(track, 0f, 360f, useCenter = false, topLeft = Offset(inset, inset), size = arcSize, style = Stroke(strokePx))
-                if (progress > 0f) {
-                    drawArc(bar, -90f, 360f * progress, useCenter = false, topLeft = Offset(inset, inset), size = arcSize, style = Stroke(strokePx, cap = StrokeCap.Round))
-                }
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(distance(todayMm), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                Text(
-                    stringResource(if (reached) R.string.dashboard_goal_reached else R.string.dashboard_goal, distance(goalMm)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (reached) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
+private fun PeriodRow(
+    period: Period,
+    totalMm: Double?,
+    first: LocalDate?,
+    today: LocalDate,
+    limitMm: Double,
+    distance: (Double) -> String,
+    onOpen: (Period) -> Unit,
+) {
+    val average = DailyLimit.averagePerDay(totalMm, period.range, first, today)
+    val level = if (average == null) LimitLevel.NONE else DailyLimit.level(average, limitMm)
+    Row(Modifier.fillMaxWidth().clickable { onOpen(period) }.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (level != LimitLevel.NONE) {
+            Box(Modifier.size(12.dp).clip(CircleShape).background(limitColors(level).bar))
+            Spacer(Modifier.width(12.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(if (period.kind == PeriodKind.WEEK) R.string.period_this_week else R.string.period_this_month), style = MaterialTheme.typography.bodyLarge)
+            averageSentence(average, limitMm, distance)?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        Spacer(Modifier.width(12.dp))
+        Text(totalMm?.let(distance) ?: TimeFormatter.UNKNOWN, style = MaterialTheme.typography.titleMedium)
+        Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
+/** The three apps scrolled most today, and the way to all of them. */
 @Composable
-private fun PeriodStats(week: String, month: String, lifetime: String) {
+private fun MostTodayCard(
+    graph: AppGraph,
+    apps: List<AppSummary>,
+    usageGranted: Boolean,
+    distance: (Double) -> String,
+    onOpenAll: () -> Unit,
+    onOpenApp: (String) -> Unit,
+) {
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            StatRow(stringResource(R.string.dashboard_week), week)
-            HorizontalDivider()
-            StatRow(stringResource(R.string.dashboard_month), month)
-            HorizontalDivider()
-            StatRow(stringResource(R.string.dashboard_lifetime), lifetime)
-        }
-    }
-}
-
-@Composable
-private fun StatRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.titleMedium)
-    }
-}
-
-@Composable
-private fun TopAppsCard(graph: AppGraph, top: TopApps, usageGranted: Boolean, unit: UnitPreference, locale: Locale, onOpenApp: (String) -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(R.string.dashboard_top_apps), style = MaterialTheme.typography.titleMedium)
-            if (top.isEmpty) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(stringResource(R.string.dashboard_most_today), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 4.dp))
+            if (apps.isEmpty()) {
                 Text(stringResource(R.string.dashboard_no_scroll_yet), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            top.apps.forEach { app -> AppRow(graph, app, usageGranted, unit, locale) { onOpenApp(app.packageName) } }
-            top.other?.let { AppRow(graph, it, usageGranted, unit, locale, onClick = null) }
+            apps.take(TOP_APPS).forEach { app -> AppRow(graph, app, usageGranted, distance) { onOpenApp(app.packageName) } }
+            if (apps.size > TOP_APPS) {
+                TextButton(onClick = onOpenAll, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.dashboard_all_apps)) }
+            }
         }
     }
 }
 
-/** Distance, and time: in app with Usage access, scrolling otherwise (ADR-022). Unknown is "—", never 0. */
-@Composable
-private fun AppRow(graph: AppGraph, app: AppSummary, usageGranted: Boolean, unit: UnitPreference, locale: Locale, onClick: (() -> Unit)?) {
-    val other = app.packageName == TopApps.OTHER
-    val info by rememberAppInfo(graph.appInfoProvider, app.packageName, 36.dp, skip = other)
-    val label = if (other) stringResource(R.string.dashboard_other_apps) else info?.label ?: app.packageName
-    val detail = if (usageGranted) {
-        val pace = TimeFormatter.pace(app.distanceMm, app.foregroundMs, locale)
-        val time = TimeFormatter.duration(app.foregroundMs)
-        if (pace == TimeFormatter.UNKNOWN) stringResource(R.string.dashboard_time_in_app, time) else stringResource(R.string.dashboard_time_in_app_pace, time, pace)
-    } else {
-        stringResource(R.string.dashboard_scroll_time, TimeFormatter.duration(app.activeScrollMs))
-    }
-    Row(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier), verticalAlignment = Alignment.CenterVertically) {
-        AppIcon(info, label)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Spacer(Modifier.width(12.dp))
-        Text(app.distanceMm?.let { DistanceFormatter.format(it, unit, locale) } ?: TimeFormatter.UNKNOWN, style = MaterialTheme.typography.titleMedium)
-    }
-}
+private const val TOP_APPS = 3
 
 @Composable
 private fun UsageTimeCard(onShow: () -> Unit, onDismiss: () -> Unit) {

@@ -85,7 +85,7 @@ class AppGraph(context: Context) {
     val notificationWatcher by lazy {
         NotificationWatcher(
             settings = { settingsRepository.stored.first() },
-            facts = { today, settings -> scrollRepository.notificationFacts(today, settings.dailyGoalMm) },
+            facts = { today, settings -> scrollRepository.notificationFacts(today, settings.dailyLimitMm) },
             state = settingsRepository,
             poster = notificationPoster,
             epoch = monitor.dataEpoch::get,

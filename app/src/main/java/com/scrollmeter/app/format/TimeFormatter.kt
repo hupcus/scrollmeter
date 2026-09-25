@@ -11,18 +11,23 @@ object TimeFormatter {
     const val UNKNOWN = "—"
     private const val MINUTE_MS = 60_000L
 
-    /** "< 1 min", "12 min", "1 h 5 min", "2 h" — minutes are floored, so 59,9 min never reads "60 min". */
+    /**
+     * "< 1 min", "12 min", "1 h 5 min", "2 h", "1 d 3 h 5 min" (ADR-036) — minutes are floored, so 59,9 min
+     * never reads "60 min"; from 24 h on the days come first, and parts that are zero are left out
+     * ("1 d 5 min"). The units read the same in Czech and English.
+     */
     fun duration(ms: Long?): String {
         if (ms == null || ms < 0) return UNKNOWN
         if (ms < MINUTE_MS) return "< 1 min"
-        val minutes = ms / MINUTE_MS
-        val hours = minutes / 60
-        val rest = minutes % 60
-        return when {
-            hours == 0L -> "$minutes min"
-            rest == 0L -> "$hours h"
-            else -> "$hours h $rest min"
-        }
+        val totalMinutes = ms / MINUTE_MS
+        val days = totalMinutes / (24 * 60)
+        val hours = totalMinutes / 60 % 24
+        val minutes = totalMinutes % 60
+        return listOfNotNull(
+            days.takeIf { it > 0 }?.let { "$it d" },
+            hours.takeIf { it > 0 }?.let { "$it h" },
+            minutes.takeIf { it > 0 }?.let { "$it min" },
+        ).joinToString(" ")
     }
 
     /**

@@ -39,7 +39,7 @@ class SettingsRepositoryTest {
 
     @Test
     fun everySettingRoundTrips() = runBlocking {
-        repository.setDailyGoalMm(1_000_000.0)
+        repository.setDailyLimitMm(1_000_000.0)
         repository.setExcluded("a", true)
         repository.setExcluded("b", true)
         repository.setExcluded("a", false)
@@ -57,9 +57,33 @@ class SettingsRepositoryTest {
     }
 
     @Test
-    fun aGoalOutsideTheRangeIsClamped() = runBlocking {
-        repository.setDailyGoalMm(1.0)
-        assertThat(repository.settings.first().dailyGoalMm).isEqualTo(Settings.GOAL_RANGE_MM.start)
+    fun aLimitOutsideTheRangeIsClamped() = runBlocking {
+        repository.setDailyLimitMm(1.0)
+        assertThat(repository.settings.first().dailyLimitMm).isEqualTo(Settings.LIMIT_RANGE_MM.start)
+    }
+
+    /** ADR-036: "Bez limitu" is stored as 0 and read back as 0, not as the default. */
+    @Test
+    fun noLimitIsStoredAsZero() = runBlocking {
+        repository.setDailyLimitMm(0.0)
+        assertThat(repository.settings.first().dailyLimitMm).isEqualTo(Settings.NO_LIMIT)
+        repository.setDailyLimitMm(-3.0)
+        assertThat(repository.settings.first().dailyLimitMm).isEqualTo(Settings.NO_LIMIT)
+    }
+
+    /** ADR-036: the former goal's keys carry over — the value becomes the limit, the switch stays on. */
+    @Test
+    fun theFormerGoalCarriesOverAsTheLimit() = runBlocking {
+        dataStore.edit {
+            it[androidx.datastore.preferences.core.doublePreferencesKey("daily_goal_mm")] = 250_000.0
+            it[androidx.datastore.preferences.core.booleanPreferencesKey("notify_goal")] = true
+            it[androidx.datastore.preferences.core.booleanPreferencesKey("notify_record")] = true
+            it[androidx.datastore.preferences.core.stringPreferencesKey("notified_goal_date")] = "2026-09-25"
+        }
+        val settings = repository.settings.first()
+        assertThat(settings.dailyLimitMm).isEqualTo(250_000.0)
+        assertThat(settings.notifyLimit).isTrue()
+        assertThat(repository.lastPosted(com.scrollmeter.app.notifications.NotificationKind.LIMIT)).isEqualTo(java.time.LocalDate.parse("2026-09-25"))
     }
 
     @Test
@@ -67,7 +91,7 @@ class SettingsRepositoryTest {
         dataStore.edit {
             it[SettingsRepository.UNIT] = "LIGHT_YEARS"
             it[SettingsRepository.THEME] = "NEON"
-            it[SettingsRepository.DAILY_GOAL_MM] = -5.0
+            it[SettingsRepository.DAILY_LIMIT_MM] = -5.0
         }
         assertThat(repository.settings.first()).isEqualTo(Settings())
     }

@@ -225,15 +225,14 @@ class ScrollRepositoryTest {
     }
 
     @Test
-    fun notificationFactsSeeTheBestEarlierDayTodayLiveAndYesterday() = runBlocking {
+    fun notificationFactsSeeTodayLiveAndYesterday() = runBlocking {
         repository.write(
             listOf(delta(date = "2026-09-20", mm = 300.0), delta(date = "2026-09-21", mm = 100.0), delta(date = "2026-09-22", mm = 50.0), delta(date = "2026-09-23", mm = 20.0)),
             emptyList(),
         )
         unflushed.value = mapOf(("2026-09-23" to "a") to 5.0)
-        val facts = repository.notificationFacts(LocalDate.parse("2026-09-23"), goalMm = 500.0)
-        assertThat(facts.previousBestMm).isEqualTo(300.0)
-        assertThat(facts.priorMeasuredDays).isEqualTo(3)
+        val facts = repository.notificationFacts(LocalDate.parse("2026-09-23"), limitMm = 500.0)
+        assertThat(facts.limitMm).isEqualTo(500.0)
         assertThat(facts.todayMm).isEqualTo(25.0)
         assertThat(facts.yesterdayMm).isEqualTo(50.0)
     }

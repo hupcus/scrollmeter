@@ -114,19 +114,13 @@ class ScrollRepository(
     /** Every package with stored data, excluded ones included (the exclusion list). */
     fun seenPackages(): Flow<List<String>> = dao.seenPackages()
 
-    /** Facts for the notification check (ADR-031): today live, earlier days stored. */
-    suspend fun notificationFacts(today: LocalDate, goalMm: Double): NotificationFacts {
-        val ex = excluded.first().toList()
-        val prior = dao.daysBefore(today.toString(), ex)
-        return NotificationFacts(
-            today = today,
-            todayMm = distance(DateRange.day(today)).first(),
-            goalMm = goalMm,
-            previousBestMm = prior.bestMm,
-            priorMeasuredDays = prior.days,
-            yesterdayMm = distance(DateRange.day(today.minusDays(1))).first(),
-        )
-    }
+    /** Facts for the notification check (ADR-031, ADR-036): today live, yesterday stored. */
+    suspend fun notificationFacts(today: LocalDate, limitMm: Double): NotificationFacts = NotificationFacts(
+        today = today,
+        todayMm = distance(DateRange.day(today)).first(),
+        limitMm = limitMm,
+        yesterdayMm = distance(DateRange.day(today.minusDays(1))).first(),
+    )
 
     suspend fun exportAppDays(): List<ExportAppDay> = dao.exportAppDays(exportExcluded().toList())
 
