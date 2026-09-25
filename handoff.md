@@ -23,7 +23,7 @@
 | Navigation / Lifecycle / Activity / core-ktx | 2.9.8 / 2.9.4 / 1.13.0 / 1.18.0 | Navigation Compose **2.9.8 zapojená v Phase 5** (type-safe routes) + plugin `kotlin.plugin.serialization` (= Kotlin 2.3.21) a `kotlinx-serialization-core` **1.9.0** — v katalogu byl od Phase 0 `-json`, vyměněn za `-core` (routy JSON nepotřebují); navigation tranzitivně chce core 1.7.3 → pin ho zvedá na 1.9.0. Lifecycle zůstává 2.9.4, coroutines 1.10.2, Activity Compose 1.13.0, core-ktx 1.18.0 | R8 release s routami ověřený na emulátoru |
 | coroutines | 1.10.2 | 1.10.2 | |
 | Testy | JUnit 4.13.2 · Truth 1.4.5 · Robolectric 4.16 · coroutines-test 1.10.2 | vše zapojené; Robolectric (`@Config(sdk = [34])`) pro parser a in-memory Room, coroutines-test pro `ScrollPipelineTest` ve virtuálním čase (Phase 3) | |
-| compileSdk / target / min | 36 / 36 / **28** | 36 / 36 / 28 | `scrollDeltaX/Y` od API 28 |
+| compileSdk / target / min | 36 / 36 / **29** | 36 / 36 / 28 (Phase 0–7) → **29** (Phase 8, 2026-09-25) | ADR-033: `scrollDeltaX/Y` jsou od API 28, ale Android 9 službě jen se scrollem nedoručí události (aktivní okno) |
 | DI | žádné (ruční `AppGraph`) | `ScrollMeterApplication.graph` | ADR-003 |
 
 ## Testovací zařízení
@@ -31,6 +31,7 @@
 | Zařízení | OS | Displej | Pozn. |
 |---|---|---|---|
 | OnePlus CPH2399 (Nord 2T), serial `W84LFE856LTWKNMN` | Android 14 / API 34 | 1080×2400, xdpi 403,411 / ydpi 401,052, densityDpi 480, 60/90 Hz | Chrome, Instagram, Facebook, Messenger, YouTube, TikTok, X, Play, Maps, Seznam Mapy; **Reddit chybí**; Instagram / TikTok / X bez účtu (přihlašovací obrazovka) |
+| Emulátor `scrollmeter34` (AVD `google_apis` arm64, `pixel_6`), `emulator-5554` | Android 14 / API 34 | 1080×2400, 420 dpi | automatické kontroly; obrazy API 28–36 stažené, ostatní AVD se po měření mažou (disk) |
 
 ## Stav fází
 
@@ -44,49 +45,65 @@
 | 5 Historie + Aplikace | hotovo, mergnuto (tag `v0.5`) | `phase-5-history-apps` / [#7](https://github.com/hupcus/scrollmeter/pull/7) | ADR-029; CI zablokované billingem → brána v čistém checkoutu |
 | 6 Export + Nastavení | hotovo, mergnuto (tag `v0.6`) | `phase-6-export-settings` / [#8](https://github.com/hupcus/scrollmeter/pull/8) | ADR-030/031; oznámení a export na telefonu → „Dluh ověření“ V6; CI zablokované billingem → brána v čistém checkoutu |
 | 7 Onboarding + Policy | hotovo, mergnuto (tag `v0.7`) | `phase-7-onboarding-policy` / [#9](https://github.com/hupcus/scrollmeter/pull/9) | ADR-032; onboarding se sideloadem a volba jazyka na telefonu → „Dluh ověření“ V7; CI zablokované billingem → brána v čistém checkoutu |
-| 8 Release | **rozpracováno** — jen příprava (rozhodnutí a stažené obrazy), kód nezačatý; postup v „Phase 8 — příprava“ | `phase-8-release` (pushnutá) / PR zatím není | |
+| 8 Release | hotovo, mergnuto (tag `v0.8`; GitHub Release `v0.1.0`) | `phase-8-release` / [#10](https://github.com/hupcus/scrollmeter/pull/10) | ADR-033/034/035; baterie na telefonech a ColorOS → „Dluh ověření“ V8, V9; CI zablokované billingem → brána v čistém checkoutu |
 
-## Phase 8 — příprava (2026-09-24, konec session po Phase 7)
+## Phase 8 — exit report (2026-09-25)
 
-Session skončila na hranici fáze kvůli plnému kontextu. Na větvi `phase-8-release` je zatím jen tenhle zápis; systémové obrazy jsou stažené, emulátor `scrollmeter34` možná ještě běží (`adb devices`).
+**Hotovo a ověřené** (větev `phase-8-release`, PR #10):
+- **Podepisování (ADR-034):**
+  - přes env proměnné podle DETECT;
+  - bez nich zůstane release nepodepsaný (CI, brány);
+  - build selže při špatné cestě, chybějícím hesle nebo zapnuté configuration cache — ta by hesla uložila čitelně do `.gradle/`.
+- **Upload klíč:**
+  - `~/.android-keystores/scrollmeter-upload.jks` (PKCS12, RSA 4096, 30 let, alias `scrollmeter-upload`, `CN=ScrollMeter, O=Honza Hubka, C=CZ`, práva 600);
+  - certifikát SHA-256 `046f8cd0b07323f70712e11253cad7fb8203f268c8d81053783d9c1a669c0e88`;
+  - heslo je v Klíčence (`scrollmeter-upload-keystore`, účet `scrollmeter`) a nikdy nebylo vypsané.
+- **`tools/build_release.sh`:**
+  - jede jen z čistého stromu, bez configuration cache;
+  - APK i AAB musí nést upload certifikát, jinak skript skončí chybou;
+  - pak `check_release_apk.py`, vypíše commit a SHA-256;
+  - ověřeno end-to-end z čistého worktree; heslo není v logu ani v 1 278 souborech buildu.
+- **Release bez logů:**
+  - R8 odstraní všechna volání `android.util.Log`, i knihovní (R8 slučuje třídy knihoven s našimi, vlastnictví se z přejmenované třídy nedá poznat);
+  - `tools/check_release_apk.py` hlídá deskriptor `Landroid/util/Log;` v bajtech dexu, `debuggable` a literály debug záznamu; dexdump bez kódu = chyba nástroje;
+  - běží v CI i v `build_release.sh`.
+- **minSdk 29 (ADR-033):**
+  - Android 9 doručuje službě jen se `typeViewScrolled` události jen z „aktivního“ okna, které se pro ni skoro neaktualizuje — AOSP 9 `getRelevantEventTypes` nepřidává `TYPE_WINDOW_STATE_CHANGED`;
+  - emulátor API 28: 0 událostí testovacího seznamu v 18 z 18 běhů;
+  - vrátit Android 9 by chtělo `typeWindowStateChanged` = tvrdé pravidlo → otevřený bod pro Honzu.
+- **Jazyk mimo aktivitu (ADR-035):**
+  - toast po smazání a oznámení byly v české aplikaci anglicky (API 33, 36) → `Context.inAppLanguage()`;
+  - Robolectric testy; na API 36 ověřeno „Všechna naměřená data jsou smazaná.“
+- **AAB bez jazykových splitů:** Play by telefonu ve třetím jazyce po přepnutí aplikace na angličtinu nenainstaloval anglické texty (lint `AppBundleLocaleChanges`); v `BundleConfig.pb` ověřeno.
+- **Emulátorová matice** (release build, detail v `docs/accuracy-testing.md`):
+  - API 30 en, 33 cs, 35 en, 36 cs — onboarding, měření, export (SAF, BOM, CRLF), sdílení, smazání;
+  - testovací seznam: MAPE View 0,00–0,33 %, Column 3,85–4,99 %; Compose Column pomalé tahy podměřuje o 6–11 %;
+  - API 33: výzva `POST_NOTIFICATIONS`; API 35: edge-to-edge světle i tmavě;
+  - API 30: PIN + restart — před odemčením neběží nic, po odemčení se služba sama připojí, data drží;
+  - API 36: odvolání Usage access → detail aplikace ukáže „Čas scrollování“, bez pádu;
+  - snímky zkontrolovali subagenti; jediná vada byl anglický toast (opraveno).
+- **Čas v aplikaci (D19):**
+  - na zamčeném zařízení nic nehrozí: aplikace není `directBootAware`, takže před prvním odemčením neběží žádná její komponenta (API 30: `RUNNING_LOCKED`, žádný proces) a `queryEvents` = null nemůže nastat;
+  - kontrola událostí 1/2 na API 28 odpadla s minSdk 29.
+- **Baterie** (emulátor API 34, jen relativní čísla, `docs/accuracy-testing.md`):
+  - scroll 10 min: 3 463 událostí, ≈ 1,35 s CPU (0,39 ms na událost; samotné Nastavení 7 min 9 s), 0 wakelocků / alarmů / jobů, 115 flushů po ~0 ms;
+  - klid 10 min: ≈ 0,4 s CPU, 0 zápisů;
+  - sync času v aplikaci ≈ 12 ms na otevření.
+- **Distribuce:**
+  - GitHub Release `v0.1.0` v privátním repu (APK, AAB, `SHA256SUMS`) z merge commitu;
+  - Play internal testing je připravené (`docs/play-listing.md` → „Internal testing — upload checklist“), nahrává Honza.
+- **Brány:**
+  - 265 JVM testů, lint 0 chyb (6 starých `SetTextI18n` v debug seznamu), debug + release build;
+  - manifest policy, kontrola release APK, 44 Python testů — vše v čistém checkoutu (CI stojí na billingu).
+- **Review:**
+  - `/topshit`: pin certifikátu pro APK i AAB, jen čistý strom a výpis commitu, build-tools na jednom místě;
+  - Stage 2 (Fable): 3× MEDIUM opraveno (configuration cache, kontrola APK nesměla projít na prázdném výpisu, pin certifikátu); 1× LOW přijato a popsané v komentáři (heslo v prostředí Gradle daemonu — přečte ho jen týž uživatel, který si může přečíst i položku Klíčenky).
 
-**Zbývá — celá Phase 8 podle `PLAN.md`** (rozhodnutí níže už padla, neotvírat znovu):
-1. **Stage 0** `/impact` (release build, podepisování, CI).
-2. **Podepisování přes env proměnné** podle DETECT (`~/Documents/VIBE-CODE/DETECT/app/build.gradle.kts`):
-   - `SIGNING_KEYSTORE_PATH`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`;
-   - bez nich zůstane release nepodepsaný a build neselže;
-   - keystore mimo repo (návrh `~/.android-keystores/scrollmeter-upload.jks`), heslo v Klíčence macOS (`security add-generic-password`), nikdy v gitu ani v logu;
-   - na Play pak Play App Signing (upload klíč jde resetovat přes podporu).
-3. **Release hardening:**
-   - R8 s Room běží od Phase 3 (ověřeno do Phase 7);
-   - `apkanalyzer` / `dexdump`: žádné `devtools` třídy, žádné `Log.` volání s daty událostí;
-   - `versionName 0.1.0` zůstává.
-4. **Emulátory API 28 / 30 / 33 / 35 / 36:**
-   - `google_apis` arm64-v8a obrazy existují (tím je uzavřený otevřený bod o API 28);
-   - obrazy jsou **stažené** (android-28, -30, -33, -35, -36 vedle -34; `sdkmanager` doběhl 2026-09-24);
-   - AVD `scrollmeter28` … `scrollmeter36` přes `avdmanager create avd -n scrollmeterNN -k "system-images;android-NN;google_apis;arm64-v8a" -d pixel_6`;
-   - na každém: instalace, onboarding (cs/en), testovací seznam (`tools/device_accuracy.py --surface view,column`), export, smazání;
-   - D19 na API 28: události 1/2, bez STOPPED; zamčené zařízení → `queryEvents` null;
-   - po stažení zbývá na disku ~33 GB (93 % plno) — AVD vytvářet a měřit postupně, AVD mimo `scrollmeter34` po měření smazat, obrazy nechat.
-5. **Battery protokol:**
-   - na emulátoru jen relativní čísla: `dumpsys batterystats --reset`, 10–15 min skriptovaného scrollování, CPU a wakelocky pro uid ScrollMeteru, počet flushů za minutu;
-   - skutečné 1 h / 8 h / 24 h na OnePlusu a druhý telefon → „Dluh ověření“ (nový bod V8);
-   - čísla do `docs/accuracy-testing.md` s poznámkou, co je emulátor.
-6. **Release tag `v0.1.0`** = `versionName`; fázové tagy `v0.N` jsou jiné řetězce, nekolidují. Tím je uzavřený otevřený bod o kolizi tagů; tag `v0.8` po merge fáze jako vždy.
-7. **Distribuce:**
-   - GitHub Release v **privátním** repu s podepsaným APK smí session udělat sama — není veřejný;
-   - Play internal testing jen **připravit** (`bundleRelease`, `docs/play-listing.md`), nahrát nic bez Honzy.
-8. **DoD:** SPEC §54 checklist (poctivě — Instagram, Reddit, MAPE s kartou a restart telefonu zůstávají v „Dluhu ověření“ V1–V5), battery čísla v `docs/accuracy-testing.md`.
-
-**Pomůcky ze session (ve scratchpadu, neverzují se — v nové session znovu napsat, jsou krátké):**
-- `ci_gate.sh <ref>`: `git worktree add --detach <scratch>/ci-check <ref>`, zkopírovat `local.properties`, `./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleRelease processReleaseManifest`, `tools/check_manifest_policy.py` nad merged manifesty, `python3 -m unittest discover -s tools -p 'test_*.py'`, souhrn testů / lintu, `git worktree remove --force`.
-- `ui.py` (jen emulátor, `adb -s emulator-5554`): `uiautomator dump` → najít uzel podle textu → `input tap` na střed; příkazy `texts`, `tap "<text>"`, `wait`.
-
-**Emulátor — nové poznatky z Phase 7:**
-- fyzický telefon bývá připojený → vždy `ANDROID_SERIAL=emulator-5554`;
-- `uiautomator dump` službu nejen odpojí, ale někdy ji i vyřadí z `enabled_accessibility_services` → před kontrolou stavu ji znovu zapsat;
-- rozvržení se mezi výpisy posouvá (banner „služba neběží“), souřadnice z výpisu ověřit snímkem;
-- jazyk aplikace: `adb shell cmd locale set-app-locales com.scrollmeter.app.debug --locales cs-CZ` (emulátor má systémovou angličtinu → bez toho ukazuje `values-en`).
+**Rozhodnutí:**
+- minSdk 29 (ADR-033);
+- podepisování a kontrola releasu (ADR-034);
+- jazyk mimo aktivitu (ADR-035);
+- 10s ticker flushů se po flushi po 50 událostech nerestartuje, takže při souvislém scrollu přijde o ~65 % víc malých zápisů, než by bylo nutné. Zápisy stojí ~0 ms a oba spouštěče jsou podle SPEC §16 → nechávám beze změny (otevřený bod).
 
 ## Phase 7 — exit report (2026-09-24)
 
@@ -377,7 +394,9 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 | V4 | Restart telefonu (ColorOS) | 3 | Honza + session | na emulátoru ověřeno (data drží, služba se sama vrátí); na OnePlusu: nascrollovat, počkat 15 s, restartovat; po startu Domů → „Dnes“ drží hodnotu a služba běží | služba se nezapne → ColorOS ji po restartu nevrací (Phase 7 nápověda) |
 | V5 | Čas v aplikaci proti Digital Wellbeing | 3 | Honza + session | povolit „Přístup k údajům o využití“, otevřít aplikaci; session porovná `daily_app_usage` pro dnešek a včerejšek s Digitální rovnováhou (± 5 %) → `docs/accuracy-testing.md` | odchylka > 5 % → ADR-025 (tolerance, uzavírače) přeladit |
 | V6 | Oznámení a export na telefonu | 6 | Honza + session | na emulátoru ověřeno (výzva k povolení, cíl / rekord / shrnutí přijdou jednou denně, export přes výběr souboru i sdílení); na OnePlusu: zapnout „Denní cíl dosažen“, nastavit cíl 100 m, nascrollovat → oznámení přijde do ~10 s; Export CSV → Sdílet → otevřít v Tabulkách Google / Excelu (čeština a čísla správně) | oznámení nepřijde → ColorOS ho tlumí (Phase 7 nápověda); CSV se rozpadne → ADR-031 formát |
-| V7 | Onboarding se sideloadem + volba jazyka | 7 | Honza + session | APK z GitHub Release nainstalovat **přes Soubory / prohlížeč** (ne adb — ten omezení nespustí); projít onboarding: krok 4 → Android napíše „Omezené nastavení“ → „Otevřít informace o aplikaci“ → ⋮ → „Povolit omezená nastavení“ → zpět → zapnout službu; pak Nastavení Androidu › Aplikace › ScrollMeter › Jazyk → English | ColorOS nabídku ⋮ nemá nebo ji jmenuje jinak → upravit nápovědu kroku 4 (text z telefonu) |
+| V7 | Onboarding se sideloadem + volba jazyka | 7 | Honza + session | APK z GitHub Release [`v0.1.0`](https://github.com/hupcus/scrollmeter/releases/tag/v0.1.0) (podepsané upload klíčem) nainstalovat **přes Soubory / prohlížeč** (ne adb — ten omezení nespustí); projít onboarding: krok 4 → Android napíše „Omezené nastavení“ → „Otevřít informace o aplikaci“ → ⋮ → „Povolit omezená nastavení“ → zpět → zapnout službu; pak Nastavení Androidu › Aplikace › ScrollMeter › Jazyk → English | ColorOS nabídku ⋮ nemá nebo ji jmenuje jinak → upravit nápovědu kroku 4 (text z telefonu) |
+| V8 | Baterie na telefonech (SPEC §39) | 8 | Honza + session | OnePlus + druhý telefon s release z `v0.1.0`: `dumpsys batterystats --reset`, pak 1 h aktivního scrollování, 8 h běžného používání, 24 h normálního dne; session vytáhne `dumpsys batterystats` (uid ScrollMeteru: CPU, wakelocky, spotřeba) a počet zápisů → tabulka „Battery“ v `docs/accuracy-testing.md` | podíl ScrollMeteru v Nastavení › Baterie nad ~1 % za den → nejdřív ticker flushů (otevřený bod), pak práh 50 událostí |
+| V9 | ColorOS: odvolání Usage access + restart | 8 | Honza + session | na OnePlusu vzít „Přístup k údajům o využití“ → aplikace musí ukázat „Čas scrollování“ bez pádu (na emulátoru API 36 ověřeno); pak restart → služba běží, čas v aplikaci po novém povolení doběhne | pád nebo prázdné obrazovky → oprava v `UsageAccessChecker` / detailu aplikace |
 
 ## Otevřené body
 
@@ -411,7 +430,7 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 - [x] `calibrationVersion` po ztrátě dat začne znovu od 0 — rozhodnuto ADR-026: verze je informativní („nejnovější kalibrace, se kterou se řádek měřil“), nic se na ni nenapojuje; opakovat se může jen při ztrátě souboru kalibrace při zachované DB. Nic dalšího se nedělá.
 - [ ] Repo nemá Gradle dependency verification (`gradle/verification-metadata.xml`) — supply-chain pojistka nad piny; samostatné rozhodnutí.
 - [ ] Testovací telefon: USB spojení dnes 2× na chvíli vypadlo — zkontrolovat kabel / port.
-- [ ] Tagy: fáze se tagují `v0.N` (v0.0, v0.1 …), ale Phase 8 plánuje release tag `v0.1.0` — kolize názvů, přejmenovat release tag (např. `v1.0.0-rc1`) nejpozději ve Phase 8.
+- [x] Tagy: release tag `v0.1.0` = `versionName`, fázové tagy `v0.N` jsou jiné řetězce, nekolidují (rozhodnuto 2026-09-24, Phase 8).
 - [x] Testovací telefon vrácen do původního stavu (2026-09-24 ráno a znovu 2026-09-24 po přerušení Phase 2, na Honzovo přání):
   - služba Usnadnění vypnutá,
   - `accessibility_enabled 0`,
@@ -420,13 +439,25 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
   - výpisy `uiautomator` smazané,
   - automatické otáčení vrácené na původní hodnotu (`accelerometer_rotation 1`, `user_rotation 0`; Phase 2 testovala landscape).
   Přepínač **Zakázat sledování oprávnění** vrací Honza ručně. Další session si telefon připraví znovu, postup je v `docs/prompts/continue-next-phase.md`.
-- [x] Emulátory: arm64 `google_apis` obrazy existují pro API 28 / 30 / 33 / 35 / 36 (ověřeno `sdkmanager --list` 2026-09-24).
+- [x] Emulátory: arm64 `google_apis` obrazy existují pro API 28 / 30 / 33 / 35 / 36 (ověřeno `sdkmanager --list` 2026-09-24); matice změřená v Phase 8.
 - [ ] Ikona a barva aplikace: pořád zástupná značka (pravítko se šipkou na modré `#1E4FD8`) — SPEC §42 nechává na implementaci; finální ikona před vydáním na Play (Honza / grafik).
 - [ ] Výchozí jazyk pro Play: `values/` je čeština (D17) — telefon v němčině uvidí češtinu (v Androidu 13+ si může přepnout na angličtinu). Pro zahraniční vydání zvážit angličtinu jako výchozí; rozhodnutí Honzy.
 - [ ] Zásady ochrany soukromí potřebují veřejnou URL (Play to u Accessibility API vyžaduje); text je v `docs/play-listing.md`, kde ho zveřejnit, rozhoduje Honza.
-- [ ] Podpisový keystore pro release — Phase 8, přes env proměnné, nikdy v gitu.
+- [x] Podpisový keystore pro release — Phase 8 (ADR-034): `~/.android-keystores/scrollmeter-upload.jks`, heslo v Klíčence, `tools/build_release.sh`.
+- [ ] **Záloha upload keystoru** — Honza rozhodne kam (např. šifrovaně do Vaultwardenu / iCloud Drive Klíče vedle záložního klíče Supabase). Bez zálohy: Play klíč resetuje přes podporu, ale sideload uživatelé by museli aplikaci odinstalovat a přijít o data.
+- [ ] **Android 9 (API 28)** — nepodporovaný od Phase 8 (ADR-033, minSdk 29). Vrátit by ho šlo jen s `typeWindowStateChanged` ve službě = změna tvrdého pravidla → jen s Honzovým souhlasem; doporučení: nechat (podíl Androidu 9 je malý a klesá).
+- [ ] Compose `Column` pomalé tahy podměřuje o 6–11 % (3 události na tah; MAPE přesto < 5 %). Hledat až s Compose lazy (ADR-019), stejný zdroj.
+- [ ] Ticker flushů (10 s) se po flushi po 50 událostech nerestartuje → při souvislém scrollu ~65 % zápisů navíc (115 místo ~70 za 10 min, každý ~0 ms). Zvážit až podle V8.
+- [ ] GitHub `ubuntu-latest` přejde od 2026-10-19 na Ubuntu 26 — po odblokování CI zkontrolovat, že obraz dál nese Android SDK (jinak připnout `ubuntu-24.04`).
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-25 — Phase 8 release (Opus 5.5, security review Fable 5.1)
+- **Pin:** `minSdk` 28 → **29** (ADR-033). Ostatní piny beze změny; nový nástroj mimo Gradle: `keytool` (JDK), `apksigner` / `dexdump` / `aapt2` z nejnovějších build-tools.
+- ADR-034: podepisování přes env proměnné, upload klíč v `~/.android-keystores/`, heslo v Klíčence, R8 bez `Log`, kontrola release APK, pin certifikátu v `build_release.sh`, AAB bez jazykových splitů.
+- ADR-035: texty mimo aktivitu v jazyce aplikace.
+- Stage 0 (`/impact`, bez grafu) proběhl na začátku session; review v plné hloubce (`/topshit` nad kumulativním diffem + Stage 2 security na Fable), protože jde o podepisování a hranici toho, co release smí obsahovat.
+- Emulátory: AVD 28/30/33/35/36 po měření smazané, `scrollmeter34` zůstává; obrazy zůstávají.
 
 ### 2026-09-24 — Phase 7 onboarding + policy (Opus 5.5, review Fable 5.1)
 - ADR-032: onboarding, brána disclosure, nápovědy kroku 4, jazyky, claim.
@@ -533,4 +564,9 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 
 ## Jak navázat
 
-Nová session: vlož prompt z `docs/prompts/continue-next-phase.md` — přečte `CLAUDE.md`, tenhle soubor a první nedokončenou fázi z `PLAN.md` a jede fázi po fázi s „mergni?“ na konci každé. Rozpracovanou fázi dokončí na její větvi; ruční testy zapisuje do „Dluh ověření“ a nečeká na ně (režim od 2026-09-24). Historický kickoff Phase 0+1: `docs/prompts/kickoff-phase-0-1.md`.
+**Všech 9 fází (0–8) je hotových a mergnutých; GitHub Release `v0.1.0` existuje.** Další práce už není fáze z `PLAN.md`, ale:
+1. **Dluh ověření V1–V9** s Honzou u telefonu (doporučené pořadí v tabulce; V1 Instagram / TikTok nejdřív — může změnit smysl produktu);
+2. **Play internal testing** — Honza nahraje AAB podle `docs/play-listing.md` (zásady ochrany soukromí potřebují veřejnou URL, ikona je pořád zástupná);
+3. otevřené body výše (záloha keystoru, CI billing, Android 9).
+
+Nová session: `docs/prompts/continue-next-phase.md` je psaný na fáze a ty došly — místo něj řekni session, který bod výše dělat (např. „V1 s telefonem, je k dispozici“), a ať nejdřív přečte `CLAUDE.md` a tenhle soubor. Pravidla o telefonu z promptu platí dál. Historický kickoff Phase 0+1: `docs/prompts/kickoff-phase-0-1.md`.
