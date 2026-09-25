@@ -14,17 +14,9 @@
     <string name="home_enable_button">Turn on measuring</string>
     <string name="home_settings_button">Open Accessibility settings</string>
     <string name="home_today_title">Today</string>
-    <string name="dashboard_goal">of your %1$s goal</string>
-    <string name="dashboard_goal_reached">Goal of %1$s reached</string>
-    <string name="dashboard_week">This week</string>
-    <string name="dashboard_month">This month</string>
-    <string name="dashboard_lifetime">All time</string>
-    <string name="dashboard_top_apps">Top apps today</string>
-    <string name="dashboard_other_apps">Other</string>
     <string name="dashboard_no_scroll_yet">No scrolling yet today. As soon as you scroll in another app, it shows up here.</string>
-    <string name="dashboard_time_in_app">In app %1$s</string>
-    <string name="dashboard_time_in_app_pace">In app %1$s · %2$s</string>
-    <string name="dashboard_scroll_time">Scrolling %1$s</string>
+    <string name="dashboard_most_today">Most today</string>
+    <string name="dashboard_all_apps">All apps</string>
     <string name="dashboard_comparison_title">To picture it</string>
     <string name="dashboard_usage_card_title">Want to see time in apps too?</string>
     <string name="dashboard_usage_card_body">For every app you will see how many minutes you spend in it and how many metres a minute you scroll.</string>
@@ -108,31 +100,34 @@
 
     <string name="back">Back</string>
 
-    <string name="nav_overview">Overview</string>
-    <string name="nav_history">History</string>
-    <string name="nav_apps">Apps</string>
-    <string name="nav_settings">Settings</string>
-
-    <string name="history_title">History</string>
-    <string name="period_7_days">7 days</string>
-    <string name="period_30_days">30 days</string>
-    <string name="period_12_months">12 months</string>
+    <!-- ADR-036: Statistiky (replaces Historie and Aplikace) and the daily limit. -->
+    <string name="period_title">Statistics</string>
+    <string name="period_day">Day</string>
+    <string name="period_week">Week</string>
+    <string name="period_month">Month</string>
     <string name="period_today">Today</string>
-    <string name="period_lifetime">All time</string>
-    <string name="history_average">Average / day</string>
-    <string name="history_max">Highest day</string>
-    <string name="history_min">Lowest day</string>
-    <string name="history_total">Total</string>
-    <string name="history_day_value">%1$s · %2$s</string>
-    <string name="history_empty">Nothing measured yet. As soon as you scroll, the chart appears here.</string>
-    <string name="history_chart_description">Distance chart: total %1$s, highest day %2$s</string>
+    <string name="period_yesterday">Yesterday</string>
+    <string name="period_this_week">This week</string>
+    <string name="period_last_week">Last week</string>
+    <string name="period_this_month">This month</string>
+    <string name="period_last_month">Last month</string>
+    <string name="period_previous">Previous</string>
+    <string name="period_next">Next</string>
+    <string name="period_apps">Apps</string>
+    <string name="period_empty">Nothing measured in this period.</string>
+    <string name="period_time_in_apps">In apps %1$s</string>
+    <string name="period_chart_title">Per day</string>
+    <string name="period_chart_description">Distance per day, %1$s</string>
+    <string name="period_chart_hint">Tap a bar to open that day.</string>
+    <string name="chart_day_value">%1$s · %2$s</string>
+    <string name="limit_remaining">%1$s left of your %2$s limit</string>
+    <string name="limit_over">Over by %1$s (limit %2$s)</string>
+    <string name="limit_average">Average %1$s / day</string>
+    <string name="limit_average_of">Average %1$s / day · limit %2$s</string>
+    <string name="limit_none">No limit</string>
 
-    <string name="apps_title">Apps</string>
-    <string name="apps_sort_distance">Distance</string>
-    <string name="apps_sort_time">Time</string>
-    <string name="apps_empty">Nothing for this period yet.</string>
-    <string name="apps_no_scroll_data">no scroll data</string>
-    <string name="apps_share_quality">%1$s %% · %2$s</string>
+
+
     <string name="quality_high">Measurement quality: high</string>
     <string name="quality_medium">Measurement quality: medium</string>
     <string name="quality_low">Measurement quality: low</string>
@@ -150,6 +145,9 @@
     <string name="app_detail_scroll_chart">Scrolling time over 30 days</string>
     <string name="app_detail_scroll_share">You scroll %1$s of %2$s in the app (%3$s %%).</string>
     <string name="app_detail_no_scroll">This app does not report scrolling — ScrollMeter only knows the time spent in it.</string>
+    <string name="app_detail_period">%1$s · %2$s</string>
+    <string name="app_detail_share">Share of the distance</string>
+    <string name="percent">%1$s %%</string>
 
     <string name="settings_title">Settings</string>
     <string name="settings_section_measurement">Measuring</string>
@@ -158,8 +156,8 @@
     <string name="settings_off">Off</string>
     <string name="settings_usage_access">Time in apps</string>
     <string name="settings_accuracy">Measurement accuracy</string>
+    <string name="settings_limit">Daily limit</string>
 
-    <string name="settings_goal">Daily goal</string>
     <string name="settings_excluded">Excluded apps</string>
     <string name="settings_excluded_none">None</string>
     <plurals name="settings_excluded_count">
@@ -179,10 +177,9 @@
     <string name="settings_comparisons">Comparisons on the overview</string>
     <string name="settings_comparisons_body">E.g. “That is about one lap of a running track.”</string>
     <string name="settings_section_notifications">Notifications</string>
-    <string name="notify_goal">Daily goal reached</string>
-    <string name="notify_goal_body">Once a day, when you pass your goal.</string>
-    <string name="notify_record">New record</string>
-    <string name="notify_record_body">When you scroll more today than on any day before.</string>
+    <string name="notify_limit">Over the limit</string>
+    <string name="notify_limit_body">Once a day, when you go over your daily limit.</string>
+    <string name="notify_limit_no_limit">No daily limit is set — nothing is sent.</string>
     <string name="notify_summary">Yesterday’s summary</string>
     <string name="notify_summary_body">With the first scroll of the day: how much it was yesterday.</string>
     <string name="notify_blocked">Notifications for ScrollMeter are off in the system, so none will arrive.</string>
@@ -196,13 +193,15 @@
     <string name="settings_section_about">About</string>
     <string name="settings_about">Version, device, measuring method</string>
 
-    <string name="goal_title">Daily goal</string>
-    <string name="goal_note">A goal is not a ban: it blocks nothing, it only shows how much is left.</string>
-    <string name="goal_custom">Custom</string>
-    <string name="goal_custom_label">Custom goal</string>
-    <string name="goal_unit_m">m</string>
-    <string name="goal_unit_km">km</string>
-    <string name="goal_custom_error">Enter a number from 10 m to 100 km.</string>
+
+    <!-- ADR-036: the daily limit dialog (spec §25, as a limit). -->
+    <string name="limit_title">Daily limit</string>
+    <string name="limit_note">A limit is not a target but a line you do not want to cross in a day. The colour shows how close you are: green, orange from %1$d %%, red over the limit. Nothing is blocked.</string>
+    <string name="limit_custom">Custom</string>
+    <string name="limit_custom_label">Custom limit</string>
+    <string name="limit_unit_m">m</string>
+    <string name="limit_unit_km">km</string>
+    <string name="limit_custom_error">Enter a number from 10 m to 100 km.</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
 
@@ -248,13 +247,13 @@
     <string name="about_method">Measuring method</string>
     <string name="about_method_body">The movement Android reports while scrolling (scrollDeltaX/Y, otherwise the change of position), converted to millimetres using the physical pixel size of this display.</string>
     <string name="about_scale">Scale</string>
+    <string name="about_total">Measured in total</string>
+    <string name="about_total_value">%1$s since %2$s</string>
 
-    <string name="notification_channel_name">Goals and records</string>
-    <string name="notification_channel_description">Daily goal, new record and yesterday’s summary — each at most once a day.</string>
-    <string name="notification_goal_title">Daily goal reached</string>
-    <string name="notification_goal_text">Today’s distance passed your goal of %1$s.</string>
-    <string name="notification_record_title">New record</string>
-    <string name="notification_record_text">Today it is %1$s — more than on any day before.</string>
+    <string name="notification_channel_name">Limit and summary</string>
+    <string name="notification_channel_description">Going over the daily limit and yesterday\'s summary — each at most once a day.</string>
+    <string name="notification_limit_title">Daily limit exceeded</string>
+    <string name="notification_limit_text">Today you are over your daily limit of %1$s.</string>
     <string name="notification_summary_title">Yesterday’s scrolling</string>
     <string name="notification_summary_text">Yesterday it came to %1$s in total.</string>
 

@@ -37,25 +37,28 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.scrollmeter.app.R
 import com.scrollmeter.app.format.DistanceFormatter
-import com.scrollmeter.app.format.GoalInput
+import com.scrollmeter.app.format.LimitInput
+import com.scrollmeter.app.measurement.MeasurementConfig
 import com.scrollmeter.app.settings.Settings
 import com.scrollmeter.app.settings.UnitPreference
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
- * Spec §25: 100 m … 5 km, or a custom value (10 m … 100 km) typed in m or km. A goal is not a
- * limit — the note says so.
+ * The daily limit (spec §25 as a limit, ADR-036): 100 m … 5 km, a custom value (10 m … 100 km) typed
+ * in m or km, or "Bez limitu" — no colours, no limit notification. The note says it is not a target.
  */
 @Composable
-fun GoalDialog(currentMm: Double, unit: UnitPreference, locale: Locale, onDismiss: () -> Unit, onSave: (Double) -> Unit) {
-    val presets = Settings.GOAL_PRESETS_MM
-    var custom by rememberSaveable { mutableStateOf(currentMm !in presets) }
+fun LimitDialog(currentMm: Double, unit: UnitPreference, locale: Locale, onDismiss: () -> Unit, onSave: (Double) -> Unit) {
+    val presets = Settings.LIMIT_PRESETS_MM
+    val choices = presets + Settings.NO_LIMIT
+    var custom by rememberSaveable { mutableStateOf(currentMm !in choices) }
     var chosen by rememberSaveable { mutableDoubleStateOf(currentMm) }
     var kilometres by rememberSaveable { mutableStateOf(currentMm >= 1_000_000.0) }
     var text by rememberSaveable {
-        mutableStateOf(if (currentMm in presets) "" else trimmed(currentMm / if (currentMm >= 1_000_000.0) 1_000_000.0 else 1_000.0, locale))
+        mutableStateOf(if (currentMm in choices) "" else trimmed(currentMm / if (currentMm >= 1_000_000.0) 1_000_000.0 else 1_000.0, locale))
     }
-    val customMm = GoalInput.parseMm(text, kilometres, locale)
+    val customMm = LimitInput.parseMm(text, kilometres, locale)
     // Choosing "Vlastní" puts the cursor in the field; a saved custom value opens without the keyboard.
     val field = remember { FocusRequester() }
     LaunchedEffect(custom) { if (custom && text.isEmpty()) field.requestFocus() }
@@ -63,31 +66,32 @@ fun GoalDialog(currentMm: Double, unit: UnitPreference, locale: Locale, onDismis
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.goal_title)) },
+        title = { Text(stringResource(R.string.limit_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()).selectableGroup(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(R.string.goal_note), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                presets.forEach { mm ->
-                    Option(DistanceFormatter.format(mm, unit, locale), selected = !custom && chosen == mm) {
+                Text(stringResource(R.string.limit_note, (MeasurementConfig.LIMIT_WARN_RATIO * 100).roundToInt()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                choices.forEach { mm ->
+                    val label = if (mm == Settings.NO_LIMIT) stringResource(R.string.limit_none) else DistanceFormatter.format(mm, unit, locale)
+                    Option(label, selected = !custom && chosen == mm) {
                         custom = false
                         chosen = mm
                     }
                 }
-                Option(stringResource(R.string.goal_custom), selected = custom) { custom = true }
+                Option(stringResource(R.string.limit_custom), selected = custom) { custom = true }
                 if (custom) {
                     OutlinedTextField(
                         value = text,
                         onValueChange = { text = it },
-                        label = { Text(stringResource(R.string.goal_custom_label)) },
+                        label = { Text(stringResource(R.string.limit_custom_label)) },
                         singleLine = true,
                         isError = text.isNotBlank() && customMm == null,
-                        supportingText = { if (text.isNotBlank() && customMm == null) Text(stringResource(R.string.goal_custom_error)) },
+                        supportingText = { if (text.isNotBlank() && customMm == null) Text(stringResource(R.string.limit_custom_error)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth().focusRequester(field),
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(selected = !kilometres, onClick = { kilometres = false }, label = { Text(stringResource(R.string.goal_unit_m)) })
-                        FilterChip(selected = kilometres, onClick = { kilometres = true }, label = { Text(stringResource(R.string.goal_unit_km)) })
+                        FilterChip(selected = !kilometres, onClick = { kilometres = false }, label = { Text(stringResource(R.string.limit_unit_m)) })
+                        FilterChip(selected = kilometres, onClick = { kilometres = true }, label = { Text(stringResource(R.string.limit_unit_km)) })
                     }
                 }
             }

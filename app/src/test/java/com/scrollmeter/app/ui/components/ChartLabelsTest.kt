@@ -2,8 +2,9 @@ package com.scrollmeter.app.ui.components
 
 import com.google.common.truth.Truth.assertThat
 import com.scrollmeter.app.insights.ChartScale
-import com.scrollmeter.app.insights.HistoryBar
-import com.scrollmeter.app.insights.HistoryPeriod
+import com.scrollmeter.app.insights.DayBar
+import com.scrollmeter.app.insights.Period
+import com.scrollmeter.app.insights.PeriodKind
 import com.scrollmeter.app.settings.UnitPreference
 import java.time.LocalDate
 import java.util.Locale
@@ -37,12 +38,35 @@ class ChartLabelsTest {
     }
 
     @Test
-    fun barsAreDaysOrMonths() {
+    fun barsAreWeekdaysInAWeekAndDaysInAMonth() {
         val labels = ChartLabels(cs)
-        val bar = HistoryBar(LocalDate.parse("2026-09-24"), 1.0)
-        assertThat(labels.bar(HistoryPeriod.DAYS_30, bar)).isEqualTo("24.")
-        assertThat(labels.selected(HistoryPeriod.DAYS_7, bar)).isEqualTo("24. 9.")
-        assertThat(labels.selected(HistoryPeriod.MONTHS_12, HistoryBar(LocalDate.parse("2026-09-01"), 1.0))).contains("2026")
+        val bar = DayBar(LocalDate.parse("2026-09-24"), 1.0)
+        assertThat(labels.bar(bar, 7)).isEqualTo("čt")
+        assertThat(labels.bar(bar, 30)).isEqualTo("24.")
         assertThat(labels.day(LocalDate.parse("2026-01-05"))).isEqualTo("5. 1.")
+    }
+
+    @Test
+    fun periodDates() {
+        val labels = ChartLabels(cs)
+        fun p(kind: PeriodKind, date: String) = labels.dates(Period(kind, LocalDate.parse(date)))
+        assertThat(p(PeriodKind.DAY, "2026-09-25")).isEqualTo("pá 25. 9.")
+        assertThat(p(PeriodKind.WEEK, "2026-09-24")).isEqualTo("21.–27. 9.")
+        assertThat(p(PeriodKind.WEEK, "2026-10-01")).isEqualTo("28. 9. – 4. 10.")
+        assertThat(p(PeriodKind.WEEK, "2026-01-01")).isEqualTo("29. 12. 2025 – 4. 1. 2026")
+        assertThat(p(PeriodKind.MONTH, "2026-09-10")).isEqualTo("září 2026")
+        assertThat(ChartLabels(Locale.ENGLISH).dates(Period(PeriodKind.MONTH, LocalDate.parse("2026-09-10")))).isEqualTo("September 2026")
+    }
+
+    @Test
+    fun englishDatesAreWrittenTheEnglishWay() {
+        val labels = ChartLabels(Locale.ENGLISH)
+        fun p(kind: PeriodKind, date: String) = labels.dates(Period(kind, LocalDate.parse(date)))
+        assertThat(p(PeriodKind.DAY, "2026-09-25")).isEqualTo("Fri 25 Sep")
+        assertThat(p(PeriodKind.WEEK, "2026-09-24")).isEqualTo("21–27 Sep")
+        assertThat(p(PeriodKind.WEEK, "2026-10-01")).isEqualTo("28 Sep – 4 Oct")
+        assertThat(p(PeriodKind.WEEK, "2026-01-01")).isEqualTo("29 Dec 2025 – 4 Jan 2026")
+        assertThat(labels.bar(DayBar(LocalDate.parse("2026-09-24"), 1.0), 30)).isEqualTo("24")
+        assertThat(labels.day(LocalDate.parse("2026-01-05"))).isEqualTo("5 Jan")
     }
 }

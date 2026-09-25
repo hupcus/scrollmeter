@@ -19,7 +19,7 @@ import com.scrollmeter.app.settings.Settings
 import java.util.Locale
 
 /**
- * Posts the three notices (spec §26, ADR-030/031) on one channel, "Cíle a rekordy", in the app's
+ * Posts the two notices (spec §26, ADR-030/031/036) on one channel, "Limit a shrnutí", in the app's
  * language (the application context alone would use the phone's — ADR-035). Tapping one
  * opens the app — an explicit, immutable intent without extras. Without POST_NOTIFICATIONS
  * (API 33+) or with the app's notifications off, [canPost] is false and nothing is attempted.
@@ -33,7 +33,7 @@ class AndroidNotificationPoster(private val context: Context) : NotificationPost
         return permitted && manager.areNotificationsEnabled()
     }
 
-    /** "Smazat všechna data": a posted "Nový rekord 24 m" is measured data too. */
+    /** "Smazat všechna data": a posted "Včera to dohromady bylo 24 m" is measured data too. */
     fun clearShown() = manager.cancelAll()
 
     override fun post(notice: Notice, settings: Settings) {
@@ -43,8 +43,7 @@ class AndroidNotificationPoster(private val context: Context) : NotificationPost
         val locale = Locale.forLanguageTag(strings.getString(R.string.number_locale))
         val distance = DistanceFormatter.format(notice.distanceMm, settings.unitPreference, locale)
         val (title, text) = when (notice.kind) {
-            NotificationKind.GOAL -> strings.getString(R.string.notification_goal_title) to strings.getString(R.string.notification_goal_text, distance)
-            NotificationKind.RECORD -> strings.getString(R.string.notification_record_title) to strings.getString(R.string.notification_record_text, distance)
+            NotificationKind.LIMIT -> strings.getString(R.string.notification_limit_title) to strings.getString(R.string.notification_limit_text, distance)
             NotificationKind.SUMMARY -> strings.getString(R.string.notification_summary_title) to strings.getString(R.string.notification_summary_text, distance)
         }
         val open = PendingIntent.getActivity(
@@ -76,6 +75,7 @@ class AndroidNotificationPoster(private val context: Context) : NotificationPost
     }
 
     private companion object {
+        /** Kept from the goal days (ADR-036): a new id would leave a dead channel in the system settings. */
         const val CHANNEL_ID = "goals"
     }
 }

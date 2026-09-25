@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
@@ -30,6 +32,8 @@ import kotlin.math.max
  * one bar per value, x labels from [barLabel] thinned out so they never overlap — counted from the
  * newest bar, which is always labelled. Tapping a bar selects it ([onSelect] null = deselect); the
  * caller shows the selected value. TalkBack reads [contentDescription] instead of the bars.
+ * [barColor] colours each bar on its own (the daily limit, ADR-036); [referenceLine] draws a dashed
+ * line at that value, in [referenceColor], when it lies inside the scale.
  */
 @Composable
 fun BarChart(
@@ -42,6 +46,9 @@ fun BarChart(
     onSelect: (Int?) -> Unit,
     modifier: Modifier = Modifier,
     height: Dp = 200.dp,
+    barColor: ((Int) -> Color)? = null,
+    referenceLine: Double? = null,
+    referenceColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
     val measurer = rememberTextMeasurer()
     // The tap handler outlives recompositions; it must see the current selection and callback.
@@ -50,7 +57,6 @@ fun BarChart(
     val style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
     val grid = MaterialTheme.colorScheme.outlineVariant
     val bar = MaterialTheme.colorScheme.primary
-    val dimmed = bar.copy(alpha = 0.35f)
     val density = LocalDensity.current
     val gapPx = with(density) { 8.dp.toPx() }
     val axisLabels = remember(scale, axisLabel, style) { scale.gridLines.map { measurer.measure(axisLabel(it), style) } }
@@ -93,11 +99,21 @@ fun BarChart(
             val h = scale.fraction(value) * plotHeight
             if (h <= 0f) return@forEachIndexed
             val x = plotLeft + i * slot + (slot - barWidth) / 2
+            val own = barColor?.invoke(i) ?: bar
             drawRoundRect(
-                color = if (selected == null || selected == i) bar else dimmed,
+                color = if (selected == null || selected == i) own else own.copy(alpha = 0.35f),
                 topLeft = Offset(x, plotBottom - h),
                 size = Size(barWidth, h),
                 cornerRadius = radius,
+            )
+        }
+
+        if (referenceLine != null && referenceLine > 0 && referenceLine <= scale.max) {
+            val y = plotBottom - scale.fraction(referenceLine) * plotHeight
+            val dash = 6.dp.toPx()
+            drawLine(
+                referenceColor, Offset(plotLeft, y), Offset(size.width, y), strokeWidth = 1.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, dash / 1.5f)),
             )
         }
 

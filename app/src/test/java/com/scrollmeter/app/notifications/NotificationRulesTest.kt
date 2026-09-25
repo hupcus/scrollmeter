@@ -6,27 +6,32 @@ import java.time.LocalDate
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
-/** Spec §26: optional, never per event, at most once a day per kind. */
+/** Spec §26, ADR-036: optional, never per event, at most once a day per kind; a limit, no record. */
 class NotificationRulesTest {
     private val today = LocalDate.parse("2026-09-24")
     private val all = NotificationKind.entries.toSet()
 
-    private fun facts(todayMm: Double, best: Double = 800_000.0, priorDays: Int = 5, yesterday: Double = 300_000.0) =
-        NotificationFacts(today, todayMm, goalMm = 500_000.0, previousBestMm = best, priorMeasuredDays = priorDays, yesterdayMm = yesterday)
+    private fun facts(todayMm: Double, limit: Double = 500_000.0, yesterday: Double = 300_000.0) =
+        NotificationFacts(today, todayMm, limitMm = limit, yesterdayMm = yesterday)
 
     @Test
-    fun goalRecordAndSummaryFollowTheirThresholds() {
+    fun limitAndSummaryFollowTheirThresholds() {
         assertThat(NotificationRules.decide(facts(499_999.0), all).map { it.kind }).containsExactly(NotificationKind.SUMMARY)
-        assertThat(NotificationRules.decide(facts(500_000.0), all).map { it.kind }).containsExactly(NotificationKind.GOAL, NotificationKind.SUMMARY)
-        val record = NotificationRules.decide(facts(900_000.0), setOf(NotificationKind.RECORD)).single()
-        assertThat(record).isEqualTo(Notice(NotificationKind.RECORD, 900_000.0))
+        assertThat(NotificationRules.decide(facts(500_000.0), all)).containsExactly(
+            Notice(NotificationKind.LIMIT, 500_000.0), Notice(NotificationKind.SUMMARY, 300_000.0),
+        ).inOrder()
     }
 
     @Test
-    fun noRecordTooEarlyOrTooSmallAndNoEmptySummary() {
-        assertThat(NotificationRules.decide(facts(900_000.0, priorDays = 2), setOf(NotificationKind.RECORD))).isEmpty()
-        assertThat(NotificationRules.decide(facts(9_000.0, best = 5_000.0), setOf(NotificationKind.RECORD))).isEmpty()
+    fun noLimitNoticeWithoutALimitAndNoEmptySummary() {
+        assertThat(NotificationRules.decide(facts(900_000.0, limit = 0.0), setOf(NotificationKind.LIMIT))).isEmpty()
         assertThat(NotificationRules.decide(facts(900_000.0, yesterday = 0.0), setOf(NotificationKind.SUMMARY))).isEmpty()
+    }
+
+    @Test
+    fun theSwitchesPickTheKinds() {
+        assertThat(NotificationRules.enabled(Settings())).isEmpty()
+        assertThat(NotificationRules.enabled(Settings(notifyLimit = true, notifySummary = true))).containsExactly(NotificationKind.LIMIT, NotificationKind.SUMMARY)
     }
 
     @Test
@@ -41,8 +46,8 @@ class NotificationRulesTest {
         }
         var queries = 0
         val watcher = NotificationWatcher(
-            settings = { Settings(notifyGoal = true) },
-            facts = { d, _ -> queries++; NotificationFacts(d, 600_000.0, 500_000.0, 0.0, 0, 0.0) },
+            settings = { Settings(notifyLimit = true) },
+            facts = { d, _ -> queries++; NotificationFacts(d, 600_000.0, 500_000.0, 0.0) },
             state = state,
             poster = object : NotificationPoster {
                 override fun canPost() = permitted
@@ -52,7 +57,7 @@ class NotificationRulesTest {
         )
         watcher.check()
         watcher.check()
-        assertThat(posted).containsExactly(NotificationKind.GOAL)
+        assertThat(posted).containsExactly(NotificationKind.LIMIT)
         assertThat(queries).isEqualTo(1) // posted today: the second check reads nothing
 
         day = today.plusDays(1)
@@ -61,7 +66,7 @@ class NotificationRulesTest {
         assertThat(posted).hasSize(1)
         permitted = true
         watcher.check()
-        assertThat(posted).containsExactly(NotificationKind.GOAL, NotificationKind.GOAL)
+        assertThat(posted).containsExactly(NotificationKind.LIMIT, NotificationKind.LIMIT)
     }
 
     /** A delete between reading the facts and posting: the notice would describe deleted data (ADR-031). */
@@ -75,8 +80,8 @@ class NotificationRulesTest {
         }
         var epoch = 0L
         val watcher = NotificationWatcher(
-            settings = { Settings(notifyGoal = true) },
-            facts = { d, _ -> epoch++; NotificationFacts(d, 600_000.0, 500_000.0, 0.0, 0, 0.0) },
+            settings = { Settings(notifyLimit = true) },
+            facts = { d, _ -> epoch++; NotificationFacts(d, 600_000.0, 500_000.0, 0.0) },
             state = state,
             poster = object : NotificationPoster {
                 override fun canPost() = true
@@ -96,8 +101,8 @@ class NotificationRulesTest {
         val lock = kotlinx.coroutines.sync.Mutex()
         var lockedWhilePosting: Boolean? = null
         val watcher = NotificationWatcher(
-            settings = { Settings(notifyGoal = true) },
-            facts = { d, _ -> NotificationFacts(d, 600_000.0, 500_000.0, 0.0, 0, 0.0) },
+            settings = { Settings(notifyLimit = true) },
+            facts = { d, _ -> NotificationFacts(d, 600_000.0, 500_000.0, 0.0) },
             state = object : NotificationState {
                 override suspend fun lastPosted(kind: NotificationKind): LocalDate? = null
                 override suspend fun setLastPosted(kind: NotificationKind, date: LocalDate) = Unit

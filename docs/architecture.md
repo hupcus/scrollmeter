@@ -69,7 +69,7 @@ com.scrollmeter.app
 │                   UsageEventsSource, UsageAccessChecker (the only Android parts)
 ├── settings        Settings, SettingsRepository (DataStore)
 ├── format          DistanceFormatter, TimeFormatter, GoalInput (pure Kotlin — ADR-028, ADR-031)
-├── insights        DistanceComparisonProvider, TopApps, HistorySeries, ChartScale, AppRanking,
+├── insights        DistanceComparisonProvider, Period, DailyLimit, DaySeries, ChartScale, AppRanking,
 │                   ScrollShare (pure Kotlin — ADR-028, ADR-029)
 ├── apps            AppInfoProvider (labels + icons via PackageManager, cached; UI only — ADR-008),
 │                   SuggestedExclusions (launcher / keyboard / System UI — ADR-030), PackageNames
@@ -120,16 +120,18 @@ com.scrollmeter.app
 
 ## Navigation
 
-Bottom bar: Přehled · Historie · Aplikace · Nastavení (Navigation Compose 2.9.8, `@Serializable` routes — D14,
-ADR-029), in `ui/navigation/ScrollMeterNavHost`. The bar shows only on those four; switching tabs saves and restores
-each tab's state. Below them, without the bar:
+Přehled is the one top-level screen — no bottom bar since Phase 9 (ADR-036); everything else opens over it
+with a way back (Navigation Compose 2.9.8, `@Serializable` routes — D14), in `ui/navigation/ScrollMeterNavHost`:
 
-- Aplikace (or a top-app row on Přehled) → detail `AppDetailRoute(packageName)`,
+- Přehled (*Dnes*, *Tento týden*, *Tento měsíc*, *Všechny aplikace*) → *Statistiky* `PeriodRoute(kind, anchor)`
+  (`ui/period/PeriodScreen`; Den / Týden / Měsíc and ‹ › are state inside it, a bar opens that day as a new
+  `PeriodRoute` on top — `openFrom`, since `launchSingleTop` would replace the week),
+- Statistiky or a Přehled app row → detail `AppDetailRoute(packageName, kind, anchor)` for that period; both
+  routes validate their arguments on arrival (`PackageNames.isValid`, `Period.parse`) and leave otherwise,
+- Přehled gear → Nastavení → Vyloučené aplikace · Export CSV · Soukromí · O aplikaci (limit, units, theme and
+  delete are dialogs); Nastavení → developer screens (`DevToolRoute`, only when `DevTools.entries` is non-empty — debug),
 - Přehled or Nastavení → Přesnost měření → Kalibrace displeje (saving or skipping lands back on Přesnost),
 - Přehled card or Nastavení → Čas v aplikacích (the Usage-access disclosure; closes itself once access is granted),
-- Nastavení → Vyloučené aplikace · Export CSV · Soukromí · O aplikaci (goal, units, theme and delete are dialogs),
-- Nastavení → developer screens (`DevToolRoute`, registered only when `DevTools.entries` is non-empty — debug).
-
 - Přehled banner or Nastavení → the accessibility settings, through `DisclosureRoute` while the disclosure has not
   been accepted (`AccessibilityGate`, ADR-032).
 

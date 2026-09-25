@@ -36,31 +36,32 @@ import com.scrollmeter.app.format.DistanceFormatter
 import com.scrollmeter.app.format.TimeFormatter
 import com.scrollmeter.app.insights.AppPeriodTotals
 import com.scrollmeter.app.insights.AppRanking
-import com.scrollmeter.app.insights.AppsPeriod
 import com.scrollmeter.app.insights.ChartScale
-import com.scrollmeter.app.insights.HistoryPeriod
-import com.scrollmeter.app.insights.HistorySeriesBuilder
+import com.scrollmeter.app.insights.DaySeries
+import com.scrollmeter.app.insights.Period
 import com.scrollmeter.app.insights.ScrollShare
+import com.scrollmeter.app.measurement.MeasurementQuality
 import com.scrollmeter.app.settings.Settings
 import com.scrollmeter.app.ui.components.AppIcon
 import com.scrollmeter.app.ui.components.BarChart
 import com.scrollmeter.app.ui.components.ChartLabels
-import com.scrollmeter.app.ui.components.PeriodSelector
 import com.scrollmeter.app.ui.components.appLocale
 import com.scrollmeter.app.ui.components.rememberAppInfo
 import com.scrollmeter.app.ui.components.rememberCalibrationConfidence
 import com.scrollmeter.app.ui.components.rememberToday
 import com.scrollmeter.app.ui.components.rememberUsageGranted
+import com.scrollmeter.app.ui.period.periodName
 import java.util.Locale
 import kotlinx.coroutines.flow.map
 
 /**
- * One app (spec §24, D19): Dnes | 7 dní | 30 dní | Celkem with distance, time in app, scroll time,
- * the share of the time in app spent scrolling and the quality word with its explanation; below,
- * the last 30 days of distance and of time (in app with Usage access, scrolling otherwise).
+ * One app over one period (spec §24, D19, ADR-036) — the period it was opened from, named in the
+ * header: distance, its share of the period's distance, time in app, scroll time, pace, the share of
+ * the time in app spent scrolling, and the quality word with its explanation; below, the last 30 days
+ * of distance and of time (in app with Usage access, scrolling otherwise).
  */
 @Composable
-fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
+fun AppDetailScreen(graph: AppGraph, packageName: String, period: Period, onBack: () -> Unit) {
     val locale = appLocale()
     val labels = remember(locale) { ChartLabels(locale) }
     val today = rememberToday()
@@ -68,14 +69,14 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
     val calibration = rememberCalibrationConfidence(graph)
     val info by rememberAppInfo(graph.appInfoProvider, packageName, 48.dp)
     val label = info?.label ?: packageName
-    var period by rememberSaveable { mutableStateOf(AppsPeriod.TODAY) }
     val settings by graph.settingsRepository.settings.collectAsStateWithLifecycle(initialValue = Settings())
     val unit = settings.unitPreference
-    val range = period.range(today)
+    val range = period.range
     val periodDays by remember(range, packageName) { graph.scrollRepository.appDays(packageName, range) }
         .collectAsStateWithLifecycle(initialValue = null)
     val totals = remember(periodDays) { periodDays?.let(AppPeriodTotals::of) }
-    val chartRange = HistorySeriesBuilder.range(HistoryPeriod.DAYS_30, today)
+    val periodMm by remember(range) { graph.scrollRepository.distance(range) }.collectAsStateWithLifecycle(initialValue = null)
+    val chartRange = DateRange(today.minusDays(CHART_DAYS - 1L), today)
     val days by remember(chartRange, packageName) { graph.scrollRepository.appDays(packageName, chartRange) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
     // Quality describes the app, not the period: rated on its all-time counters (ADR-029).
@@ -94,10 +95,18 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
             Spacer(Modifier.width(4.dp))
             AppIcon(info, label, 40.dp)
             Spacer(Modifier.width(12.dp))
-            Text(label, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val name = periodName(period, today, labels)
+                val dates = labels.dates(period)
+                Text(
+                    if (name == dates) dates else stringResource(R.string.app_detail_period, name, dates),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        PeriodSelector(AppsPeriod.entries, period, { stringResource(appsPeriodLabel(it)) }, { period = it })
-        PeriodSummary(totals, usageGranted, ::distance, locale)
+        PeriodSummary(totals, AppRanking.sharePercent(totals?.distanceMm, periodMm), usageGranted, ::distance, locale)
 
         val basis = allTime
         if (basis?.distanceMm != null) {
@@ -110,48 +119,50 @@ fun AppDetailScreen(graph: AppGraph, packageName: String, onBack: () -> Unit) {
             }
         }
 
-        // Charts only: no statistics, so no first measured day.
-        val distanceSeries = remember(days, today) { HistorySeriesBuilder.build(HistoryPeriod.DAYS_30, today, days, firstMeasuredDay = null) }
-        val distanceScale = remember(distanceSeries) { ChartLabels.distanceScale(distanceSeries.bars.maxOf { it.value }) }
+        val distanceBars = remember(days, chartRange) { DaySeries.bars(chartRange, days) }
+        val distanceScale = remember(distanceBars) { ChartLabels.distanceScale(distanceBars.maxOf { it.value }) }
         ChartCard(
             title = stringResource(R.string.app_detail_distance_chart),
-            values = distanceSeries.bars.map { it.value },
+            values = distanceBars.map { it.value },
             scale = distanceScale,
             axisLabel = remember(distanceScale, unit, locale) { ChartLabels.distanceAxis(distanceScale, unit, locale) },
-            barLabel = { labels.bar(HistoryPeriod.DAYS_30, distanceSeries.bars[it]) },
-            firstBar = distanceSeries.range.from.toString(),
-            selectedText = { i -> stringResource(R.string.history_day_value, labels.day(distanceSeries.bars[i].start), distance(distanceSeries.bars[i].value)) },
+            barLabel = { labels.bar(distanceBars[it], distanceBars.size) },
+            firstBar = chartRange.fromKey,
+            selectedText = { i -> stringResource(R.string.chart_day_value, labels.day(distanceBars[i].date), distance(distanceBars[i].value)) },
         )
-        val timeSeries = remember(days, today, usageGranted) {
-            HistorySeriesBuilder.build(HistoryPeriod.DAYS_30, today, days, firstMeasuredDay = null) {
-                (if (usageGranted) it.foregroundMs else it.activeScrollMs)?.toDouble()
-            }
+        val timeBars = remember(days, chartRange, usageGranted) {
+            DaySeries.bars(chartRange, days) { (if (usageGranted) it.foregroundMs else it.activeScrollMs)?.toDouble() }
         }
         ChartCard(
             title = stringResource(if (usageGranted) R.string.app_detail_time_chart else R.string.app_detail_scroll_chart),
             // Bars and axis in minutes, so the grid steps read as clock time.
-            values = timeSeries.bars.map { it.value / 60_000.0 },
-            scale = remember(timeSeries) { ChartLabels.minutesScale(timeSeries.bars.maxOf { it.value }) },
+            values = timeBars.map { it.value / 60_000.0 },
+            scale = remember(timeBars) { ChartLabels.minutesScale(timeBars.maxOf { it.value }) },
             axisLabel = ChartLabels::minutesAxis,
-            barLabel = { labels.bar(HistoryPeriod.DAYS_30, timeSeries.bars[it]) },
-            firstBar = timeSeries.range.from.toString(),
+            barLabel = { labels.bar(timeBars[it], timeBars.size) },
+            firstBar = chartRange.fromKey,
             selectedText = { i ->
-                stringResource(R.string.history_day_value, labels.day(timeSeries.bars[i].start), TimeFormatter.duration(timeSeries.bars[i].value.toLong()))
+                stringResource(R.string.chart_day_value, labels.day(timeBars[i].date), TimeFormatter.duration(timeBars[i].value.toLong()))
             },
         )
     }
 }
 
 /**
- * Distance, time in app and pace (with Usage access, ADR-022), scroll time; the scroll-share sentence
+ * Distance and its share of the period's distance, time in app and pace (with Usage access, ADR-022),
+ * scroll time; the scroll-share sentence
  * when both times are known, or a note that the app reports no scrolling. Pace and share use only
  * the days that have a time in app ([AppPeriodTotals]).
  */
 @Composable
-private fun PeriodSummary(app: AppPeriodTotals?, usageGranted: Boolean, distance: (Double) -> String, locale: Locale) {
+private fun PeriodSummary(app: AppPeriodTotals?, sharePercent: Double?, usageGranted: Boolean, distance: (Double) -> String, locale: Locale) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             SummaryRow(stringResource(R.string.app_detail_distance), app?.distanceMm?.let(distance) ?: TimeFormatter.UNKNOWN)
+            if (sharePercent != null) {
+                HorizontalDivider()
+                SummaryRow(stringResource(R.string.app_detail_share), stringResource(R.string.percent, decimal(sharePercent, locale)))
+            }
             if (usageGranted) {
                 HorizontalDivider()
                 SummaryRow(stringResource(R.string.app_detail_time_in_app), TimeFormatter.duration(app?.foregroundMs))
@@ -208,3 +219,27 @@ private fun ChartCard(
         }
     }
 }
+
+/** The last 30 days, whatever the period: the charts show the app's trend, the summary the period. */
+private const val CHART_DAYS = 30
+
+private fun qualityLabel(quality: MeasurementQuality): Int = when (quality) {
+    MeasurementQuality.HIGH -> R.string.quality_high
+    MeasurementQuality.MEDIUM -> R.string.quality_medium
+    MeasurementQuality.LOW -> R.string.quality_low
+    MeasurementQuality.UNKNOWN -> R.string.quality_unknown
+}
+
+private fun qualityInfo(quality: MeasurementQuality): Int = when (quality) {
+    MeasurementQuality.HIGH -> R.string.quality_high_info
+    MeasurementQuality.MEDIUM -> R.string.quality_medium_info
+    MeasurementQuality.LOW -> R.string.quality_low_info
+    MeasurementQuality.UNKNOWN -> R.string.quality_unknown_info
+}
+
+/** A share with one decimal ("43,7"). */
+private fun decimal(value: Double, locale: Locale): String =
+    java.text.NumberFormat.getNumberInstance(locale).apply {
+        minimumFractionDigits = 1
+        maximumFractionDigits = 1
+    }.format(value)

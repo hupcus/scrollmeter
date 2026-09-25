@@ -29,25 +29,25 @@ class AndroidNotificationPosterTest {
         localeManager.applicationLocales = LocaleList.getEmptyLocaleList()
     }
 
-    private fun postGoal(): Notification {
+    private fun postLimit(): Notification {
         shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
-        AndroidNotificationPoster(app).post(Notice(NotificationKind.GOAL, 1_250_000.0), Settings())
+        AndroidNotificationPoster(app).post(Notice(NotificationKind.LIMIT, 1_250_000.0), Settings())
         return shadowOf(notificationManager).allNotifications.single()
     }
 
     @Test
     fun aCzechAppOnAnEnglishPhoneNotifiesInCzech() {
         localeManager.applicationLocales = LocaleList.forLanguageTags("cs")
-        val notice = postGoal()
-        assertThat(notice.extras.getString(Notification.EXTRA_TITLE)).isEqualTo("Denní cíl dosažen")
-        assertThat(notice.extras.getString(Notification.EXTRA_TEXT)).isEqualTo("Dnešní vzdálenost přesáhla tvůj cíl 1,25 km.")
-        assertThat(notificationManager.getNotificationChannel("goals").name.toString()).isEqualTo("Cíle a rekordy")
+        val notice = postLimit()
+        assertThat(notice.extras.getString(Notification.EXTRA_TITLE)).isEqualTo("Denní limit překročen")
+        assertThat(notice.extras.getString(Notification.EXTRA_TEXT)).isEqualTo("Dnes jsi přes svůj denní limit 1,25 km.")
+        assertThat(notificationManager.getNotificationChannel("goals").name.toString()).isEqualTo("Limit a shrnutí")
     }
 
     @Test
     fun withoutAnAppLanguageThePhonesLanguageIsUsed() {
-        val notice = postGoal()
-        assertThat(notice.extras.getString(Notification.EXTRA_TITLE)).isEqualTo("Daily goal reached")
-        assertThat(notice.extras.getString(Notification.EXTRA_TEXT)).isEqualTo("Today’s distance passed your goal of 1.25 km.")
+        val notice = postLimit()
+        assertThat(notice.extras.getString(Notification.EXTRA_TITLE)).isEqualTo("Daily limit exceeded")
+        assertThat(notice.extras.getString(Notification.EXTRA_TEXT)).isEqualTo("Today you are over your daily limit of 1.25 km.")
     }
 }

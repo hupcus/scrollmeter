@@ -22,10 +22,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scrollmeter.app.AppGraph
 import com.scrollmeter.app.BuildConfig
 import com.scrollmeter.app.R
+import com.scrollmeter.app.format.DistanceFormatter
 import com.scrollmeter.app.measurement.PhysicalScaleProvider
 import com.scrollmeter.app.ui.calibration.labelRes
 import com.scrollmeter.app.ui.calibration.pixelLine
 import com.scrollmeter.app.ui.components.ScreenHeader
+import com.scrollmeter.app.ui.components.appLocale
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 /**
  * Soukromí (spec §29 text, D19 paragraph): what is read, what is stored, what never is, that nothing
@@ -48,6 +52,10 @@ fun PrivacyScreen(onBack: () -> Unit) {
 /** O aplikaci (spec §44): version, device, the measuring method and the scale in force. */
 @Composable
 fun AboutScreen(graph: AppGraph, onBack: () -> Unit) {
+    val locale = appLocale()
+    val settings by graph.settingsRepository.settings.collectAsStateWithLifecycle(initialValue = null)
+    val lifetimeMm by remember { graph.scrollRepository.lifetimeDistance() }.collectAsStateWithLifecycle(initialValue = null)
+    val first by remember { graph.scrollRepository.firstMeasuredDay() }.collectAsStateWithLifecycle(initialValue = null)
     val calibration by graph.calibrationRepository.state.collectAsStateWithLifecycle(initialValue = null)
     val display = remember(LocalConfiguration.current.orientation) { graph.displayMetricsProvider.read() }
     val scale = calibration?.let { PhysicalScaleProvider.resolve(it, display) }
@@ -57,6 +65,20 @@ fun AboutScreen(graph: AppGraph, onBack: () -> Unit) {
     ) {
         ScreenHeader(stringResource(R.string.about_title), onBack)
         Fact(stringResource(R.string.about_version), "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        // The lifetime total left Přehled (ADR-036); it stays here, with the day measuring began.
+        val total = lifetimeMm
+        val since = first
+        val unit = settings?.unitPreference
+        if (total != null && since != null && unit != null) {
+            Fact(
+                stringResource(R.string.about_total),
+                stringResource(
+                    R.string.about_total_value,
+                    DistanceFormatter.format(total, unit, locale),
+                    DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(since),
+                ),
+            )
+        }
         Fact(
             stringResource(R.string.about_device),
             "${Build.MANUFACTURER} ${Build.MODEL}\n" + stringResource(R.string.about_android, Build.VERSION.RELEASE, Build.VERSION.SDK_INT),

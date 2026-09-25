@@ -23,9 +23,6 @@ data class DaySummary(
     val foregroundMs: Long?,
 )
 
-/** Days before a date: the best total and how many had a distance (ADR-031). */
-data class PriorDays(val bestMm: Double, val days: Int)
-
 /** One `per_app.csv` row (spec §28 + ADR-021 columns); null = no data of that kind. */
 data class ExportAppDay(
     val date: String,

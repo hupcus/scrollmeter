@@ -48,6 +48,7 @@ import com.scrollmeter.app.notifications.NotificationKind
 import com.scrollmeter.app.settings.ThemePreference
 import com.scrollmeter.app.settings.UnitPreference
 import com.scrollmeter.app.ui.components.ChoiceDialog
+import com.scrollmeter.app.ui.components.ScreenHeader
 import com.scrollmeter.app.ui.components.SectionTitle
 import com.scrollmeter.app.ui.components.ServiceStatus
 import com.scrollmeter.app.ui.components.SettingRow
@@ -71,15 +72,15 @@ class SettingsActions(
     val openDevTool: (String) -> Unit,
 )
 
-private enum class SettingsDialog { GOAL, UNITS, THEME, DELETE }
+private enum class SettingsDialog { LIMIT, UNITS, THEME, DELETE }
 
 /**
- * Nastavení (spec §44): Měření (service, time in app, accuracy, goal, excluded apps), Jednotky,
- * Zobrazení, Oznámení (opt-in; POST_NOTIFICATIONS asked when one is switched on — ADR-030), Data
- * (CSV export, delete everything), Soukromí, O aplikaci; debug builds add the developer screens.
+ * Nastavení (spec §44): Měření (service, time in app, accuracy, daily limit — ADR-036, excluded apps),
+ * Jednotky, Zobrazení, Oznámení (opt-in; POST_NOTIFICATIONS asked when one is switched on — ADR-030),
+ * Data (CSV export, delete everything), Soukromí, O aplikaci; debug builds add the developer screens.
  */
 @Composable
-fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: SettingsActions) {
+fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, onBack: () -> Unit, actions: SettingsActions) {
     val context = LocalContext.current
     val locale = appLocale()
     val scope = rememberCoroutineScope()
@@ -125,7 +126,7 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge)
+        ScreenHeader(stringResource(R.string.settings_title), onBack)
 
         SectionTitle(stringResource(R.string.settings_section_measurement))
         Card(Modifier.fillMaxWidth()) {
@@ -155,9 +156,13 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
             )
             HorizontalDivider()
             SettingRow(
-                title = stringResource(R.string.settings_goal),
-                value = DistanceFormatter.format(current.dailyGoalMm, current.unitPreference, locale),
-                onClick = { dialog = SettingsDialog.GOAL },
+                title = stringResource(R.string.settings_limit),
+                value = if (current.dailyLimitMm > 0.0) {
+                    DistanceFormatter.format(current.dailyLimitMm, current.unitPreference, locale)
+                } else {
+                    stringResource(R.string.limit_none)
+                },
+                onClick = { dialog = SettingsDialog.LIMIT },
             )
             HorizontalDivider()
             val excluded = current.excludedPackages.size
@@ -184,12 +189,15 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
 
         SectionTitle(stringResource(R.string.settings_section_notifications))
         Card(Modifier.fillMaxWidth()) {
-            SwitchRow(stringResource(R.string.notify_goal), stringResource(R.string.notify_goal_body), current.notifyGoal) { setNotify(NotificationKind.GOAL, it) }
-            HorizontalDivider()
-            SwitchRow(stringResource(R.string.notify_record), stringResource(R.string.notify_record_body), current.notifyRecord) { setNotify(NotificationKind.RECORD, it) }
+            SwitchRow(
+                stringResource(R.string.notify_limit),
+                // Without a limit there is nothing to go over: say so rather than leave a switch that never fires.
+                stringResource(if (current.dailyLimitMm > 0.0) R.string.notify_limit_body else R.string.notify_limit_no_limit),
+                current.notifyLimit,
+            ) { setNotify(NotificationKind.LIMIT, it) }
             HorizontalDivider()
             SwitchRow(stringResource(R.string.notify_summary), stringResource(R.string.notify_summary_body), current.notifySummary) { setNotify(NotificationKind.SUMMARY, it) }
-            val anyOn = current.notifyGoal || current.notifyRecord || current.notifySummary
+            val anyOn = current.notifyLimit || current.notifySummary
             if ((anyOn || permissionRefused) && !notificationsAllowed) {
                 HorizontalDivider()
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -221,14 +229,14 @@ fun SettingsScreen(graph: AppGraph, devTools: List<DevToolEntry>, actions: Setti
     }
 
     when (dialog) {
-        SettingsDialog.GOAL -> GoalDialog(
-            currentMm = current.dailyGoalMm,
+        SettingsDialog.LIMIT -> LimitDialog(
+            currentMm = current.dailyLimitMm,
             unit = current.unitPreference,
             locale = locale,
             onDismiss = { dialog = null },
             onSave = { mm ->
                 dialog = null
-                scope.launchWrite(context) { repository.setDailyGoalMm(mm) }
+                scope.launchWrite(context) { repository.setDailyLimitMm(mm) }
             },
         )
         SettingsDialog.UNITS -> ChoiceDialog(

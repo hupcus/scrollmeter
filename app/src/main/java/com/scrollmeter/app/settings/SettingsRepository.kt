@@ -50,7 +50,10 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) : UsageS
         .map(::toSettings)
         .distinctUntilChanged()
 
-    suspend fun setDailyGoalMm(mm: Double) = edit { it[DAILY_GOAL_MM] = mm.coerceIn(Settings.GOAL_RANGE_MM) }
+    /** 0 or less = "Bez limitu"; anything else is kept inside [Settings.LIMIT_RANGE_MM]. */
+    suspend fun setDailyLimitMm(mm: Double) = edit {
+        it[DAILY_LIMIT_MM] = if (mm <= Settings.NO_LIMIT) Settings.NO_LIMIT else mm.coerceIn(Settings.LIMIT_RANGE_MM)
+    }
 
     suspend fun setExcluded(packageName: String, excluded: Boolean) = edit {
         val current = it[EXCLUDED_PACKAGES].orEmpty()
@@ -93,7 +96,8 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) : UsageS
     }
 
     internal companion object {
-        val DAILY_GOAL_MM = doublePreferencesKey("daily_goal_mm")
+        /** The key of the former daily goal: its value carries over as the limit (ADR-036). */
+        val DAILY_LIMIT_MM = doublePreferencesKey("daily_goal_mm")
         val EXCLUDED_PACKAGES = stringSetPreferencesKey("excluded_packages")
         val UNIT = stringPreferencesKey("unit_preference")
         val THEME = stringPreferencesKey("theme")
@@ -103,23 +107,28 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) : UsageS
         val USAGE_TIME_CARD_DISMISSED = booleanPreferencesKey("usage_time_card_dismissed")
         val USAGE_SYNC_LAST_MS = longPreferencesKey("usage_sync_last_ms")
         val DATA_FLOOR_MS = longPreferencesKey("data_floor_ms")
-        val NOTIFY_GOAL = booleanPreferencesKey("notify_goal")
-        val NOTIFY_RECORD = booleanPreferencesKey("notify_record")
+        /** The former goal notification's keys, so its switch and today's "posted" mark carry over (ADR-036). */
+        val NOTIFY_LIMIT = booleanPreferencesKey("notify_goal")
         val NOTIFY_SUMMARY = booleanPreferencesKey("notify_summary")
 
         fun notifyKey(kind: NotificationKind) = when (kind) {
-            NotificationKind.GOAL -> NOTIFY_GOAL
-            NotificationKind.RECORD -> NOTIFY_RECORD
+            NotificationKind.LIMIT -> NOTIFY_LIMIT
             NotificationKind.SUMMARY -> NOTIFY_SUMMARY
         }
 
-        fun postedKey(kind: NotificationKind) = stringPreferencesKey("notified_${kind.name.lowercase()}_date")
+        fun postedKey(kind: NotificationKind) = stringPreferencesKey(
+            when (kind) {
+                NotificationKind.LIMIT -> "notified_goal_date"
+                NotificationKind.SUMMARY -> "notified_summary_date"
+            },
+        )
 
         fun toSettings(prefs: Preferences): Settings {
             val defaults = Settings()
             fun <T> read(block: () -> T?): T? = runCatching(block).getOrNull()
             return Settings(
-                dailyGoalMm = read { prefs[DAILY_GOAL_MM] }?.takeIf { it in Settings.GOAL_RANGE_MM } ?: defaults.dailyGoalMm,
+                dailyLimitMm = read { prefs[DAILY_LIMIT_MM] }?.takeIf { it == Settings.NO_LIMIT || it in Settings.LIMIT_RANGE_MM }
+                    ?: defaults.dailyLimitMm,
                 excludedPackages = read { prefs[EXCLUDED_PACKAGES] } ?: defaults.excludedPackages,
                 unitPreference = read { prefs[UNIT]?.let(UnitPreference::valueOf) } ?: defaults.unitPreference,
                 theme = read { prefs[THEME]?.let(ThemePreference::valueOf) } ?: defaults.theme,
@@ -127,8 +136,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) : UsageS
                 onboardingCompleted = read { prefs[ONBOARDING_COMPLETED] } ?: defaults.onboardingCompleted,
                 privacyDisclosureAccepted = read { prefs[PRIVACY_DISCLOSURE_ACCEPTED] } ?: defaults.privacyDisclosureAccepted,
                 usageTimeCardDismissed = read { prefs[USAGE_TIME_CARD_DISMISSED] } ?: defaults.usageTimeCardDismissed,
-                notifyGoal = read { prefs[NOTIFY_GOAL] } ?: defaults.notifyGoal,
-                notifyRecord = read { prefs[NOTIFY_RECORD] } ?: defaults.notifyRecord,
+                notifyLimit = read { prefs[NOTIFY_LIMIT] } ?: defaults.notifyLimit,
                 notifySummary = read { prefs[NOTIFY_SUMMARY] } ?: defaults.notifySummary,
             )
         }

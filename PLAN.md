@@ -207,9 +207,15 @@ Každá fáze = větev `phase-N-<slug>` → PR → Honza merguje → tag `v0.N`.
 
 **Odhad:** 1–2 sessions + Honzovy testy.
 
+### Phase 9 — Statistiky a denní limit (větev `phase-9-ux-limit`, přidáno 25. 9. 2026)
+
+**Rozsah (Honza, 25. 9.):** dnes / tento týden / tento měsíc s náskrolováním po dnech; klepnutí na období otevře jeho historii s rozpadem po aplikacích (metry od největšího, čas v aplikaci v závorce na stejném řádku); čas v minutách → hodinách → dnech; co nejjednodušší UX; **není to soutěž** — cíl se mění na **limit**, který uživatel nechce překročit, a karta přechází zelená → oranžová → červená. Návrh `docs/plans/phase-9-ux-limit.md`, rozhodnutí ADR-036.
+
+**DoD:** obrazovka Statistiky nahrazuje Historii a Aplikace; limit s barvou a slovy, *Bez limitu*; oznámení o rekordu pryč; aktualizace z 0.1.0 zachová data i nastavený cíl jako limit; screenshoty cs/en, světlý/tmavý; tag `v0.9`, release `v0.2.0` nainstalovaný na OnePlus i Samsung.
+
 ### Backlog Phase 1.1 / Phase 2 (až po stabilním měření)
 
-Kompatibilitní test v nastavení (SPEC §48), Accuracy panel (§49), sessions v UI + scroll speed (§18, §50), widget (Glance, §27), gamifikace a challenges (§47), lokální JSON backup. Databázi modelů telefonů **nedělat** (§10).
+Kompatibilitní test v nastavení (SPEC §48), Accuracy panel (§49), sessions v UI + scroll speed (§18, §50), widget (Glance, §27), lokální JSON backup. Gamifikace a challenges (§47) **vyřazeny** 25. 9. 2026 — není to soutěž (ADR-036). Databázi modelů telefonů **nedělat** (§10).
 
 ## 5. Testovací strategie
 

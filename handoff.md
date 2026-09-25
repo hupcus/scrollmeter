@@ -46,6 +46,27 @@
 | 6 Export + Nastavení | hotovo, mergnuto (tag `v0.6`) | `phase-6-export-settings` / [#8](https://github.com/hupcus/scrollmeter/pull/8) | ADR-030/031; oznámení a export na telefonu → „Dluh ověření“ V6; CI zablokované billingem → brána v čistém checkoutu |
 | 7 Onboarding + Policy | hotovo, mergnuto (tag `v0.7`) | `phase-7-onboarding-policy` / [#9](https://github.com/hupcus/scrollmeter/pull/9) | ADR-032; onboarding se sideloadem a volba jazyka na telefonu → „Dluh ověření“ V7; CI zablokované billingem → brána v čistém checkoutu |
 | 8 Release | hotovo, mergnuto (tag `v0.8`; GitHub Release `v0.1.0`) | `phase-8-release` / [#10](https://github.com/hupcus/scrollmeter/pull/10) | ADR-033/034/035; baterie na telefonech a ColorOS → „Dluh ověření“ V8, V9; CI zablokované billingem → brána v čistém checkoutu |
+| 9 Statistiky + limit | hotovo, mergnuto (tag `v0.9`; GitHub Release `v0.2.0`) | `phase-9-ux-limit` / [#12](https://github.com/hupcus/scrollmeter/pull/12) | ADR-036; Honzův test na telefonech → „Dluh ověření“ V10; CI zablokované billingem → brána v čistém checkoutu |
+
+## Phase 9 — exit report (2026-09-25)
+
+Zadání (Honza, 25. 9.): dnes / tento týden / tento měsíc i kolik na den; klepnutím na období jeho historie s rozpadem po aplikacích (metry od největšího, minuty/hodiny na stejném řádku), bez přepínání Historie ↔ Aplikace; čas min → h → d; **není to soutěž** — cíl je limit, který nechce překročit, a barva jde zelená → oranžová → červená. Návrh `docs/plans/phase-9-ux-limit.md`, rozhodnutí ADR-036.
+
+**Hotovo a ověřené** (větev `phase-9-ux-limit`):
+- **Přehled** bez spodní lišty: karta *Dnes* v barvě limitu se slovy („Zbývá 80 m z limitu 500 m“ / „Překročeno o 120 m (limit 500 m)“) a časem v aplikacích; *Tento týden* / *Tento měsíc* s průměrem na den a barevnou tečkou; *Nejvíc dnes* 3 aplikace + *Všechny aplikace*; Nastavení pod ozubeným kolem.
+- **Statistiky** (nahrazují Historii i Aplikace): Den / Týden / Měsíc, ‹ › (ne do budoucna, ne před první naměřený den), graf po dnech s každým sloupcem v barvě jeho dne a čárkovanou čarou limitu, klepnutí na sloupec otevře ten den (Zpět vrátí týden), aplikace podle metrů s časem v závorce „888 m (4 h 2 min)“, jen-časové aplikace „— (12 h 23 min)“ na konci.
+- **Detail aplikace** za období, ze kterého se otevřel („Včera · čt 24. 9.“), + podíl na vzdálenosti; grafy dál 30 dní.
+- **Limit**: 100 m – 5 km, vlastní, nebo *Bez limitu* (bez barev); oranžová od 70 % (`LIMIT_WARN_RATIO`); týden a měsíc podle průměru na den od prvního naměřeného dne. Oznámení „Denní limit překročen“ (1× denně) + shrnutí včerejška; rekord zrušený. Celkem naměřeno se přesunulo do *O aplikaci*.
+- Čas: „< 1 min“, „45 min“, „1 h 1 min“, „1 d 1 h 1 min“. Anglické datumy anglicky („21–27 Sep“), české česky („21.–27. 9.“).
+- `versionCode 2`, `versionName 0.2.0`.
+- **Emulátor (API 34):** instalace 0.1.0 debug s cílem 1 km → nasazená data (32 dní, 6 aplikací) → aktualizace na 0.2.0: data i cíl drží („limit 1.00 km“ v angličtině emulátoru), bez pádu; limit 500 m / 250 m / Bez limitu (oranžová / červená / neutrální); týden, den, měsíc, ‹ › i zákaz před srpnem, sloupec → den → aplikace → Zpět → Zpět → Přehled; cs + en, světlý + tmavý, šířka 360 dp. 19 screenshotů prošel subagent: žádná vada (jediná poznámka: detail aplikace pro dnešek bez času v aplikaci ukazuje „—“ — záměr, čas za dnešek ještě nebyl).
+- Brány: 278 unit testů, lint (jen známé varování v debug `TestListScreen`), debug + release build, manifest policy, Python testy.
+
+**Review** (`/topshit` nad celým diffem) — opraveno ve větvi: anglické datumy v českém tvaru; „Dnes zatím žádné scrollování“ a věta o limitu problikly před načtením; přepínač oznámení o limitu bez nastaveného limitu tiše nic nedělal (teď to říká).
+
+**Stage 2 — bezpečnost** (diff čtený bezpečnostní optikou): žádné nové oprávnění ani `INTERNET` (manifest policy zelená), služba beze změny (jen `typeViewScrolled`, žádný text z eventů); nové argumenty tras `kind` / `anchor` se po příchodu validují (`Period.parse`, u detailu i `PackageNames.isValid`) a navíc je čistí `NavIntents`; DAO dotazy dál parametrizované (`daysBefore` smazaný); limit z DataStore přijme jen 0 nebo rozsah 10 m – 100 km, jinak výchozí. Nález žádný.
+
+**Neověřeno / přijato:** jednotlivé sloupce grafu nejsou pro TalkBack samostatné (dny jsou dosažitelné přes Den + ‹ ›); přesně na limitu karta napíše „Překročeno o 0 m“ (vzácné).
 
 ## Phase 8 — exit report (2026-09-25)
 
@@ -393,10 +414,11 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 | V3 | MAPE vlastního test listu s `MANUAL_CARD` | 2 | session | po V2: `python3 tools/device_accuracy.py --surface view,column --markdown --csv-out <dir>` + `tools/accuracy.py` → zapsat do `docs/accuracy-testing.md` | MAPE ≥ 5 % → hledat v kalibraci / pipeline |
 | V4 | Restart telefonu (ColorOS) | 3 | Honza + session | na emulátoru ověřeno (data drží, služba se sama vrátí); na OnePlusu: nascrollovat, počkat 15 s, restartovat; po startu Domů → „Dnes“ drží hodnotu a služba běží | služba se nezapne → ColorOS ji po restartu nevrací (Phase 7 nápověda) |
 | V5 | Čas v aplikaci proti Digital Wellbeing | 3 | Honza + session | povolit „Přístup k údajům o využití“, otevřít aplikaci; session porovná `daily_app_usage` pro dnešek a včerejšek s Digitální rovnováhou (± 5 %) → `docs/accuracy-testing.md` | odchylka > 5 % → ADR-025 (tolerance, uzavírače) přeladit |
-| V6 | Oznámení a export na telefonu | 6 | Honza + session | na emulátoru ověřeno (výzva k povolení, cíl / rekord / shrnutí přijdou jednou denně, export přes výběr souboru i sdílení); na OnePlusu: zapnout „Denní cíl dosažen“, nastavit cíl 100 m, nascrollovat → oznámení přijde do ~10 s; Export CSV → Sdílet → otevřít v Tabulkách Google / Excelu (čeština a čísla správně) | oznámení nepřijde → ColorOS ho tlumí (Phase 7 nápověda); CSV se rozpadne → ADR-031 formát |
+| V6 | Oznámení a export na telefonu | 6 | Honza + session | na emulátoru ověřeno (výzva k povolení, cíl / rekord / shrnutí přijdou jednou denně, export přes výběr souboru i sdílení); na OnePlusu: zapnout „Překročení limitu“, nastavit limit 100 m, nascrollovat → oznámení „Denní limit překročen“ přijde do ~10 s; Export CSV → Sdílet → otevřít v Tabulkách Google / Excelu (čeština a čísla správně) | oznámení nepřijde → ColorOS ho tlumí (Phase 7 nápověda); CSV se rozpadne → ADR-031 formát |
 | V7 | Onboarding se sideloadem + volba jazyka | 7 | Honza + session | APK z GitHub Release [`v0.1.0`](https://github.com/hupcus/scrollmeter/releases/tag/v0.1.0) (podepsané upload klíčem) nainstalovat **přes Soubory / prohlížeč** (ne adb — ten omezení nespustí); projít onboarding: krok 4 → Android napíše „Omezené nastavení“ → „Otevřít informace o aplikaci“ → ⋮ → „Povolit omezená nastavení“ → zpět → zapnout službu; pak Nastavení Androidu › Aplikace › ScrollMeter › Jazyk → English | ColorOS nabídku ⋮ nemá nebo ji jmenuje jinak → upravit nápovědu kroku 4 (text z telefonu) |
 | V8 | Baterie na telefonech (SPEC §39) | 8 | Honza + session | OnePlus + druhý telefon s release z `v0.1.0`: `dumpsys batterystats --reset`, pak 1 h aktivního scrollování, 8 h běžného používání, 24 h normálního dne; session vytáhne `dumpsys batterystats` (uid ScrollMeteru: CPU, wakelocky, spotřeba) a počet zápisů → tabulka „Battery“ v `docs/accuracy-testing.md` | podíl ScrollMeteru v Nastavení › Baterie nad ~1 % za den → nejdřív ticker flushů (otevřený bod), pak práh 50 událostí |
 | V9 | ColorOS: odvolání Usage access + restart | 8 | Honza + session | na OnePlusu vzít „Přístup k údajům o využití“ → aplikace musí ukázat „Čas scrollování“ bez pádu (na emulátoru API 36 ověřeno); pak restart → služba běží, čas v aplikaci po novém povolení doběhne | pád nebo prázdné obrazovky → oprava v `UsageAccessChecker` / detailu aplikace |
+| V10 | Statistiky a limit v běžném používání (v0.2.0) | 9 | Honza | pár dní používat na OnePlusu i Samsungu: sedí barvy (venku i v tmavém režimu), „Zbývá … z limitu …“, rozpad po aplikacích a čas v závorce; hlavně jestli 500 m a oranžová od 70 % odpovídají tomu, co chce hlídat | jiný limit nebo práh → jedna konstanta / předvolba (ADR-036); jiné slovo nebo pořadí → texty |
 
 ## Otevřené body
 
@@ -453,6 +475,10 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 - [ ] GitHub `ubuntu-latest` přejde od 2026-10-19 na Ubuntu 26 — po odblokování CI zkontrolovat, že obraz dál nese Android SDK (jinak připnout `ubuntu-24.04`).
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-25 — Phase 9 Statistiky + denní limit (Opus 5.5, návrh Fable 5.1)
+- Honza: období s rozpadem po aplikacích, čas na stejném řádku, „není to soutěž“ — cíl → limit se zelenou / oranžovou / červenou. Detail ADR-036.
+- Rozhodnuto samostatně (výchozí doporučení): žádná spodní lišta, Nastavení pod ozubeným kolem; limit 500 m zapnutý (kdo si v 0.1.0 nastavil cíl, má ho jako limit); oranžová od 70 %; týden / měsíc podle průměru na den; srovnání „Pro představu“ zůstává; oznámení o rekordu a gamifikace (SPEC §47) pryč.
 
 ### 2026-09-25 — distribuce: rodina, ne Google Play (Honza)
 - Honza: aplikace jen pro rodinu, případně volně ke stažení na GitHubu; na Google Play ne. Play podklady (`docs/play-listing.md`, AAB z `build_release.sh`) zůstávají, nic se kvůli tomu v kódu nemění.

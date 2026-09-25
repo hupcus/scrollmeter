@@ -84,11 +84,10 @@ object MeasurementConfig {
     const val SESSION_RETENTION_DAYS = 90L
 
     /**
-     * "Nový rekord" (spec §26, ADR-031): only after this many earlier measured days — the second day
-     * of use is not a record worth a notification — and only above [RECORD_MIN_MM].
+     * Daily limit (ADR-036): from this share of the limit the colour turns from green to orange (red from
+     * the limit itself). 70 % leaves a warning before the limit rather than at it.
      */
-    const val RECORD_MIN_PRIOR_DAYS = 3
-    const val RECORD_MIN_MM = 10_000.0
+    const val LIMIT_WARN_RATIO = 0.7
 
     /**
      * Measurement quality per app (spec §20, ADR-029). Under [QUALITY_MIN_EVENTS] stored events there is

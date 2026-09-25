@@ -26,8 +26,8 @@ scroll.* Secondary: *Screen time ti řekne jak dlouho. ScrollMeter ti ukáže ja
 > ScrollMeter měří, o kolik se při scrollování posune obsah na displeji — v sociálních sítích, v prohlížeči i jinde
 > — a převádí to na metry a kilometry podle fyzické velikosti pixelu tvého displeje.
 >
-> • Dnes, týden, měsíc i celkem, s denním cílem a srovnáním („přibližně délka běžeckého okruhu“)
-> • Historie za 7 dní, 30 dní a 12 měsíců
+> • Dnes, tento týden a tento měsíc proti dennímu limitu — zelená, oranžová, červená — a srovnání („přibližně délka běžeckého okruhu“)
+> • Den, týden i měsíc po dnech, jedním klepnutím i po aplikacích
 > • Kolik v které aplikaci, volitelně i kolik času v ní trávíš a kolik metrů za minutu
 > • Kalibrace platební kartou pro přesnější měření
 > • Export do CSV, smazání všech dat jedním tlačítkem
@@ -45,8 +45,8 @@ scroll.* Secondary: *Screen time ti řekne jak dlouho. ScrollMeter ti ukáže ja
 > ScrollMeter measures how far content moves on your screen while you scroll — in social apps, in the browser and
 > elsewhere — and turns it into metres and kilometres using the physical pixel size of your display.
 >
-> • Today, this week, this month and all time, with a daily goal and a comparison ("about one lap of a running track")
-> • History for 7 days, 30 days and 12 months
+> • Today, this week and this month against a daily limit — green, orange, red — and a comparison ("about one lap of a running track")
+> • Any day, week or month per day, and per app with one tap
 > • How far in which app, and optionally how much time you spend there and how many metres a minute
 > • Calibration with a payment card for more accurate measuring
 > • CSV export, delete all data with one button
@@ -59,7 +59,7 @@ scroll.* Secondary: *Screen time ti řekne jak dlouho. ScrollMeter ti ukáže ja
 > says so.
 
 **Category:** Lifestyle (alternative: Health & Fitness) — Honza's choice.
-**Screenshots:** Přehled with a goal ring, Historie 30 dní, Aplikace with time, app detail, onboarding disclosure,
+**Screenshots:** Přehled with the limit card, Statistiky (a week and a day with its apps), app detail, onboarding disclosure,
 Soukromí. Czech and English sets (the app has both, ADR-032).
 
 ## Accessibility API declaration (Play Console → App content → Sensitive permissions and APIs)
@@ -98,7 +98,7 @@ device**; the user exports it by their own action through the system share sheet
 |---|---|---|
 | Accessibility service binding (`BIND_ACCESSIBILITY_SERVICE` on our service) | scroll events | user switches it on in Android's settings after the disclosure |
 | `PACKAGE_USAGE_STATS` | optional time in app (ADR-021) | user grants Usage access in Android's settings after its own disclosure |
-| `POST_NOTIFICATIONS` | optional goal / record / yesterday notifications (ADR-030) | asked when a notification switch is turned on |
+| `POST_NOTIFICATIONS` | optional over-the-limit / yesterday notifications (ADR-030, ADR-036) | asked when a notification switch is turned on |
 | `<queries>` LAUNCHER + HOME | app names and icons; the launcher as a suggested exclusion (ADR-008, ADR-030) | — |
 
 No `INTERNET`, no `QUERY_ALL_PACKAGES`, no foreground service, no overlay, no storage permission.

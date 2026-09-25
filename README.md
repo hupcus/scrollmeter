@@ -14,7 +14,9 @@ finger across the touchscreen.
 Project founded 2026-09-23. Phases 0–7 merged (`v0.0` … `v0.7`): bootstrap, measurement proof of concept
 (GO/NO-GO gate), calibration, persistence with optional time in app, dashboard, history and apps, export and
 settings, onboarding with the Play disclosure and English. Phase 8 (release hardening, `v0.8`) adds the signed
-release build, the emulator matrix API 28–36, the battery protocol and the first release `v0.1.0`.
+release build, the emulator matrix API 28–36, the battery protocol and the first release `v0.1.0`. Phase 9
+(`v0.9`, release `v0.2.0`) replaces the goal with a daily limit in colour and History + Apps with one
+*Statistiky* screen (ADR-036). The app is for family phones, installed from the APK — not Google Play.
 **Requires Android 10 (API 29) or newer** — Android 9 does not deliver the scroll events (ADR-033).
 Manual on-phone checks still owed are listed under "Dluh ověření" in `handoff.md`. See `PLAN.md` (phases,
 gates) and `handoff.md` (live state).
@@ -119,33 +121,35 @@ Accuracy with the calibration in force: `python3 tools/device_accuracy.py --surf
 then `python3 tools/accuracy.py out/ground_truth.csv out/measured.csv`. The test list itself shows MAE / MAPE
 over the runs of a series (*Vynulovat* closes a run, *Nová série* starts over).
 
-## Dashboard (Phase 4)
+## Přehled and Statistiky (Phases 4, 5, 9)
 
-*Přehled* shows today's distance in a ring against the daily goal (500 m by default, set in *Nastavení*),
-this week / month / in total, the top apps today with their names and icons, and one comparison ("To je
-přibližně délka jednoho běžeckého okruhu."). Every number is live — stored plus what the service has not
-written yet. When the service is off, a red banner with *Zapnout měření* comes first. With Usage access the
-app rows add time in app and m/min; without it they show scroll time, and a card offers the feature once
-(*Ukázat jak* → a disclosure screen → Android settings).
+*Přehled* is the one main screen — no bottom bar; *Nastavení* sits behind the gear. The *Dnes* card shows
+today's distance against the **daily limit** (500 m by default, or *Bez limitu*): green, orange from 70 %, red
+over it, and always in words too ("Zbývá 80 m z limitu 500 m", "Překročeno o 120 m (limit 500 m)"). Below it
+*Tento týden* and *Tento měsíc* with their total and average per day, the three apps scrolled most today and
+one comparison ("To je přibližně délka jednoho běžeckého okruhu."). Every number is live — stored plus what
+the service has not written yet. When the service is off, a red banner with *Zapnout měření* comes first. It
+is not a competition: no goals, no records (ADR-036).
 
-## History and apps (Phase 5)
-
-A bottom bar switches between *Přehled*, *Historie*, *Aplikace* and *Nastavení*. *Historie* charts the
-distance per day (7 or 30 days) or per month (12 months); tap a bar for its value; below it the average,
-highest and lowest day and the total, counted per day from the first measured day. *Aplikace* lists the apps
-of *Dnes / 7 dní / 30 dní / Celkem* by distance or time, with each app's share and a measurement-quality word
-(never an accuracy percentage — ADR-029); apps with time but no scroll data (YouTube) show "—". A row opens
-the app's detail with its 30-day charts.
+Tapping *Dnes*, a week or a month opens **Statistiky**: *Den / Týden / Měsíc* with ‹ ›, for a week or month a
+bar per day in its limit colour with the limit as a dashed line (tap a bar to open that day), and every app
+of the period from the longest distance down, with the time in the app on the same row — "Chrome
+1,21 km (3 h 40 min)". Apps with time but no scroll data (YouTube) show "— (2 h 15 min)" at the end. An app
+opens its detail for that period: distance, share, time in app, scroll time, pace, a measurement-quality word
+(never an accuracy percentage — ADR-029) and 30-day charts. Durations roll over from minutes to hours to days
+("1 d 1 h 1 min"). Time in app needs Usage access; until it is granted a card offers it once (*Ukázat jak* →
+a disclosure screen → Android settings), and the rows show no brackets.
 
 ## Settings, export and notifications (Phase 6)
 
-*Nastavení* holds the service and Usage-access status, *Přesnost měření*, the daily goal (100 m – 5 km or a
-custom 10 m – 100 km), *Vyloučené aplikace* (launcher, keyboard and System UI are suggested; an excluded app
-disappears from every total, history and export and comes back when switched on again), units, theme,
-the three opt-in notifications (goal reached, new record, yesterday's summary — each at most once a day; on
+*Nastavení* holds the service and Usage-access status, *Přesnost měření*, the daily limit (100 m – 5 km, a
+custom 10 m – 100 km, or *Bez limitu*), *Vyloučené aplikace* (launcher, keyboard and System UI are suggested; an
+excluded app disappears from every total, history and export and comes back when switched on again), units,
+theme, the two opt-in notifications (over the limit, yesterday's summary — each at most once a day; on
 Android 13+ the system asks for permission when one is switched on), *Exportovat CSV* (save `per_app.csv` /
 `daily_summary.csv` through the system file picker, or share both), *Smazat všechna data* (optionally with the
-settings and the card calibration), *Soukromí* and *O aplikaci*; in debug builds also the developer screens.
+settings and the card calibration), *Soukromí* and *O aplikaci* (version, device, the total measured since the first day); in debug builds also the
+developer screens.
 The CSV format is in ADR-031: comma separated, dot decimals, UTF-8 with BOM, an empty field means unknown.
 
 ## Stored data and time in app (Phase 3)
