@@ -8,8 +8,8 @@ test taps "Vynulovat", performs the gesture, waits for the list to settle and re
 accessibility pipeline measured for our own package).
 
 `uiautomator dump` suppresses (unbinds) every accessibility service while it runs, so the
-screen is read only while locating the controls; afterwards the script waits for the service to
-bind again and taps by coordinates.
+screen is read only while locating the controls (the surface chips once, "Vynulovat" before every
+test); after each read the script waits for the service to bind again, then gestures by coordinates.
 
 The calibration in force (method, version, mm/px — from the TESTLIST line) is printed with the
 results. `--csv-out DIR` also writes `ground_truth.csv` and `measured.csv` for `tools/accuracy.py`.
@@ -82,8 +82,12 @@ class Device:
         subprocess.run(self.base + ["logcat", "-c"], check=True)
 
     def nodes(self) -> list[ET.Element]:
-        self.shell("uiautomator dump /sdcard/scrollmeter-ui.xml >/dev/null 2>&1", check=False)
-        xml = self.shell("cat /sdcard/scrollmeter-ui.xml")
+        # Remove the previous dump first: a failed dump must not hand back the old screen.
+        self.shell("rm -f /sdcard/scrollmeter-ui.xml; uiautomator dump /sdcard/scrollmeter-ui.xml >/dev/null 2>&1",
+                   check=False)
+        xml = self.shell("cat /sdcard/scrollmeter-ui.xml 2>/dev/null", check=False)
+        if not xml.strip():
+            raise RuntimeError("uiautomator dump failed")
         return list(ET.fromstring(xml).iter("node"))
 
     def find(self, *texts: str) -> dict[str, tuple[int, int, int, int]]:
@@ -97,7 +101,8 @@ class Device:
     def view_holders(self) -> list[tuple[int, int, int, int]]:
         """Bounds of our AndroidView hosts (window = screen, edge-to-edge). uiautomator does not
         see Views inside Compose's AndroidView, but the View hierarchy dump does."""
-        top = self.shell("dumpsys activity top")
+        # Scoped to our package: `dumpsys activity top` times out (API 35) on a frozen cached app.
+        top = self.shell(f"dumpsys activity {PACKAGE}")
         section = top[top.index(f"ACTIVITY {PACKAGE}"):]
         nxt = section.find("ACTIVITY ", 10)
         section = section if nxt < 0 else section[:nxt]
@@ -135,9 +140,11 @@ def fling(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 120) -> str:
     return f"input swipe {x1} {y1} {x2} {y2} {duration_ms}; log -t ScrollMeter MARK_UP"
 
 
-def run_test(dev: Device, surface: str, reset: tuple[int, int, int, int], name: str, gestures: list[str], axis: str,
-             settle_s: float = SETTLE_S) -> Result:
-    dev.tap(reset)
+def run_test(dev: Device, surface: str, name: str, gestures: list[str], axis: str, settle_s: float = SETTLE_S) -> Result:
+    # Located anew every time: the result lines above it wrap once their numbers grow, which moves
+    # the button down (found on the API 30 emulator — a stale position missed it and runs added up).
+    dev.tap(dev.find("Vynulovat")["Vynulovat"])
+    dev.wait_for_service()
     time.sleep(2.0)
     dev.clear_logcat()
     for g in gestures:
@@ -211,7 +218,7 @@ def main(argv: list[str]) -> int:
         }
         for name in (args.only.split(",") if args.only else list(tests)):
             gestures, axis, settle = tests[name]
-            r = run_test(dev, surface, controls["Vynulovat"], name, gestures, axis, settle)
+            r = run_test(dev, surface, name, gestures, axis, settle)
             results.append(r)
             print(f"{surface:6} {name}: GT {r.gt_px:.0f} px / measured {r.measured_px:.0f} px · GT {r.gt_mm:.2f} mm / "
                   f"measured {r.measured_mm:.2f} mm · error {r.error_pct:+.2f} % · events {r.events} · {r.scale}"

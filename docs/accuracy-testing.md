@@ -53,6 +53,7 @@ distance_mm, source, status`.
 | Device | OS / API | Resolution | xdpi / ydpi | densityDpi | Manual card mm/px | Notes |
 |---|---|---|---|---|---|---|
 | OnePlus CPH2399 (Nord 2T) | Android 14 / 34 | 1080×2400 | 403.411 / 401.052 | 480 | | 60/90 Hz; primary test phone |
+| Emulators `scrollmeter28/30/33/34/35/36` (`google_apis` arm64-v8a, AVD device `pixel_6`) | Android 9–16 / 28–36 | 1080×2400 | 420 / 420 | 420 | — | Phase 8 matrix; only `scrollmeter34` is kept (the others were measured one at a time and deleted for disk space, images stay) |
 
 ## App compatibility matrix (Phase 1)
 
@@ -203,6 +204,56 @@ Finger geometry: 1000 px drag → 808 px (= 1000 − 168 − 24), 600 → 408, 3
 (the toolbar snapping back?) — the engine counts what the app reports; not verified visually.
 Largest single Chrome event seen: ~1117 px against an outlier limit of 10 527 px (4 × diagonal).
 
+## Emulator matrix (Phase 8)
+
+2026-09-25, signed release build (`tools/build_release.sh`, R8) for onboarding, measuring, export and delete; the
+debug build for the test list. Every emulator is a fresh AVD (`pixel_6`, 1080 × 2400, 420 dpi); the service is
+switched on over adb (`settings put secure …`) at onboarding step 4, Usage access with `appops set … allow`.
+"Measuring" = the release service scrolling Android Settings (`input swipe`, 6 swipes) and the rows read from the
+app's database as root — no `uiautomator` in between (see the note below).
+
+| API | Onboarding (release) | Measuring (release) | Test list View · Column MAPE (9 runs each) | Export · Delete (release) | Other |
+|---|---|---|---|---|---|
+| 28 (Android 9) | done (en) | **no** — see "Android 9" below | **0 events in 18 of 18 runs** | not run | minSdk raised to 29 (ADR-033) |
+| 30 (Android 11) | en: all 6 steps; step 4 moves on by itself; Usage access page opens | Settings 426.7 mm, 30 direct events; a foreign app's View list 260.7 mm, 27 direct | 0.00 % · 3.85 % | SAF save (BOM, CRLF, empty = unknown), share sheet, delete → 0 rows in all 3 tables | PIN + reboot: before unlock no process and no bound service (`RUNNING_LOCKED`); after unlock the service binds by itself, data kept (71.1 → 142.2 mm) |
+| 33 (Android 13) | cs (per-app language) | Settings 438.2 mm, 37 direct | 0.18 % · 4.95 % | as API 30, in Czech | `POST_NOTIFICATIONS`: switching "Denní cíl dosažen" on shows the system prompt, *Allow* grants it |
+| 34 (Android 14) | cs + en (Phase 7) | Phase 3 table below | phone, Phase 1: 0.05 % · 3.13 % | Phase 6 | battery protocol below |
+| 35 (Android 15) | en | Settings 423.3 mm, 34 direct | 0.00 % · 4.99 % | as API 30; share sheet is `com.android.intentresolver` | edge-to-edge enforced (targetSdk 36): no content under the status or navigation bar, light and dark |
+| 36 (Android 16) | cs | Settings 575.9 mm, 47 direct | 0.33 % · 4.32 % | as API 30, in Czech | edge-to-edge as API 35; Usage access revoked → the app detail switches from "Čas v aplikaci" to "Čas scrollování", no crash |
+
+- **Compose `verticalScroll` under-counts slow drags** on every API: −6 to −11 % for A500 / A1000 / D_slow with only
+  3 events per drag on API 33–36 (11 on API 30), −0.1 to −3 % for flings and long runs. The column's positions come
+  in throttled scroll events and the last movement before the lift is not always reported. MAPE stays under the
+  5 % target (4.3–5.0 %), just barely on API 33 and 35 — the same pattern as Phase 1 on the phone (3.1 %).
+- Compose `LazyColumn` (the debug list's default surface) stays unmeasurable on every API (ADR-019): 31–32
+  UNMEASURABLE events, 0 mm.
+- **Language found on API 33 / 36:** the toast after *Smazat všechna data* was English in a Czech app — texts built
+  from the application context ignore the per-app language. Fixed and re-checked on API 36 (ADR-035); the
+  notifications had the same cause and are pinned by a unit test.
+- Screenshots (onboarding, export / delete, the four main screens, dark mode; API 30 en, 33 cs, 35 en, 36 cs) were
+  checked by subagents: no clipped text, nothing under the system bars, no untranslated string besides the one fixed.
+
+### Android 9 (API 28) is not supported
+
+With ScrollMeter the only accessibility service, Android 9 delivered no scroll event of our own test list (18 of 18
+runs, View and Column, ground truth 0.5–30 k px each) and Settings' events only sometimes (one swipe gave 0 events,
+the next 1, an earlier round dozens). AOSP 9 forwards `TYPE_VIEW_SCROLLED` only from the *active* window, and
+without a window-tracking service that window moves only on a `TYPE_WINDOW_STATE_CHANGED` — which apps send only
+when a bound service asks for it. Android 10 makes apps send it for every service (without delivering it), so from
+API 29 our scroll-only service gets every app's scrolling. Details and sources: ADR-033. Android 9's Settings also
+reports its (support-library) `RecyclerView` scrolling with dx = dy = 0 and no positions — unmeasurable even when
+delivered. Test harness notes from the run: `uiautomator dump` fails outright ("null root node") on API 28 while any
+accessibility service is on, and `input motionevent` does not exist before API 29.
+
+### Test harness notes (all APIs)
+
+- `uiautomator dump` reads the *active* window. With no accessibility service bound (e.g. after `am force-stop`,
+  which also switches the service off), apps do not report window changes and the dump returns a screen that is
+  no longer in front — taps by its coordinates land elsewhere. Navigate with a service on.
+- `dumpsys activity top` times out (API 35) when a cached app is frozen; `tools/device_accuracy.py` reads only our
+  package (`dumpsys activity <package>`) and finds *Vynulovat* before every run (the lines above it wrap as numbers
+  grow).
+
 ## Persistence and time in app (Phase 3)
 
 Emulator `scrollmeter34` (AVD, API 34, google_apis arm64, pixel_6 1080 × 2400), debug build, Settings scrolled
@@ -227,6 +278,34 @@ there?), and time in app for today and yesterday against Digital Wellbeing (± 5
 
 ## Battery (Phase 8)
 
+Emulator `scrollmeter34` (API 34, `google_apis` arm64 on an Apple-silicon Mac), signed release build, the service on.
+`dumpsys battery unplug` + `dumpsys batterystats --reset`, screen kept on (`svc power stayon true`), Android Settings
+in the foreground; figures for the app's uid from `dumpsys batterystats` and `--checkin`. Room writes are counted from
+`dumpsys dbinfo` (the last 20 statements per connection, sampled every 4 s): one flush = one timestamp of
+`UPDATE daily_app_aggregate SET distanceMm …`.
+
+**An emulator has no power profile** (capacity 3000 mAh, discharge 0 mAh, the mAh batterystats estimates are a model
+with placeholder currents), so battery % is not measured here. What is meaningful: CPU time, wakelocks, alarms, jobs and
+writes — as absolute counts, and CPU relative to the app being scrolled. SPEC §39's 1 h / 8 h / 24 h on real phones
+is verification debt V8 (handoff.md).
+
 | Date | Device | Scenario | Duration | Events | Room writes | CPU / wakeups | Battery % | Notes |
 |---|---|---|---|---|---|---|---|---|
-| | | | | | | | | |
+| 2026-09-25 | emulator API 34 | scroll: `input swipe` down + up every ~1.2 s in Settings | 10 min 24 s | 3 463 (123.2 m) | 115 flushes (11 / min, ~30 events each), every statement 0–1 ms | CPU 1.60 s (1.02 s user + 0.58 s kernel), of it ~0.25 s the sampler's own `dumpsys dbinfo` → ≈ 1.35 s, 0.39 ms per event; Settings itself used 7 min 9 s. Wakelocks 0, alarms 0, jobs 0 | n/a (emulator) | notes 1–3 |
+| 2026-09-25 | emulator API 34 | idle: same, no input | 10 min 20 s | 0 | 0 | CPU 0.67 s (0.56 s user + 0.11 s kernel), of it ~0.25 s the sampler → ≈ 0.4 s. Wakelocks 0, alarms 0, jobs 0 | n/a (emulator) | notes 3–4 |
+| 2026-09-25 | emulator API 34 | time-in-app sync (D19): 10 app opens (`am start`, 4 s, Home) with Usage access, then 10 without; one warm-up open before each | 2 × ~70 s | — | — | CPU 1.27 s with access vs 1.15 s without → the sync ≈ 12 ms per open (a single run each, so within noise) | n/a (emulator) | note 5 |
+
+1. batterystats lists the app under "Fg Service" (process state `BFGS`). That is the system's binding, not a foreground
+   service of ours: `AccessibilityServiceConnection` binds every accessibility service with
+   `BIND_FOREGROUND_SERVICE_WHILE_AWAKE`. The manifest declares no foreground service (`check_manifest_policy.py`).
+2. 115 flushes where the 50-event trigger alone would need ~70: the 10 s ticker does not restart after a count
+   flush, so under continuous scrolling a small second flush often follows 1–2 s later (53 of the 114 gaps ≤ 2 s, the
+   rest 7–10 s). Both are SPEC §16 triggers and each write costs ~0 ms; left as is (handoff.md, open points).
+3. The sampler costs the app CPU: `dumpsys dbinfo` runs inside the app's process — 50 dumps in a row took 86 ms of
+   the app's CPU, so the ~150 samples of a run account for ~0.25 s. The figures after "→" subtract that.
+4. Idle, the pipeline's 10 s ticker still runs (it flushes only when something is pending). It wakes a thread,
+   not the phone: no alarm and no wakelock, so it cannot keep a sleeping phone awake — the idle CPU above is that
+   ticker plus the runtime's own housekeeping.
+5. The emulator has a day of usage history with few apps; a real phone's day has far more usage events, so the
+   sync's cost on a phone belongs to V8 as well. It runs only when the app opens, when the service connects with
+   the last sync older than 6 h, and when the day changes — never on a timer.

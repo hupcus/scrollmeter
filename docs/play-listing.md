@@ -137,3 +137,22 @@ internet); a public page is needed — **Honza decides where** (e.g. a page on h
   purchases → expected rating "Everyone / PEGI 3".
 - Target audience: 16+ (Honza's choice; below 13 would bring the Families policy, which the Accessibility API does
   not fit).
+
+## Internal testing — upload checklist (prepared in Phase 8, nothing uploaded)
+
+The build: `tools/build_release.sh` → `app/build/outputs/bundle/release/app-release.aab`, `versionName 0.1.0`,
+`versionCode 1`, minSdk 29 (**Android 10+**, ADR-033 — state it in the listing's requirements), targetSdk 36,
+signed with the upload key (ADR-034). The same commit's APK is the GitHub Release `v0.1.0` for sideloading.
+
+What Honza does in Play Console, in this order:
+1. Create the app (default language cs-CZ or en — open point in `handoff.md`), choose **Play App Signing** with
+   Google-generated app signing key; upload `app-release.aab` to *Internal testing*. The upload key's certificate
+   (SHA-256 `04:6F:8C:D0:…:9C:0E:88`, full value in `README.md`) is registered by that first upload.
+2. App content: privacy policy URL (text above — needs a public URL), Data safety (above), Accessibility API
+   declaration with the video (above), `PACKAGE_USAGE_STATS` needs no form (ADR-021), content rating, target
+   audience 16+ (above), ads: none.
+3. Store listing texts and graphics (icon still the placeholder — open point), then add testers and roll out
+   the internal release.
+
+Before each later upload: raise `versionCode`, re-read this file against the build, run `tools/build_release.sh`
+(it fails on a debuggable APK, a Log call or debug-recording code in the dex).

@@ -120,7 +120,8 @@ class AppGraph(context: Context) {
     fun eraseAndReport(alsoSettings: Boolean) {
         appScope.launch {
             val ok = dataEraser.erase(alsoSettings)
-            Toast.makeText(appContext, if (ok) R.string.delete_done else R.string.delete_failed, Toast.LENGTH_LONG).show()
+            val message = appContext.inAppLanguage().getText(if (ok) R.string.delete_done else R.string.delete_failed)
+            Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
         }
     }
 

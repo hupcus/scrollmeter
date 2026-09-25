@@ -1,3 +1,5 @@
+import javax.inject.Inject
+import org.gradle.api.configuration.BuildFeatures
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -8,19 +10,58 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Release signing comes only from environment variables (pattern from DETECT), so no keystore or
+// password ever lives in the repository. Without SIGNING_KEYSTORE_PATH the release build stays
+// unsigned and still succeeds (CI, local gates). A path that is set but wrong, or a missing
+// password, fails the build: a release silently left unsigned is worse than a loud error.
+// tools/build_release.sh fills the variables from the macOS Keychain.
+val signingKeystore: File? = providers.environmentVariable("SIGNING_KEYSTORE_PATH").orNull
+    ?.takeIf { it.isNotBlank() }
+    ?.let { path ->
+        File(path).also { require(it.isFile) { "SIGNING_KEYSTORE_PATH does not point to a file" } }
+    }
+
+// The configuration cache (on in gradle.properties) stores the values of the environment variables a
+// build reads, in plain text under .gradle/configuration-cache/. A signed build therefore refuses to
+// run with it, before any password is read; tools/build_release.sh passes --no-configuration-cache.
+abstract class GradleFeatures @Inject constructor(val features: BuildFeatures)
+
+if (signingKeystore != null) {
+    require(!objects.newInstance<GradleFeatures>().features.configurationCache.active.get()) {
+        "a signed release build needs --no-configuration-cache (tools/build_release.sh)"
+    }
+}
+
+fun signingEnv(name: String): String =
+    requireNotNull(providers.environmentVariable(name).orNull?.takeIf { it.isNotEmpty() }) {
+        "$name must be set when SIGNING_KEYSTORE_PATH is"
+    }
+
 android {
     namespace = "com.scrollmeter.app"
     compileSdk = 36
 
     defaultConfig {
         applicationId = "com.scrollmeter.app"
-        // scrollDeltaX/Y exist from API 28 (ADR-002).
-        minSdk = 28
+        // scrollDeltaX/Y exist from API 28 (ADR-002), but Android 9 delivers a scroll-only service the
+        // events of the "active" window alone, which it hardly ever updates for such a service (ADR-033).
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (signingKeystore != null) {
+            create("release") {
+                storeFile = signingKeystore
+                storePassword = signingEnv("SIGNING_STORE_PASSWORD")
+                keyAlias = signingEnv("SIGNING_KEY_ALIAS")
+                keyPassword = signingEnv("SIGNING_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -32,6 +73,9 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (signingKeystore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -51,6 +95,15 @@ android {
     androidResources {
         generateLocaleConfig = true
         localeFilters += listOf("cs", "en")
+    }
+
+    // Google Play installs from an app bundle only the language splits of the phone's languages, so a
+    // German phone switched to English for this app would lack the English strings. Both languages go
+    // into every install instead: a few kB (ADR-034).
+    bundle {
+        language {
+            enableSplit = false
+        }
     }
 
     testOptions {

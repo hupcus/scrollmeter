@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-// Fallback palette for API 28–30 (no dynamic color). Final colours are a Phase 4 decision.
+// Fallback palette for API 29–30 (no dynamic color). Final colours are a Phase 4 decision.
 private val Blue = Color(0xFF1E4FD8)
 private val BlueLight = Color(0xFFB4C5FF)
 private val Teal = Color(0xFF00696E)

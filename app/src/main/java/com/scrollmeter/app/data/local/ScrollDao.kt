@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * Insert-or-add (D8): a flush inserts an empty row if missing and then adds its deltas. SQLite's
- * `INSERT … ON CONFLICT DO UPDATE` needs 3.24, and API 28 ships 3.22, so it is two statements in
+ * `INSERT … ON CONFLICT DO UPDATE` needs 3.24, and API 29 (minSdk) ships 3.22, so it is two statements in
  * one transaction. `MIN`/`MAX` with a NULL argument are NULL in SQLite, hence the `COALESCE`.
  */
 @Dao

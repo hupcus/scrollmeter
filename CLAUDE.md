@@ -34,7 +34,7 @@ Metric: **scroll distance** = physical equivalent of content displacement (fling
 | Compose BOM | **2026.06.01** | 2026.08 needs compileSdk 37 + AGP 9.1. |
 | AndroidX | Room 2.8.4 · DataStore 1.1.7 · Navigation Compose 2.9.8 · Lifecycle 2.9.4 · Activity Compose 1.13.0 · core-ktx 1.18.0 · WorkManager 2.10.5 (only if used) · coroutines 1.10.2 · kotlinx-serialization 1.9.0 | |
 | Tests | JUnit 4.13.2 · Robolectric 4.16 · Truth 1.4.5 · androidx.test junit 1.3.0 · Compose ui-test | |
-| SDK | compileSdk 36 · targetSdk 36 · **minSdk 28** | `~/Library/Android/sdk` has platforms 31–36, build-tools 34–36, cmdline-tools 19. |
+| SDK | compileSdk 36 · targetSdk 36 · **minSdk 29** (ADR-033; SPEC says 28) | `~/Library/Android/sdk` has platforms 31–36, build-tools 34–36, cmdline-tools 19. |
 | DI | **none** — manual `AppGraph` on `ScrollMeterApplication` | No Hilt in MVP (ADR-003). |
 
 Bumping a pin is allowed only when the build demands it; record old → new and why in `handoff.md` in the same PR.
@@ -46,6 +46,7 @@ Bumping a pin is allowed only when the build demands it; record old → new and 
 ./gradlew testDebugUnitTest             # JVM unit tests (the measurement engine is pure Kotlin)
 ./gradlew lintDebug                     # Android lint
 ./gradlew installDebug                  # install on the connected phone (applicationId com.scrollmeter.app.debug)
+tools/build_release.sh                  # signed release APK + AAB (keystore + Keychain, ADR-034), checked by tools/check_release_apk.py
 ADB=~/Library/Android/sdk/platform-tools/adb
 $ADB shell settings put secure enabled_accessibility_services com.scrollmeter.app.debug/com.scrollmeter.app.accessibility.ScrollAccessibilityService
 $ADB shell settings put secure accessibility_enabled 1          # POC only — real users go through Settings + disclosure
@@ -73,8 +74,10 @@ physical `xdpi 403.411 / ydpi 401.052`, logical `densityDpi 480` (19 % above the
 exactly why `densityDpi` is never used for distance), 60/90 Hz. Installed for tests: Chrome,
 Instagram, Facebook, Messenger, YouTube, TikTok, X, Play Store, Google Maps, Seznam Mapy.
 **Reddit is not installed** — Honza installs it before the Phase 1 app matrix. Launcher
-`com.android.launcher`, keyboard `com.google.android.inputmethod.latin`. No emulator is installed
-(Phase 8 adds them via `sdkmanager`); no Android Studio — everything runs from the CLI.
+`com.android.launcher`, keyboard `com.google.android.inputmethod.latin`. Emulator AVD `scrollmeter34`
+(`google_apis` arm64, `pixel_6`) for automatic checks; system images 28–36 are installed, create other AVDs with
+`avdmanager create avd -n scrollmeterNN -k "system-images;android-NN;google_apis;arm64-v8a" -d pixel_6` and delete
+them afterwards (disk). No Android Studio — everything runs from the CLI.
 
 ## Hard rules (do not relax without an ADR and Honza's explicit OK)
 
