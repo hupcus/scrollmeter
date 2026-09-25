@@ -14,11 +14,13 @@ import androidx.core.content.ContextCompat
 import com.scrollmeter.app.MainActivity
 import com.scrollmeter.app.R
 import com.scrollmeter.app.format.DistanceFormatter
+import com.scrollmeter.app.inAppLanguage
 import com.scrollmeter.app.settings.Settings
 import java.util.Locale
 
 /**
- * Posts the three notices (spec §26, ADR-030/031) on one channel, "Cíle a rekordy". Tapping one
+ * Posts the three notices (spec §26, ADR-030/031) on one channel, "Cíle a rekordy", in the app's
+ * language (the application context alone would use the phone's — ADR-035). Tapping one
  * opens the app — an explicit, immutable intent without extras. Without POST_NOTIFICATIONS
  * (API 33+) or with the app's notifications off, [canPost] is false and nothing is attempted.
  */
@@ -36,13 +38,14 @@ class AndroidNotificationPoster(private val context: Context) : NotificationPost
 
     override fun post(notice: Notice, settings: Settings) {
         if (!canPost()) return
-        ensureChannel()
-        val locale = Locale.forLanguageTag(context.getString(R.string.number_locale))
+        val strings = context.inAppLanguage()
+        ensureChannel(strings)
+        val locale = Locale.forLanguageTag(strings.getString(R.string.number_locale))
         val distance = DistanceFormatter.format(notice.distanceMm, settings.unitPreference, locale)
         val (title, text) = when (notice.kind) {
-            NotificationKind.GOAL -> context.getString(R.string.notification_goal_title) to context.getString(R.string.notification_goal_text, distance)
-            NotificationKind.RECORD -> context.getString(R.string.notification_record_title) to context.getString(R.string.notification_record_text, distance)
-            NotificationKind.SUMMARY -> context.getString(R.string.notification_summary_title) to context.getString(R.string.notification_summary_text, distance)
+            NotificationKind.GOAL -> strings.getString(R.string.notification_goal_title) to strings.getString(R.string.notification_goal_text, distance)
+            NotificationKind.RECORD -> strings.getString(R.string.notification_record_title) to strings.getString(R.string.notification_record_text, distance)
+            NotificationKind.SUMMARY -> strings.getString(R.string.notification_summary_title) to strings.getString(R.string.notification_summary_text, distance)
         }
         val open = PendingIntent.getActivity(
             context,
@@ -65,9 +68,10 @@ class AndroidNotificationPoster(private val context: Context) : NotificationPost
         }
     }
 
-    private fun ensureChannel() {
-        val channel = NotificationChannel(CHANNEL_ID, context.getString(R.string.notification_channel_name), NotificationManager.IMPORTANCE_DEFAULT)
-            .apply { description = context.getString(R.string.notification_channel_description) }
+    /** Re-created with every post, so the channel's name follows a change of the app's language. */
+    private fun ensureChannel(strings: Context) {
+        val channel = NotificationChannel(CHANNEL_ID, strings.getString(R.string.notification_channel_name), NotificationManager.IMPORTANCE_DEFAULT)
+            .apply { description = strings.getString(R.string.notification_channel_description) }
         context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
 
