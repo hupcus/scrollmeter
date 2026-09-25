@@ -52,12 +52,10 @@ jobs:
       - name: Merged manifest policy
         run: python3 tools/check_manifest_policy.py app/build/intermediates/merged_manifests/*/process*Manifest/AndroidManifest.xml
 
-      # The APK itself: not debuggable, no ScrollMeter class calls android.util.Log, no debug recording.
+      # The APK itself: not debuggable, no code calls android.util.Log, no debug recording.
       - name: Release APK check
         run: |
-          build_tools="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
-          python3 tools/check_release_apk.py --build-tools "$build_tools" \
-            --apk app/build/outputs/apk/release/app-release-unsigned.apk \
+          python3 tools/check_release_apk.py --apk app/build/outputs/apk/release/app-release-unsigned.apk \
             --mapping app/build/outputs/mapping/release/mapping.txt
 
       - name: Python tool tests

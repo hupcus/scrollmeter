@@ -1,3 +1,5 @@
+import javax.inject.Inject
+import org.gradle.api.configuration.BuildFeatures
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -18,6 +20,17 @@ val signingKeystore: File? = providers.environmentVariable("SIGNING_KEYSTORE_PAT
     ?.let { path ->
         File(path).also { require(it.isFile) { "SIGNING_KEYSTORE_PATH does not point to a file" } }
     }
+
+// The configuration cache (on in gradle.properties) stores the values of the environment variables a
+// build reads, in plain text under .gradle/configuration-cache/. A signed build therefore refuses to
+// run with it, before any password is read; tools/build_release.sh passes --no-configuration-cache.
+abstract class GradleFeatures @Inject constructor(val features: BuildFeatures)
+
+if (signingKeystore != null) {
+    require(!objects.newInstance<GradleFeatures>().features.configurationCache.active.get()) {
+        "a signed release build needs --no-configuration-cache (tools/build_release.sh)"
+    }
+}
 
 fun signingEnv(name: String): String =
     requireNotNull(providers.environmentVariable(name).orNull?.takeIf { it.isNotEmpty() }) {

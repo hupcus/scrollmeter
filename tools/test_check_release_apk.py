@@ -85,6 +85,10 @@ class LogCallTest(unittest.TestCase):
             "q5.c.b (in com.scrollmeter.app.calibration.CalibrationRepository$Companion)",
         ])
 
+    def test_a_dump_without_method_code_is_not_a_listing(self):
+        self.assertTrue(tool.is_method_listing(DEXDUMP))
+        self.assertFalse(tool.is_method_listing("Processing 'app.apk'...\nOpened 'app.apk', DEX version '039'\n"))
+
     def test_a_dex_without_log_calls_passes(self):
         without = "\n".join(line for line in DEXDUMP.splitlines() if "Landroid/util/Log;" not in line)
         self.assertEqual(tool.log_calls(without, MAPPING), [])
@@ -106,6 +110,19 @@ class BadgingTest(unittest.TestCase):
         self.assertTrue(tool.is_debuggable(BADGING + "application-debuggable\n"))
 
 
+class BuildToolsTest(unittest.TestCase):
+    def test_the_newest_version_wins_numerically(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = Path(directory)
+            for version in ("9.0.0", "34.0.0", "36.0.0", "35.0.0"):
+                (sdk / "build-tools" / version).mkdir(parents=True)
+            self.assertEqual(tool.newest_build_tools(sdk).name, "36.0.0")
+
+    def test_no_build_tools_gives_a_path_the_tool_run_then_reports(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(tool.newest_build_tools(Path(directory)), Path(directory) / "build-tools")
+
+
 class ForbiddenLiteralTest(unittest.TestCase):
     def _apk(self, directory: str, dex: bytes) -> Path:
         path = Path(directory) / "app.apk"
@@ -117,6 +134,11 @@ class ForbiddenLiteralTest(unittest.TestCase):
     def test_clean_dex_passes(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(tool.forbidden_literals(self._apk(directory, b"scrollmeter.db")), [])
+
+    def test_a_reference_to_the_log_class_is_caught(self):
+        with tempfile.TemporaryDirectory() as directory:
+            apk = self._apk(directory, b"\x12Landroid/util/Log;\x00")
+            self.assertEqual(tool.forbidden_literals(apk), ["classes.dex contains 'Landroid/util/Log;'"])
 
     def test_debug_recording_path_is_caught(self):
         with tempfile.TemporaryDirectory() as directory:
