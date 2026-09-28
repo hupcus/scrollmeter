@@ -92,6 +92,8 @@ Potřebuješ **Android 10 nebo novější**.
 **6.** Aplikace tě provede úvodem. Na obrazovce *Povolit měření scrollování* si přečti, co bude číst a co ne,
 a klepni na **Rozumím a chci pokračovat** → **Otevřít nastavení zpřístupnění**.
 
+<p align="center"><img src="docs/img/onboarding-disclosure.png" width="240" alt="Obrazovka Povolit měření scrollování: co aplikace používá a co nečte"></p>
+
 **7.** V nastavení najdi **ScrollMeter** (bývá v části *Stažené aplikace* nebo *Nainstalované aplikace*)
 a zapni ho. Android ukáže obecné varování, co všechno služby Usnadnění *smějí*. ScrollMeter z toho
 používá jen jedinou věc, viz [oprávnění](#jaká-oprávnění-potřebuje). Potvrď a vrať se do aplikace.
