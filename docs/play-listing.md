@@ -150,7 +150,7 @@ signed with the upload key (ADR-034). The same commit's APK is the GitHub Releas
 What Honza does in Play Console, in this order:
 1. Create the app (default language cs-CZ or en — open point in `handoff.md`), choose **Play App Signing** with
    Google-generated app signing key; upload `app-release.aab` to *Internal testing*. The upload key's certificate
-   (SHA-256 `04:6F:8C:D0:…:9C:0E:88`, full value in `README.md`) is registered by that first upload.
+   (SHA-256 `04:6F:8C:D0:…:9C:0E:88`, full value in `docs/development.md`) is registered by that first upload.
 2. App content: privacy policy URL (text above — needs a public URL), Data safety (above), Accessibility API
    declaration with the video (above), `PACKAGE_USAGE_STATS` needs no form (ADR-021), content rating, target
    audience 16+ (above), ads: none.

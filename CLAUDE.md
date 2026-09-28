@@ -60,6 +60,11 @@ $ADB shell dumpsys activity exit-info com.scrollmeter.app.debug  # why/when the 
 $ADB exec-out screencap -p > "$SCRATCH/shot.png"                 # screenshots: let a subagent look; keep images out of the main context
 ```
 
+**The repo is public (2026-09-28).** `README.md` is the Czech download page for ordinary users (what the app does and
+does not do, installation, permissions, safety); developer detail lives in `docs/development.md`. A user-visible change
+(permission, screen, limitation) updates the README in the same PR. Publish every GitHub Release as **Latest, never
+prerelease** — the README links `releases/latest`, which skips prereleases.
+
 Device gotchas (OnePlus CPH2399, Android 14):
 - `settings put secure …` needs Developer options → **Zakázat sledování oprávnění** (very bottom); it survives a reboot.
 - `uiautomator dump` unbinds every accessibility service while it runs — the home screen then says "not running". Read our own layout with `dumpsys activity top` instead (it also sees Views inside a Compose `AndroidView`).
