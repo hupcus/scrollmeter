@@ -6,9 +6,9 @@
 ## Identita projektu
 
 - Lokální cesta: `/Users/hupcus/Documents/VIBE-CODE/SCROLLMETER`
-- GitHub: [`hupcus/scrollmeter`](https://github.com/hupcus/scrollmeter) (privátní), založen 2026-09-23 v Phase 0
+- GitHub: [`hupcus/scrollmeter`](https://github.com/hupcus/scrollmeter) (**veřejný od 2026-09-28**, GPL-3.0), založen 2026-09-23 v Phase 0
 - Package: `com.scrollmeter.app` (debug: `com.scrollmeter.app.debug`)
-- Cíl (Honza, 2026-09-25): **aplikace pro rodinu**, instalace přes sideload APK; případně volně ke stažení na GitHubu (otevřené rozhodnutí). **Google Play není v plánu.**
+- Cíl (Honza, 2026-09-25): **aplikace pro rodinu**, instalace přes sideload APK; od 2026-09-28 volně ke stažení z GitHub Releases (README = stránka ke stažení). **Google Play není v plánu.**
 
 ## Toolchain (závazný — ověřeno reálným buildem v Phase 0, 2026-09-23)
 
@@ -466,15 +466,23 @@ Každý bod: co udělat, kdo, a co by špatný výsledek změnil. Pořadí = dop
 - [x] Výchozí jazyk: `values/` je čeština (D17) — pro rodinu správně; řešilo se jen kvůli zahraničnímu vydání na Play, které není v plánu (2026-09-25).
 - [x] Zásady ochrany soukromí s veřejnou URL — potřeboval je jen Google Play, který není v plánu (2026-09-25). Text zůstává v `docs/play-listing.md` a stejné informace ukazuje aplikace (Soukromí).
 - [x] Podpisový keystore pro release — Phase 8 (ADR-034): `~/.android-keystores/scrollmeter-upload.jks`, heslo v Klíčence, `tools/build_release.sh`.
-- [ ] **Záloha upload keystoru** — Honza rozhodne kam (návrh: soubor do iCloud Drive › Klíče vedle záložního klíče Supabase, heslo zvlášť do správce hesel). Bez Google Play je klíč **jediná identita aplikace**: jeho ztráta = všichni v rodině musí aplikaci odinstalovat a přijdou o data (CSV export existuje, import ne).
+- [ ] **Záloha upload keystoru** — Honza rozhodne kam (návrh: soubor zvlášť od hesla, heslo do správce hesel). Bez Google Play je klíč **jediná identita aplikace**: jeho ztráta = všichni v rodině musí aplikaci odinstalovat a přijdou o data (CSV export existuje, import ne).
 - [ ] **Ověření vývojáře Androidu (Google, globálně od 2027):** na certifikovaných telefonech půjde neověřená aplikace instalovat jen přes adb nebo „pokročilý postup“ (režim vývojáře, restart, 24 h čekání). Pro rodinu stačí **bezplatný účet „limited distribution“** v Android Developer Console: až 20 autorizovaných zařízení (párování QR kódem / odkazem se souhlasem na telefonu), bez dokladu totožnosti, potřebuje Google účet s dvoufázovým ověřením a platební profil (jméno, adresa); registrovat jde jen balíček, který Android ještě neviděl → `com.scrollmeter.app` zaregistrovat (Honza) před rokem 2027. Pro cizí lidi (veřejné stažení) by platilo plné ověření vývojáře. Zdroje: developer.android.com/developer-verification/guides/limited-distribution, android-developers.googleblog.com (03/2026). V ČR zatím beze změny (2026 jen BR, ID, SG, TH).
-- [ ] **Veřejné stažení z GitHubu** — rozhodnutí Honzy: (a) zveřejnit celé repo (před tím audit historie na citlivé údaje), (b) samostatné veřejné repo jen s releasy (kód zůstane privátní), (c) nic — APK posílat rodině přímo. Veřejné releasy navíc umožní aktualizace přes Obtainium (aplikace sama nemá `INTERNET`, takže se aktualizovat neumí).
+- [x] **Veřejné stažení z GitHubu** — Honza 2026-09-28 zvolil (a) „stejně jako detektor“: celé repo veřejné, GPL-3.0, české README pro uživatele. Původní varianty: (a) zveřejnit celé repo (před tím audit historie na citlivé údaje), (b) samostatné veřejné repo jen s releasy (kód zůstane privátní), (c) nic — APK posílat rodině přímo. Veřejné releasy navíc umožní aktualizace přes Obtainium (aplikace sama nemá `INTERNET`, takže se aktualizovat neumí).
 - [ ] **Android 9 (API 28)** — nepodporovaný od Phase 8 (ADR-033, minSdk 29). Vrátit by ho šlo jen s `typeWindowStateChanged` ve službě = změna tvrdého pravidla → jen s Honzovým souhlasem; doporučení: nechat (podíl Androidu 9 je malý a klesá).
 - [ ] Compose `Column` pomalé tahy podměřuje o 6–11 % (3 události na tah; MAPE přesto < 5 %). Hledat až s Compose lazy (ADR-019), stejný zdroj.
 - [ ] Ticker flushů (10 s) se po flushi po 50 událostech nerestartuje → při souvislém scrollu ~65 % zápisů navíc (115 místo ~70 za 10 min, každý ~0 ms). Zvážit až podle V8.
 - [ ] GitHub `ubuntu-latest` přejde od 2026-10-19 na Ubuntu 26 — po odblokování CI zkontrolovat, že obraz dál nese Android SDK (jinak připnout `ubuntu-24.04`).
 
 ## Log rozhodnutí (nejnovější nahoře)
+
+### 2026-09-28 — veřejné repo a stránka ke stažení (Honza, Opus 5.5)
+- Honza: ScrollMeter instalovatelný přímo z GitHubu „stejně jako detektor“ (`hupcus/detektor-mapy`) → varianta (a): repo veřejné, licence GPL-3.0 jako u detektoru.
+- Před zveřejněním audit celé historie (všechny revize): žádná hesla, tokeny ani klíče; osobní údaje jen e-mail autora commitů a sériové číslo testovacího OnePlusu. Keystore a jeho heslo v gitu nikdy nebyly.
+- `README.md` je česká stránka pro uživatele (co dělá / nedělá, instalace vč. „Omezeného nastavení“, oprávnění, bezpečnost); vývojářský obsah přesunut do `docs/development.md`. Screenshoty v `docs/img/` z emulátoru (release APK, reálně naměřená data).
+- Release `v0.2.0` přepnut z prerelease na Latest, aby fungoval odkaz `releases/latest`. **Každý další release publikovat jako Latest** (ne prerelease), jinak odkaz v README ukáže starou verzi.
+- Pro cizí lidi platí od 2027 plné ověření vývojáře Androidu (ne „limited distribution“) — README na to upozorňuje, rozhodnutí o registraci zůstává otevřené.
+
 
 ### 2026-09-25 — Phase 9 Statistiky + denní limit (Opus 5.5, návrh Fable 5.1)
 - Honza: období s rozpadem po aplikacích, čas na stejném řádku, „není to soutěž“ — cíl → limit se zelenou / oranžovou / červenou. Detail ADR-036.
